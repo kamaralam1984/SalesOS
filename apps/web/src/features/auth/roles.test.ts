@@ -12,9 +12,9 @@ describe('landingPathFor', () => {
   it('picks the highest-privilege role when several are held', () => {
     expect(landingPathFor(['MARKETING', 'SALES_MANAGER', 'ADMIN'])).toBe('/dashboard/manager');
   });
-  it('sends roles without a dashboard to the first page their permissions allow', () => {
+  it('keeps roles without a dashboard on the workspace home at /dashboard', () => {
     const path = landingPathFor(['FINANCE'], [{ key: 'deals:view', scope: 'org' }]);
-    expect(path).toBe('/revenue');
+    expect(path).toBe('/dashboard');
   });
   it('never lands a secondary role on another role dashboard', () => {
     expect(landingPathFor(['HR'], [])).not.toMatch(/^\/dashboard\//);

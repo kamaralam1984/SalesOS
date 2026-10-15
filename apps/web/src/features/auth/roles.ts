@@ -1,5 +1,4 @@
 import type { EffectivePermission, RoleKey } from '@/lib/api/types';
-import { allNavItems } from '@/nav/registry';
 
 /** Landing path per primary role. Highest-privilege primary role wins when a user holds several. */
 const LANDING: Array<[RoleKey, string]> = [
@@ -11,20 +10,14 @@ const LANDING: Array<[RoleKey, string]> = [
 ];
 
 /**
- * Roles without a dashboard of their own (FINANCE, HR, MARKETING, ...) land on the first sidebar page they may open.
- * Without `permissions` (legacy callers) the old fallback is kept.
+ * Roles without a dashboard of their own (FINANCE, HR, MARKETING, ...) stay on `/dashboard`, which shows a workspace
+ * home with shortcuts to the pages their role may open (no sales KPIs). Without `permissions` (legacy callers) the old
+ * fallback is kept.
  */
 export function landingPathFor(roles: readonly RoleKey[], permissions?: readonly EffectivePermission[]): string {
   for (const [role, path] of LANDING) if (roles.includes(role)) return path;
   if (!permissions) return '/dashboard/executive';
-  const granted = new Set(permissions.map((p) => p.key));
-  for (const item of allNavItems()) {
-    if (item.href === '/dashboard') continue;
-    const need = item.permission;
-    if (need === null) return item.href;
-    if ((typeof need === 'string' ? [need] : need).some((k) => granted.has(k))) return item.href;
-  }
-  return '/forbidden';
+  return '/dashboard';
 }
 
 /** Only same-origin relative paths are accepted as post-login redirects (prevents open redirects). */

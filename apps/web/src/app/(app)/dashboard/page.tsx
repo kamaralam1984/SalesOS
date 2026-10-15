@@ -1,5 +1,5 @@
-import { RoleRedirect } from '@/features/auth/role-redirect';
+import { DashboardEntry } from '@/features/dashboard/dashboard-entry';
 
 export default function DashboardIndex() {
-  return <RoleRedirect />;
+  return <DashboardEntry />;
 }

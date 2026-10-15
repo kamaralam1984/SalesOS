@@ -1,0 +1,9 @@
+{
+  "workspaceHome": {
+    "eyebrow": "Workspace",
+    "title": "Welcome, {name}",
+    "description": "Your role does not have a sales dashboard. Open any area below; you only see what your role allows.",
+    "noneTitle": "No areas available yet",
+    "noneBody": "Your account has no pages assigned. Ask your administrator to review your role."
+  }
+}

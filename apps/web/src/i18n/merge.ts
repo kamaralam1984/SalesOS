@@ -1,5 +1,5 @@
 /** Message areas that live in their own files: messages/<locale>.<area>.json (merged over <locale>.json). */
-export const MESSAGE_AREAS = ['work-nav', 'work-attendance', 'work-leave', 'work-goals', 'work-tasks', 'work-payroll', 'work-people', 'work-hr', 'work-reports'] as const;
+export const MESSAGE_AREAS = ['work-nav', 'work-attendance', 'work-leave', 'work-goals', 'work-tasks', 'work-payroll', 'work-people', 'work-hr', 'work-reports', 'workspace-home'] as const;
 
 type Tree = { [k: string]: string | Tree };
 const isTree = (v: unknown): v is Tree => !!v && typeof v === 'object' && !Array.isArray(v);
