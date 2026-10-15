@@ -1,0 +1,29 @@
+{
+  "mobileGoal": {
+    "title": "45-दिन का लक्ष्य",
+    "percentAria": "{pct} प्रतिशत",
+    "dayOf": "दिन {day} / {total}",
+    "daysToGo": "{count, plural, =0 {आख़िरी दिन} one {# दिन शेष} other {# दिन शेष}}",
+    "empty": "अभी कोई सक्रिय लक्ष्य नहीं है।",
+    "viewGoals": "लक्ष्य खोलें",
+    "error": "आपका लक्ष्य लोड नहीं हो सका।",
+    "retry": "फिर कोशिश करें"
+  },
+  "mobileFollowUps": {
+    "title": "प्राथमिक फ़ॉलो-अप",
+    "viewAll": "सभी देखें",
+    "overdue": "समय पार",
+    "today": "आज {time}",
+    "due": "देय {when}",
+    "empty": "कोई फ़ॉलो-अप बाकी नहीं। बढ़िया।",
+    "error": "फ़ॉलो-अप लोड नहीं हो सके।",
+    "retry": "फिर कोशिश करें",
+    "call": "{name} को कॉल करें",
+    "noPhone": "इस लीड का फ़ोन नंबर नहीं है",
+    "prompt": "{name} के साथ कॉल दर्ज करें।"
+  },
+  "mobileActions": {
+    "logCall": "कॉल दर्ज करें",
+    "addFollowUp": "फ़ॉलो-अप जोड़ें"
+  }
+}

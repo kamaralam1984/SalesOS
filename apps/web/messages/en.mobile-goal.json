@@ -1,0 +1,29 @@
+{
+  "mobileGoal": {
+    "title": "45-Day Goal",
+    "percentAria": "{pct} percent",
+    "dayOf": "Day {day} of {total}",
+    "daysToGo": "{count, plural, =0 {Last day} one {# day to go} other {# days to go}}",
+    "empty": "No active goal right now.",
+    "viewGoals": "Open goals",
+    "error": "Could not load your goal.",
+    "retry": "Try again"
+  },
+  "mobileFollowUps": {
+    "title": "Priority Follow-ups",
+    "viewAll": "View All",
+    "overdue": "Overdue",
+    "today": "Today {time}",
+    "due": "Due {when}",
+    "empty": "No follow-ups due. Nice.",
+    "error": "Could not load follow-ups.",
+    "retry": "Try again",
+    "call": "Call {name}",
+    "noPhone": "No phone number for this lead",
+    "prompt": "Log the call with {name}."
+  },
+  "mobileActions": {
+    "logCall": "Log a Call",
+    "addFollowUp": "Add Follow-up"
+  }
+}

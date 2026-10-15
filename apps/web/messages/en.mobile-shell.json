@@ -1,0 +1,25 @@
+{
+  "mobileShell": {
+    "appName": "CoachEasily Sales CRM",
+    "navLabel": "Main navigation",
+    "callsTitle": "Calls",
+    "nav": {
+      "home": "Home",
+      "leads": "Leads",
+      "calls": "Calls",
+      "goals": "Goals",
+      "profile": "Profile"
+    },
+    "profile": {
+      "title": "Profile",
+      "roles": "Your roles",
+      "language": "Language",
+      "openStandard": "Open the standard app",
+      "signOut": "Sign out"
+    },
+    "denied": {
+      "title": "Sales home is not available for your role",
+      "description": "You do not have access to leads or follow-ups. Open the standard app to see what your role allows."
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "mobileHead": {
+    "brand": "CoachEasily",
+    "product": "सेल्स CRM",
+    "bell": "सूचनाएँ",
+    "bellWithCount": "सूचनाएँ, {count} अपठित",
+    "greetingDefault": "स्वागत है, <name>{who}</name>",
+    "greeting": {
+      "morning": "सुप्रभात, <name>{who}</name>",
+      "afternoon": "नमस्कार, <name>{who}</name>",
+      "evening": "शुभ संध्या, <name>{who}</name>"
+    },
+    "subline": "आइए आज का दिन सार्थक बनाएँ।"
+  },
+  "mobileStats": {
+    "title": "आज एक नज़र में",
+    "leads": "मेरे लीड",
+    "calls": "आज के कॉल",
+    "followUps": "फ़ॉलो-अप",
+    "error": "कुछ आँकड़े लोड नहीं हो सके।",
+    "retry": "फिर कोशिश करें"
+  }
+}
