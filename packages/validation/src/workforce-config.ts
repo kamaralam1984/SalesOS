@@ -33,6 +33,16 @@ export const workforceConfigSchema = z.object({
     selfCheckIn: z.boolean(),
     /** check-in after this local time is LATE */
     lateAfter: hhmm,
+    /** self check-in allowed up to and including this local time (default '11:00'); later records are made by HR/manager corrections */
+    checkInCutoff: hhmm,
+    /** ONE org-wide meeting link (https only, null = none); the server only returns it to employees marked PRESENT/LATE/WFH/HALF_DAY today */
+    meetingUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .url()
+      .refine((u) => u.toLowerCase().startsWith('https://'), 'Meeting link must start with https://')
+      .nullable(),
     fullDayMinutes: z.number().int().min(60).max(1440),
     /** worked minutes at check-out: >= fullDayMinutes = PRESENT, >= halfDayMinutes = HALF_DAY, less = HALF_DAY flagged for review (never silently ABSENT) */
     halfDayMinutes: z.number().int().min(30).max(720),
@@ -107,7 +117,7 @@ export type WorkforceConfig = z.infer<typeof workforceConfigSchema>;
 export const DEFAULT_WORKFORCE_CONFIG: WorkforceConfig = {
   timezone: 'Asia/Kolkata',
   weeklyOffDays: [7],
-  attendance: { selfCheckIn: true, lateAfter: '10:15', fullDayMinutes: 480, halfDayMinutes: 240, autoMarkAbsent: true, managerCorrectionWindowDays: 7 },
+  attendance: { selfCheckIn: true, lateAfter: '10:15', checkInCutoff: '11:00', meetingUrl: null, fullDayMinutes: 480, halfDayMinutes: 240, autoMarkAbsent: true, managerCorrectionWindowDays: 7 },
   leave: {
     types: [
       { key: 'CASUAL', name: 'Casual leave', isPaid: true, needsBalance: true, maxConsecutiveDays: null, active: true },

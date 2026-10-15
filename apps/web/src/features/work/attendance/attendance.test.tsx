@@ -92,6 +92,55 @@ describe('AttendancePage', () => {
     expect(await screen.findByText(/short day: it was marked as a half day/i)).toBeInTheDocument();
   });
 
+  it('shows the quiet cutoff line while check-in is open', async () => {
+    routes({ today: today({ policy: { lateAfter: '10:15', fullDayMinutes: 480, selfCheckIn: true, checkInCutoff: '11:00' } }) });
+    renderAreaA(<AttendancePage />);
+    expect(await screen.findByText(/check-in closes at 11:00 am ist/i)).toBeInTheDocument();
+  });
+
+  it('shows a calm closed state instead of the check-in buttons after the cutoff', async () => {
+    routes({ today: today({ can: { checkIn: false, checkOut: false }, checkInClosed: true, policy: { lateAfter: '10:15', fullDayMinutes: 480, selfCheckIn: true, checkInCutoff: '11:00' } }) });
+    renderAreaA(<AttendancePage />);
+    expect(await screen.findByText(/check-in closed at 11:00 am ist\. ask hr or your manager/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /check in/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /join zoom meeting/i })).not.toBeInTheDocument();
+  });
+
+  it('a late attempt refused with CHECK_IN_CLOSED shows the closed state', async () => {
+    h.post.mockRejectedValue(new ApiError({ status: 409, code: 'CHECK_IN_CLOSED', message: 'Check-in is closed' }));
+    routes({ today: today({ policy: { lateAfter: '10:15', fullDayMinutes: 480, selfCheckIn: true, checkInCutoff: '11:00' } }) });
+    renderAreaA(<AttendancePage />);
+    await userEvent.click(await screen.findByRole('button', { name: /check in \(office\)/i }));
+    expect(await screen.findByText(/check-in closed at 11:00 am ist/i)).toBeInTheDocument();
+    expect(screen.queryByText('Checked in')).not.toBeInTheDocument();
+  });
+
+  it('no Zoom button before the user is marked present (meeting null or absent)', async () => {
+    routes({ today: today({ meeting: null }) });
+    renderAreaA(<AttendancePage />);
+    await screen.findByRole('button', { name: /check in \(office\)/i });
+    expect(screen.queryByRole('link', { name: /join zoom meeting/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /join zoom meeting/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the Zoom link once marked present, opening safely in a new tab', async () => {
+    routes({ today: today({ record: rec() as never, can: { checkIn: false, checkOut: true }, meeting: { url: 'https://zoom.us/j/123456' } }) });
+    renderAreaA(<AttendancePage />);
+    const link = await screen.findByRole('link', { name: /join zoom meeting/i });
+    expect(link).toHaveAttribute('href', 'https://zoom.us/j/123456');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noreferrer'));
+    expect(screen.getByText(/opens zoom\.us in a new tab/i)).toBeInTheDocument();
+  });
+
+  it('never renders a non-https meeting link', async () => {
+    routes({ today: today({ record: rec() as never, can: { checkIn: false, checkOut: true }, meeting: { url: 'javascript:alert(1)' } }) });
+    renderAreaA(<AttendancePage />);
+    await screen.findByText(/checked in at/i);
+    expect(screen.queryByRole('link', { name: /join zoom meeting/i })).not.toBeInTheDocument();
+  });
+
   it('weekly off, holiday and disabled self check-in are explained, with no check-in button', async () => {
     routes({ today: today({ dayKind: 'HOLIDAY', holiday: { name: 'Diwali', kind: 'COMPANY' }, can: { checkIn: false, checkOut: false }, policy: { lateAfter: '10:15', fullDayMinutes: 480, selfCheckIn: false } }) });
     renderAreaA(<AttendancePage />);

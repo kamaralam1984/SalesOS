@@ -17,14 +17,14 @@ export function PolicyPage() {
   );
 }
 
-type Kind = 'bool' | 'int' | 'num' | 'numnull' | 'text' | 'time' | 'numlist' | 'textlist' | 'select';
+type Kind = 'bool' | 'int' | 'num' | 'numnull' | 'text' | 'time' | 'numlist' | 'textlist' | 'select' | 'url';
 interface Field { path: string[]; kind: Kind; options?: string[] }
 const f = (path: string, kind: Kind, options?: string[]): Field => ({ path: path.split('.'), kind, options });
 
 /** Sections of the policy and their scalar fields. Labels: workHr.policy.fields.<path joined by '.'>. */
 export const POLICY_SECTIONS: Array<{ key: string; fields: Field[] }> = [
   { key: 'general', fields: [f('timezone', 'text')] },
-  { key: 'attendance', fields: [f('attendance.selfCheckIn', 'bool'), f('attendance.lateAfter', 'time'), f('attendance.fullDayMinutes', 'int'), f('attendance.halfDayMinutes', 'int'), f('attendance.autoMarkAbsent', 'bool'), f('attendance.managerCorrectionWindowDays', 'int')] },
+  { key: 'attendance', fields: [f('attendance.selfCheckIn', 'bool'), f('attendance.lateAfter', 'time'), f('attendance.checkInCutoff', 'time'), f('attendance.meetingUrl', 'url'), f('attendance.fullDayMinutes', 'int'), f('attendance.halfDayMinutes', 'int'), f('attendance.autoMarkAbsent', 'bool'), f('attendance.managerCorrectionWindowDays', 'int')] },
   { key: 'leave', fields: [f('leave.approvalChain', 'select', ['MANAGER,HR', 'MANAGER', 'HR']), f('leave.balanceExceeded', 'select', ['BLOCK', 'UNPAID_WITH_CONFIRMATION']), f('leave.backdateDays', 'int'), f('leave.allowHalfDay', 'bool')] },
   { key: 'earnedLeave', fields: [f('earnedLeave.enabled', 'bool'), f('earnedLeave.requiredEligibleDays', 'int'), f('earnedLeave.creditDays', 'num'), f('earnedLeave.countFromJoiningDate', 'bool'), f('earnedLeave.maxBalance', 'numnull'), f('earnedLeave.carryForwardEnabled', 'bool'), f('earnedLeave.carryForwardMax', 'numnull')] },
   { key: 'holidays', fields: [f('holidays.locations', 'textlist'), f('holidays.suggestFixedNational', 'bool'), f('holidays.optionalCountAsOff', 'bool')] },
@@ -57,6 +57,12 @@ export function parseField(kind: Kind, raw: string): unknown {
     return parts.every((x) => /^\d+$/.test(x)) ? parts.map(Number) : undefined;
   }
   if (kind === 'textlist') return s === '' ? [] : s.split(',').map((x) => x.trim()).filter(Boolean);
+  if (kind === 'time') return /^([01]\d|2[0-3]):[0-5]\d$/.test(s) ? s : undefined;
+  if (kind === 'url') {
+    if (s === '') return null;
+    if (s.length > 500) return undefined;
+    try { return new URL(s).protocol === 'https:' ? s : undefined; } catch { return undefined; }
+  }
   return s;
 }
 
@@ -143,10 +149,10 @@ function Editor({ settings }: { settings: NonNullable<ReturnType<typeof useWorkf
                   </FormField>
                 );
               }
-              const hint = fld.kind === 'numlist' ? t('policy.listHint') : fld.kind === 'textlist' ? t('policy.listHint') : fld.kind === 'numnull' ? t('policy.nullHint') : undefined;
+              const hint = fld.kind === 'numlist' ? t('policy.listHint') : fld.kind === 'textlist' ? t('policy.listHint') : fld.kind === 'numnull' ? t('policy.nullHint') : k === 'attendance.checkInCutoff' || k === 'attendance.meetingUrl' ? t(`policy.hints.${k}` as never) : undefined;
               return (
                 <FormField key={k} label={label} hint={hint} error={invalid.includes(k) ? t('policy.invalidValue') : undefined}>
-                  <Input disabled={!canEdit} inputMode={fld.kind === 'text' || fld.kind === 'textlist' ? 'text' : 'decimal'} value={text[k] ?? ''} onChange={(e) => setText((x) => ({ ...x, [k]: e.target.value }))} />
+                  <Input disabled={!canEdit} inputMode={fld.kind === 'url' ? 'url' : fld.kind === 'text' || fld.kind === 'textlist' || fld.kind === 'time' ? 'text' : 'decimal'} placeholder={k === 'attendance.meetingUrl' ? t('policy.meetingUrlPlaceholder') : undefined} value={text[k] ?? ''} onChange={(e) => setText((x) => ({ ...x, [k]: e.target.value }))} />
                 </FormField>
               );
             })}

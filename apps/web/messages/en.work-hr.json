@@ -205,6 +205,8 @@
         "attendance": {
           "selfCheckIn": "Employees can check in themselves",
           "lateAfter": "Late after (HH:MM)",
+          "checkInCutoff": "Self check-in closes at (HH:MM)",
+          "meetingUrl": "Zoom meeting link",
           "fullDayMinutes": "Full day (minutes)",
           "halfDayMinutes": "Half day (minutes)",
           "autoMarkAbsent": "Mark absent automatically at day end",
@@ -267,6 +269,13 @@
       "listHint": "Numbers or names separated by commas",
       "nullHint": "Leave empty for no limit",
       "invalidValue": "Enter a valid value",
+      "hints": {
+        "attendance": {
+          "checkInCutoff": "After this time employees cannot check in themselves. HR or a manager can still record attendance.",
+          "meetingUrl": "Employees see the Join button only after they are marked present. Leave empty to hide it."
+        }
+      },
+      "meetingUrlPlaceholder": "https://zoom.us/j/...",
       "leaveTypes": "Leave types",
       "typeName": "Name of {key}",
       "typePaid": "Paid",

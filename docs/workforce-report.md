@@ -155,3 +155,13 @@ Core: `resolveWorkConfig` was added to `workforce-core/src/attendance.ts` (the w
 **Known limits**: (1) traceability rows for workforce are still absent from `docs/requirements-traceability.md` (lead); (2) the web has no E2E (Playwright) for these journeys; (3) leave cancellation after the first day is not supported (shorten via HR balance adjustment); (4) the team tab of `/work/attendance` and `/work/hr/balances` list people from `/people/team-members` (the same source as other People screens).
 
 Area A regression run (API, own DB): `test/workforce` + `deny-by-default` + `catalogue-matrix` + `repo-conventions` + `test/security` = 372 tests, 369 passed, 3 failed. The 3 failures are in foundation files, not Area A code: `repo-conventions` (workforce tables lack a real organization_id FK, schema is the lead's) and two `security/injection.spec.ts` checks that flag `common/prisma/workforce-guards.ts:22-23` (`$executeRawUnsafe` outside the allow-list) and the `own({...})` helper calls in `common/authz/permissions/workforce.ts` (the test's regex mistakes them for the `own` SQL helper).
+
+## Attendance cutoff + meeting link (2026-10-15)
+
+Status: IMPLEMENTED (backend), default rules "awaiting owner approval" (DEC-048a); tests written, not yet run by the author of this change.
+
+- `attendance.checkInCutoff` (hh:mm, default `11:00`, business timezone): self check-in is allowed up to and including this time. Later `POST /workforce/attendance/check-in` returns 409 `CHECK_IN_CLOSED`. HR/manager corrections still work.
+- `attendance.meetingUrl` (default `null`): one org-wide `https://` URL (trimmed, max 500 chars). Changed via `PATCH /workforce/settings` (permission `workforce:settings:manage`); invalid values are 400.
+- `GET /workforce/attendance/today` adds `checkInClosed` (cutoff passed, no record today, working day, self check-in enabled), `meeting: { url } | null` (only when today's record is PRESENT/LATE/WFH/HALF_DAY) and `policy.checkInCutoff`; `can.checkIn` is false after the cutoff. No other endpoint returns the URL.
+- Core: `isCheckInOpen`, `MEETING_STATUSES`, `canSeeMeeting` in `packages/workforce-core/src/attendance.ts` (dist must be rebuilt).
+- Tests: `apps/api/test/workforce/a-attendance-leave.spec.ts` now pins the cutoff to 23:59 in `setConfig` so it no longer depends on the time of day, plus a new "check-in cutoff and meeting link" suite.

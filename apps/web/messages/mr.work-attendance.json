@@ -19,7 +19,12 @@
       "checkInWfh": "चेक-इन (घरून काम)",
       "checkOut": "चेक-आउट",
       "checkedInToast": "चेक-इन झाले",
-      "checkedOutToast": "चेक-आउट झाले"
+      "checkedOutToast": "चेक-आउट झाले",
+      "checkInCloses": "चेक-इन {time} IST वाजता बंद होते",
+      "checkInClosed": "चेक-इन {time} IST वाजता बंद झाले. तुमची उपस्थिती नोंदवण्यासाठी HR किंवा तुमच्या मॅनेजरला सांगा.",
+      "checkInClosedTitle": "आजसाठी चेक-इन बंद आहे",
+      "joinMeeting": "Zoom मीटिंगमध्ये सामील व्हा",
+      "meetingHost": "{host} नवीन टॅबमध्ये उघडेल"
     },
     "month": {
       "previous": "मागील महिना",

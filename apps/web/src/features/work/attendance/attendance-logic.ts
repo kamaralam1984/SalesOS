@@ -51,3 +51,19 @@ export function isoToIstLocal(iso?: string | null): string {
 export function addDays(day: string, n: number): string {
   return new Date(new Date(`${day}T00:00:00Z`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
 }
+
+/** ISO instant of an HH:MM wall time on a YYYY-MM-DD day in Asia/Kolkata (UTC+05:30, no DST). */
+export function istTimeToIso(day: string, hhmm: string): string | null {
+  const d = new Date(`${day}T${hhmm}:00+05:30`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** Only https links are rendered; returns the href and host to show, or null. */
+export function safeMeetingLink(url: string | null | undefined): { href: string; host: string } | null {
+  if (!url || !url.startsWith('https://')) return null;
+  try {
+    return { href: url, host: new URL(url).host };
+  } catch {
+    return null;
+  }
+}

@@ -19,7 +19,12 @@
       "checkInWfh": "Check in (work from home)",
       "checkOut": "Check out",
       "checkedInToast": "Checked in",
-      "checkedOutToast": "Checked out"
+      "checkedOutToast": "Checked out",
+      "checkInCloses": "Check-in closes at {time} IST",
+      "checkInClosed": "Check-in closed at {time} IST. Ask HR or your manager to record your attendance.",
+      "checkInClosedTitle": "Check-in is closed for today",
+      "joinMeeting": "Join Zoom meeting",
+      "meetingHost": "Opens {host} in a new tab"
     },
     "month": {
       "previous": "Previous month",

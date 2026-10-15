@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, LogIn, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, LogIn, LogOut, Video } from 'lucide-react';
 import { Alert, Badge, Button, FormField, Input, PageHeader, Pagination, Panel, Select, Stat, Tabs, TabsContent, TabsList, TabsTrigger, useToast } from '@salesos/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/require-permission';
@@ -11,7 +11,8 @@ import {
   useAttendanceCorrections, useAttendanceMonth, useAttendanceToday, useCheckIn, useCheckOut, useTeamAttendanceSummary,
   type AttendanceDay, type AttendanceStatus,
 } from '@/lib/api/hooks/work-attendance';
-import { currentMonth, emptyDayReason, formatMinutes, shiftMonth, statusTone, today } from './attendance-logic';
+import { ApiError } from '@/lib/api/client';
+import { currentMonth, emptyDayReason, formatMinutes, istTimeToIso, safeMeetingLink, shiftMonth, statusTone, today } from './attendance-logic';
 import { CorrectAttendanceDialog } from './correct-dialog';
 import { useWhen } from './format';
 
@@ -61,6 +62,11 @@ function TodayCard() {
         {q.data && (() => {
           const d = q.data;
           const rec = d.record;
+          const cutoff = d.policy.checkInCutoff;
+          const cutoffTime = cutoff ? w.time(istTimeToIso(d.date, cutoff)) : null;
+          const lateAttempt = checkIn.error instanceof ApiError && checkIn.error.code === 'CHECK_IN_CLOSED';
+          const closed = Boolean(d.checkInClosed) || lateAttempt;
+          const meeting = safeMeetingLink(d.meeting?.url);
           return (
             <div className="space-y-4">
               {d.dayKind === 'HOLIDAY' && <Alert tone="info">{t('today.holiday', { name: d.holiday?.name ?? '' })}</Alert>}
@@ -78,8 +84,32 @@ function TodayCard() {
                 d.dayKind === 'WORKING' && <p className="text-sm text-muted">{t('today.notCheckedIn', { time: d.policy.lateAfter })}</p>
               )}
               {needsReview && <Alert tone="warning">{t('today.needsReview')}</Alert>}
+              {!closed && d.can.checkIn && cutoffTime && <p className="text-sm text-muted">{t('today.checkInCloses', { time: cutoffTime })}</p>}
+              {closed && !rec && (
+                <div role="status" className="flex items-start gap-3 rounded-lg border border-gold-300 bg-gold-50 p-3.5 text-sm text-ink">
+                  <Clock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-gold-700" />
+                  <div>
+                    <p className="font-medium">{t('today.checkInClosedTitle')}</p>
+                    <p className="mt-0.5">{t('today.checkInClosed', { time: cutoffTime ?? '—' })}</p>
+                  </div>
+                </div>
+              )}
+              {meeting && (
+                <div className="enter-up flex flex-wrap items-center gap-3">
+                  <a
+                    href={meeting.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="sheen glow-green hover-lift inline-flex min-h-11 items-center gap-2 rounded-md border border-green-700 bg-(image:--green-gradient) px-5 py-2.5 text-sm font-semibold text-white shadow-green hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                  >
+                    <Video aria-hidden="true" className="size-4" />
+                    {t('today.joinMeeting')}
+                  </a>
+                  <span className="text-xs text-muted">{t('today.meetingHost', { host: meeting.host })}</span>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
-                {d.can.checkIn && (
+                {d.can.checkIn && !closed && (
                   <>
                     <Button
                       leadingIcon={<LogIn aria-hidden="true" />}
@@ -104,7 +134,7 @@ function TodayCard() {
                   </Button>
                 )}
               </div>
-              <MutationAlert error={checkIn.error ?? checkOut.error} />
+              <MutationAlert error={lateAttempt ? checkOut.error : (checkIn.error ?? checkOut.error)} />
             </div>
           );
         })()}

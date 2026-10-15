@@ -205,6 +205,8 @@
         "attendance": {
           "selfCheckIn": "कर्मचारी स्वयं चेक-इन कर सकते हैं",
           "lateAfter": "इसके बाद देर (HH:MM)",
+          "checkInCutoff": "सेल्फ चेक-इन इस समय बंद (HH:MM)",
+          "meetingUrl": "Zoom मीटिंग लिंक",
           "fullDayMinutes": "पूरा दिन (मिनट)",
           "halfDayMinutes": "आधा दिन (मिनट)",
           "autoMarkAbsent": "दिन के अंत में स्वतः अनुपस्थित दर्ज करें",
@@ -267,6 +269,13 @@
       "listHint": "अल्पविराम से अलग संख्याएँ या नाम",
       "nullHint": "सीमा नहीं के लिए खाली छोड़ें",
       "invalidValue": "मान्य मान दर्ज करें",
+      "hints": {
+        "attendance": {
+          "checkInCutoff": "इस समय के बाद कर्मचारी खुद चेक-इन नहीं कर सकते। HR या मैनेजर फिर भी उपस्थिति दर्ज कर सकते हैं।",
+          "meetingUrl": "कर्मचारियों को Join बटन तभी दिखता है जब उन्हें उपस्थित चिह्नित किया गया हो। छिपाने के लिए खाली छोड़ें।"
+        }
+      },
+      "meetingUrlPlaceholder": "https://zoom.us/j/...",
       "leaveTypes": "छुट्टी के प्रकार",
       "typeName": "{key} का नाम",
       "typePaid": "वैतनिक",

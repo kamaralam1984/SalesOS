@@ -14,6 +14,15 @@ export function classifyCheckIn(config: Pick<WorkforceConfig, 'timezone' | 'atte
   return localMinutes(at, config.timezone) > hhmmToMinutes(config.attendance.lateAfter) ? 'LATE' : 'PRESENT';
 }
 
+/** Self check-in is open up to and including `attendance.checkInCutoff` (local time). */
+export function isCheckInOpen(config: Pick<WorkforceConfig, 'timezone' | 'attendance'>, at: Date): boolean {
+  return localMinutes(at, config.timezone) <= hhmmToMinutes(config.attendance.checkInCutoff);
+}
+
+/** Statuses that count as "marked present" for showing the meeting link. */
+export const MEETING_STATUSES: readonly AttendanceStatusKey[] = ['PRESENT', 'LATE', 'WFH', 'HALF_DAY'];
+export const canSeeMeeting = (status: AttendanceStatusKey): boolean => MEETING_STATUSES.includes(status);
+
 export interface CheckOutResult {
   workMinutes: number;
   status: AttendanceStatusKey;

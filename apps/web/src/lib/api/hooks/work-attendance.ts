@@ -13,7 +13,11 @@ export interface AttendanceRecord {
 }
 export interface AttendanceToday {
   date: string; timezone: string; dayKind: DayKind; holiday: { name: string; kind: string } | null; record: AttendanceRecord | null;
-  can: { checkIn: boolean; checkOut: boolean }; policy: { lateAfter: string; fullDayMinutes: number; selfCheckIn: boolean };
+  can: { checkIn: boolean; checkOut: boolean }; policy: { lateAfter: string; fullDayMinutes: number; selfCheckIn: boolean; checkInCutoff?: string };
+  /** Cutoff passed and no record today. */
+  checkInClosed?: boolean;
+  /** Non-null only when the user is marked present today and HR configured a link. */
+  meeting?: { url: string } | null;
 }
 export interface AttendanceDay {
   date: string; dayKind: DayKind; holiday: string | null; record: AttendanceRecord | null; leave: { typeKey: string; status: string; halfDay: string } | null;

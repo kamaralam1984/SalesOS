@@ -3,7 +3,7 @@ import { Prisma, type AttendanceRecord } from '@prisma/client';
 import { PLATFORM_EVENTS, WORKFORCE_EVENTS } from '@salesos/shared-types';
 import type { attendanceCorrectionSchema, attendanceMonthQuerySchema, checkInSchema, correctionsQuerySchema, teamSummaryQuerySchema } from '@salesos/validation';
 import {
-  addDays, classifyCheckIn, classifyCheckOut, eachDay, localDay, minutesBetween, monthEnd, monthOf, monthStart, summarise,
+  addDays, canSeeMeeting, classifyCheckIn, classifyCheckOut, eachDay, isCheckInOpen, localDay, minutesBetween, monthEnd, monthOf, monthStart, summarise,
   type AttendanceSummary,
 } from '@salesos/workforce-core';
 import type { z } from 'zod';
@@ -46,6 +46,9 @@ export class AttendanceService {
     const { calendar } = await this.cfg.getCalendar(user.organizationId, today, today);
     const kind = calendar.kindOf(today);
     if (kind !== 'WORKING') throw new AppError('NON_WORKING_DAY', kind === 'HOLIDAY' ? 'Today is a holiday' : 'Today is not a working day. HR can record attendance if you worked.', 409);
+    if (!isCheckInOpen(config, now)) {
+      throw new AppError('CHECK_IN_CLOSED', `Self check-in closed at ${config.attendance.checkInCutoff}. Ask HR or your manager to record your attendance.`, 409);
+    }
     const status = classifyCheckIn(config, now, body.mode);
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -99,11 +102,17 @@ export class AttendanceService {
     const open = rec && rec.checkInAt && !rec.checkOutAt ? rec : null;
     const holiday = calendar.holidayOn(today);
     const kind = calendar.kindOf(today);
+    const cutoffPassed = !isCheckInOpen(config, now);
+    const meetingUrl = config.attendance.meetingUrl;
+    // The meeting link is returned only here, and only when today's own record shows the person as present.
+    const meeting = meetingUrl && todays && canSeeMeeting(todays.status) ? { url: meetingUrl } : null;
     return {
       date: today, timezone: config.timezone, dayKind: kind, holiday: holiday ? { name: holiday.name, kind: holiday.kind } : null,
       record: todays ? recordView(todays) : open ? recordView(open) : null,
-      can: { checkIn: config.attendance.selfCheckIn && kind === 'WORKING' && !todays, checkOut: !!open },
-      policy: { lateAfter: config.attendance.lateAfter, fullDayMinutes: config.attendance.fullDayMinutes, selfCheckIn: config.attendance.selfCheckIn },
+      can: { checkIn: config.attendance.selfCheckIn && kind === 'WORKING' && !todays && !cutoffPassed, checkOut: !!open },
+      checkInClosed: cutoffPassed && !todays && kind === 'WORKING' && config.attendance.selfCheckIn,
+      meeting,
+      policy: { lateAfter: config.attendance.lateAfter, checkInCutoff: config.attendance.checkInCutoff, fullDayMinutes: config.attendance.fullDayMinutes, selfCheckIn: config.attendance.selfCheckIn },
     };
   }
 

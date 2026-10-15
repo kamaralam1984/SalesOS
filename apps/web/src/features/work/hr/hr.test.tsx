@@ -27,7 +27,7 @@ import { ProbationPage } from './probation-page';
 const DEFAULT_WORKFORCE_CONFIG = {
   timezone: 'Asia/Kolkata',
   weeklyOffDays: [7],
-  attendance: { selfCheckIn: true, lateAfter: '10:15', fullDayMinutes: 480, halfDayMinutes: 240, autoMarkAbsent: true, managerCorrectionWindowDays: 7 },
+  attendance: { selfCheckIn: true, lateAfter: '10:15', checkInCutoff: '11:00', meetingUrl: null, fullDayMinutes: 480, halfDayMinutes: 240, autoMarkAbsent: true, managerCorrectionWindowDays: 7 },
   leave: {
     types: [
       { key: 'CASUAL', name: 'Casual leave', isPaid: true, needsBalance: true, maxConsecutiveDays: null, active: true },
@@ -235,6 +235,32 @@ describe('PolicyPage', () => {
     expect(body['earnedLeave']!['requiredEligibleDays']).toBe(25);
     expect(body['goals']!['reminderDaysBeforeTarget']).toEqual([10, 2]);
     expect(await screen.findByText('Policy saved')).toBeInTheDocument();
+  });
+  it('edits the check-in cutoff and Zoom link; empty link is sent as null, non-https is blocked', async () => {
+    h.get.mockResolvedValue(one(settings()));
+    h.patch.mockResolvedValue(one(settings({ version: 2 })));
+    renderWork(<PolicyPage />);
+    const cutoff = await screen.findByLabelText('Self check-in closes at (HH:MM)');
+    expect(cutoff).toHaveValue('11:00');
+    const link = screen.getByLabelText('Zoom meeting link');
+    expect(link).toHaveValue('');
+    await userEvent.clear(cutoff);
+    await userEvent.type(cutoff, '10:45');
+    await userEvent.type(link, 'http://zoom.us/j/1');
+    await userEvent.click(screen.getByRole('button', { name: 'Save policy' }));
+    expect(await screen.findByText('Some values are not valid. Correct the highlighted fields.')).toBeInTheDocument();
+    expect(link).toHaveAccessibleDescription(/Enter a valid value/);
+    expect(h.patch).not.toHaveBeenCalled();
+    await userEvent.clear(link);
+    await userEvent.type(link, 'https://zoom.us/j/123');
+    await userEvent.click(screen.getByRole('button', { name: 'Save policy' }));
+    await waitFor(() => expect(h.patch).toHaveBeenCalledTimes(1));
+    const body = (h.patch.mock.calls[0] as [string, Record<string, Record<string, unknown>>])[1];
+    expect(body['attendance']!['checkInCutoff']).toBe('10:45');
+    expect(body['attendance']!['meetingUrl']).toBe('https://zoom.us/j/123');
+    expect(parseField('url', '')).toBeNull();
+    expect(parseField('url', 'https://' + 'a'.repeat(500))).toBeUndefined();
+    expect(parseField('time', '25:00')).toBeUndefined();
   });
   it('blocks invalid numbers client-side and shows server field errors', async () => {
     h.get.mockResolvedValue(one(settings()));

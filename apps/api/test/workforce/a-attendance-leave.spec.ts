@@ -9,7 +9,11 @@ let A: Record<'founder' | 'teamLead' | 'managerA' | 'managerB' | 'execA1' | 'exe
 const TZ = 'Asia/Kolkata';
 const today = () => localDay(new Date(), TZ);
 const future = (n: number) => addDays(today(), n);
-const setConfig = (config: object) => t.prisma.workforceSetting.upsert({ where: { organizationId: fx.org.id }, create: { organizationId: fx.org.id, config }, update: { config } });
+/** Replaces the stored policy. The self check-in cutoff defaults to 23:59 so tests do not depend on the time of day they run at. */
+const setConfig = (input: { attendance?: Record<string, string | number | boolean | null> } & Record<string, unknown>) => {
+  const config: object = { ...input, attendance: { checkInCutoff: '23:59', ...input.attendance } };
+  return t.prisma.workforceSetting.upsert({ where: { organizationId: fx.org.id }, create: { organizationId: fx.org.id, config }, update: { config } });
+};
 const audit = (action: string, entityId?: string) => t.prisma.auditLog.findMany({ where: { organizationId: fx.org.id, action, ...(entityId ? { entityId } : {}) } });
 const outbox = (eventType: string) => t.prisma.outboxEvent.findMany({ where: { organizationId: fx.org.id, eventType } });
 const opening = (userId: string, typeKey: string, amount: string) => A.hr.post('/workforce/leave/balances/adjust').send({ userId, typeKey, amount, kind: 'OPENING', reason: 'opening balance (test)' });
@@ -84,6 +88,89 @@ describe('attendance: self check-in / check-out', () => {
 
   it('rejects unknown body keys', async () => {
     expect((await A.execB1.post('/workforce/attendance/check-in').send({ mode: 'OFFICE', userId: fx.execA1.id })).status).toBe(400);
+  });
+});
+
+describe('attendance: check-in cutoff and meeting link', () => {
+  const URL_OK = 'https://zoom.us/j/1234567890';
+  const todayView = async (a: AuthedAgent) => (await a.get('/workforce/attendance/today')).body.data;
+
+  it('cutoff 00:00 rejects self check-in with CHECK_IN_CLOSED and today() reflects it', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '00:00' } });
+    const res = await A.execB1.post('/workforce/attendance/check-in').send({ mode: 'OFFICE' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CHECK_IN_CLOSED');
+    expect(res.body.error.message).toContain('00:00');
+    expect(await t.prisma.attendanceRecord.count({ where: { userId: fx.execB1.id } })).toBe(0);
+    const view = await todayView(A.execB1);
+    expect(view.can.checkIn).toBe(false);
+    expect(view.checkInClosed).toBe(true);
+    expect(view.policy.checkInCutoff).toBe('00:00');
+    // switched-off self check-in is not reported as "closed by the clock"
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '00:00', selfCheckIn: false } });
+    expect((await todayView(A.execB1)).checkInClosed).toBe(false);
+  });
+
+  it('HR corrections still work after the cutoff', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '00:00' } });
+    const res = await A.hr.put('/workforce/attendance/records').send({ userId: fx.execB1.id, date: today(), status: 'PRESENT', reason: 'Cutoff test: recorded by HR' });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ status: 'PRESENT', source: 'HR' });
+    // no cleanup: attendance_corrections is append-only (DB trigger), so this record stays for the rest of the file.
+    // Later tests in this suite must therefore not assume execB1 has no attendance today.
+  });
+
+  it('cutoff 23:59 allows check-in and the view is open', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '23:59' } });
+    const view = await todayView(A.finance);
+    expect(view).toMatchObject({ can: { checkIn: true }, checkInClosed: false, meeting: null });
+  });
+
+  it('meeting link: hidden before check-in, visible after PRESENT/LATE check-in, hidden for other users', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '23:59', meetingUrl: URL_OK } });
+    expect((await todayView(A.finance)).meeting).toBeNull();
+    const res = await A.finance.post('/workforce/attendance/check-in').send({ mode: 'OFFICE' });
+    expect(res.status).toBe(201);
+    expect(['PRESENT', 'LATE']).toContain(res.body.data.status);
+    expect((await todayView(A.finance)).meeting).toEqual({ url: URL_OK });
+    expect((await todayView(A.admin)).meeting).toBeNull();
+    // managerB has no attendance record today: the org-wide link is not shown to someone who is not marked present
+    expect((await todayView(A.managerB)).meeting).toBeNull();
+  });
+
+  it('meeting link is hidden when today is ABSENT (HR correction) and when no link is configured', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '23:59', meetingUrl: URL_OK } });
+    const abs = await A.hr.put('/workforce/attendance/records').send({ userId: fx.admin.id, date: today(), status: 'ABSENT', reason: 'Cutoff test: marked absent' });
+    expect(abs.status).toBe(200);
+    expect((await todayView(A.admin)).meeting).toBeNull();
+    const wfh = await A.hr.put('/workforce/attendance/records').send({ userId: fx.admin.id, date: today(), status: 'WFH', reason: 'Cutoff test: corrected to WFH' });
+    expect(wfh.status).toBe(200);
+    expect((await todayView(A.admin)).meeting).toEqual({ url: URL_OK });
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '23:59', meetingUrl: null } });
+    expect((await todayView(A.admin)).meeting).toBeNull();
+  });
+
+  it('the meeting URL never appears in the month response', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '23:59', meetingUrl: URL_OK } });
+    const res = await A.finance.get('/workforce/attendance/month');
+    expect(res.status).toBe(200);
+    expect(JSON.stringify(res.body)).not.toContain('zoom.us');
+    const team = await A.hr.get('/workforce/attendance/team-summary');
+    expect(JSON.stringify(team.body)).not.toContain('zoom.us');
+  });
+
+  it('settings reject non-https, javascript: and over-long meeting URLs; HR can set a valid one', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '23:59' } });
+    for (const bad of ['http://zoom.us/j/1', 'javascript:alert(1)', `https://zoom.us/${'a'.repeat(500)}`, 'not a url']) {
+      const res = await A.hr.patch('/workforce/settings').send({ attendance: { meetingUrl: bad } });
+      expect(res.status).toBe(400);
+    }
+    expect((await A.managerA.patch('/workforce/settings').send({ attendance: { meetingUrl: URL_OK } })).status).toBe(403);
+    const ok = await A.hr.patch('/workforce/settings').send({ attendance: { meetingUrl: `  ${URL_OK}  `, checkInCutoff: '10:30' } });
+    expect(ok.status).toBe(200);
+    expect(ok.body.data.effective.attendance).toMatchObject({ meetingUrl: URL_OK, checkInCutoff: '10:30' });
+    expect(ok.body.data.defaults.attendance).toMatchObject({ meetingUrl: null, checkInCutoff: '11:00' });
+    await setConfig({ weeklyOffDays: [] });
   });
 });
 
