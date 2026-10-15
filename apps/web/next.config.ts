@@ -11,7 +11,7 @@ const config: NextConfig = {
   ...(process.env.NEXT_STANDALONE ? { output: 'standalone' as const, outputFileTracingRoot: path.join(__dirname, '../..') } : {}),
   reactStrictMode: true,
   // Dev only: allow opening the dev server from a phone on the same Wi-Fi (LAN IP).
-  allowedDevOrigins: ['192.168.0.197'],
+  allowedDevOrigins: ['192.168.0.197', '192.168.1.105'],
   poweredByHeader: false,
   transpilePackages: ['@salesos/ui'],
   typedRoutes: false,
