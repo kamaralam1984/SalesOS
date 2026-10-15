@@ -1,0 +1,522 @@
+// Workforce domain (DEC-048): attendance, holidays, leave, Earned Leave ledger, 45-day goal cycle, employee work tasks,
+// payroll register, announcements. Source: Employee_Management_Platform_Feature_Document + owner request (2026-10-15).
+// Convention (same as crm/people/cx): organization_id and user ids are plain indexed UUID columns (no @relation to identity models);
+// services validate every org/user pair. Money = Decimal. Dates that mean a calendar day are @db.Date (business timezone day).
+
+enum HolidayKind {
+  NATIONAL
+  REGIONAL
+  COMPANY
+  OPTIONAL
+  RESTRICTED
+}
+
+enum HolidayStatus {
+  SUGGESTED
+  APPROVED
+}
+
+enum WorkAttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  WFH
+  LATE
+  HOLIDAY
+  WEEKLY_OFF
+  ON_LEAVE
+  UNPAID_LEAVE
+}
+
+enum WorkAttendanceSource {
+  SELF
+  MANAGER
+  HR
+  SYSTEM
+}
+
+enum LeaveRequestStatus {
+  PENDING_MANAGER
+  PENDING_HR
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum LeaveStep {
+  MANAGER
+  HR
+}
+
+enum LeaveStepStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SKIPPED
+}
+
+enum HalfDayPart {
+  NONE
+  FIRST_HALF
+  SECOND_HALF
+}
+
+enum LeaveTxnKind {
+  OPENING
+  CREDIT_EARNED
+  CREDIT_POLICY
+  DEBIT_LEAVE
+  REVERSAL
+  ADJUSTMENT
+  CARRY_FORWARD
+  EXPIRY
+}
+
+enum GoalStatus {
+  ACTIVE
+  PENDING_VERIFICATION
+  COMPLETED
+  CANCELLED
+}
+
+enum GoalRisk {
+  ON_TRACK
+  AT_RISK
+  COMPLETED
+  OVERDUE
+}
+
+enum GoalUpdateKind {
+  PROGRESS
+  COMMENT
+  SUBMITTED
+  VERIFIED
+  RETURNED
+  REOPENED
+}
+
+enum WorkTaskStatus {
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum WorkTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum PayrollRunStatus {
+  DRAFT
+  CALCULATED
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum PayComponentKind {
+  EARNING
+  DEDUCTION
+}
+
+/// One row per organisation: the whole workforce policy as validated JSON (packages/validation/src/workforce-config.ts).
+/// History of changes lives in audit_logs (workforce.settings_updated) and in `version`.
+model WorkforceSetting {
+  organizationId String       @id @map("organization_id") @db.Uuid
+  config         Json
+  version        Int          @default(1)
+  updatedById    String?      @map("updated_by_id") @db.Uuid
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization @relation("WorkforceSetting_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("workforce_settings")
+}
+
+model Holiday {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  date           DateTime      @db.Date
+  name           String
+  kind           HolidayKind
+  /// country/state/location label this holiday applies to; null = whole organisation
+  location       String?
+  status         HolidayStatus @default(SUGGESTED)
+  /// suggestions generated from the built-in fixed-date list carry the rule id; HR-entered rows are null
+  sourceRule     String?       @map("source_rule")
+  createdById    String?       @map("created_by_id") @db.Uuid
+  approvedById   String?       @map("approved_by_id") @db.Uuid
+  approvedAt     DateTime?     @map("approved_at") @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization  @relation("Holiday_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, date, name])
+  @@index([organizationId, status, date])
+  @@map("holidays")
+}
+
+model AttendanceRecord {
+  id             String               @id @default(uuid()) @db.Uuid
+  organizationId String               @map("organization_id") @db.Uuid
+  userId         String               @map("user_id") @db.Uuid
+  date           DateTime             @db.Date
+  status         WorkAttendanceStatus
+  checkInAt      DateTime?            @map("check_in_at") @db.Timestamptz(6)
+  checkOutAt     DateTime?            @map("check_out_at") @db.Timestamptz(6)
+  workMinutes    Int?                 @map("work_minutes")
+  source         WorkAttendanceSource @default(SELF)
+  note           String?
+  /// optimistic concurrency for corrections
+  version        Int                  @default(1)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  corrections  AttendanceCorrection[]
+  organization Organization           @relation("AttendanceRecord_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, date])
+  @@index([organizationId, date])
+  @@index([organizationId, userId, date])
+  @@map("attendance_records")
+}
+
+/// Append-only (DB trigger): every correction keeps old value, new value, actor and reason.
+model AttendanceCorrection {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  recordId       String   @map("record_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  date           DateTime @db.Date
+  oldValue       Json     @map("old_value")
+  newValue       Json     @map("new_value")
+  reason         String
+  correctedById  String   @map("corrected_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  record       AttendanceRecord @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  organization Organization     @relation("AttendanceCorrection_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, userId, date])
+  @@map("attendance_corrections")
+}
+
+model LeaveRequest {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  userId         String             @map("user_id") @db.Uuid
+  /// key of a leave type from the workforce config (CASUAL, SICK, EARNED, UNPAID, ...)
+  typeKey        String             @map("type_key")
+  startDate      DateTime           @map("start_date") @db.Date
+  endDate        DateTime           @map("end_date") @db.Date
+  halfDay        HalfDayPart        @default(NONE) @map("half_day")
+  /// working days counted by the policy at submission (excludes weekly offs and approved holidays)
+  days           Decimal            @db.Decimal(6, 2)
+  /// part of the request that exceeds the balance and is treated as unpaid (only when policy allows)
+  unpaidDays     Decimal            @default(0) @map("unpaid_days") @db.Decimal(6, 2)
+  reason         String
+  status         LeaveRequestStatus
+  cancelReason   String?            @map("cancel_reason")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  steps        LeaveApprovalStep[]
+  organization Organization        @relation("LeaveRequest_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, startDate])
+  @@index([organizationId, userId, startDate])
+  @@map("leave_requests")
+}
+
+model LeaveApprovalStep {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  requestId      String          @map("request_id") @db.Uuid
+  step           LeaveStep
+  status         LeaveStepStatus @default(PENDING)
+  actorId        String?         @map("actor_id") @db.Uuid
+  comment        String?
+  decidedAt      DateTime?       @map("decided_at") @db.Timestamptz(6)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  request      LeaveRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  organization Organization @relation("LeaveApprovalStep_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([requestId, step])
+  @@map("leave_approval_steps")
+}
+
+/// Append-only ledger (DB trigger). balance_after is the running balance of (user, type) after this row.
+model LeaveBalanceTxn {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  typeKey        String       @map("type_key")
+  kind           LeaveTxnKind
+  amount         Decimal      @db.Decimal(6, 2)
+  balanceBefore  Decimal      @map("balance_before") @db.Decimal(8, 2)
+  balanceAfter   Decimal      @map("balance_after") @db.Decimal(8, 2)
+  /// request id for DEBIT_LEAVE/REVERSAL; null for credits
+  leaveRequestId String?      @map("leave_request_id") @db.Uuid
+  /// Earned Leave credits: qualifying period + the exact calculation (eligible days, per-day outcome) that produced the credit
+  periodStart    DateTime?    @map("period_start") @db.Date
+  periodEnd      DateTime?    @map("period_end") @db.Date
+  eligibleDays   Decimal?     @map("eligible_days") @db.Decimal(6, 2)
+  calculation    Json?
+  /// idempotency key: an Earned Leave credit for the same qualifying period can never be written twice
+  uniqueKey      String?      @map("unique_key")
+  /// policy version that applied (historical credits stay explainable after policy changes)
+  policyVersion  Int?         @map("policy_version")
+  /// null = system rule
+  createdById    String?      @map("created_by_id") @db.Uuid
+  note           String?
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization @relation("LeaveBalanceTxn_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, uniqueKey])
+  @@index([organizationId, userId, typeKey, createdAt])
+  @@map("leave_balance_txns")
+}
+
+/// Running counter of the Earned Leave engine per employee (resumable, idempotent daily processing).
+model EarnedLeaveProgress {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
+  userId           String       @unique @map("user_id") @db.Uuid
+  /// last calendar day (inclusive) already evaluated
+  processedThrough DateTime?    @map("processed_through") @db.Date
+  /// eligible days accumulated since the last credit
+  eligibleDays     Decimal      @default(0) @map("eligible_days") @db.Decimal(6, 2)
+  periodStart      DateTime?    @map("period_start") @db.Date
+  creditsGiven     Int          @default(0) @map("credits_given")
+  /// per-day outcomes of the current open period [{date, eligible, reason}] used as the explanation of the next credit
+  dayLog           Json         @default("[]") @map("day_log")
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization     Organization @relation("EarnedLeaveProgress_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@map("earned_leave_progress")
+}
+
+model Goal {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  ownerId        String     @map("owner_id") @db.Uuid
+  /// the manager (or Team Lead / Founder) who verifies completion; snapshot of the reviewer at creation, changeable
+  reviewerId     String?    @map("reviewer_id") @db.Uuid
+  createdById    String     @map("created_by_id") @db.Uuid
+  title          String
+  description    String?
+  startDate      DateTime   @map("start_date") @db.Date
+  targetDate     DateTime   @map("target_date") @db.Date
+  /// cycle length in days used when the goal was created (default 45, configurable)
+  cycleDays      Int        @default(45) @map("cycle_days")
+  /// measurable target, optional (e.g. 30 enrolments); progress % is computed from it when present
+  targetValue    Decimal?   @map("target_value") @db.Decimal(14, 2)
+  currentValue   Decimal    @default(0) @map("current_value") @db.Decimal(14, 2)
+  unit           String?
+  progressPct    Int        @default(0) @map("progress_pct")
+  status         GoalStatus @default(ACTIVE)
+  risk           GoalRisk   @default(ON_TRACK)
+  submittedAt    DateTime?  @map("submitted_at") @db.Timestamptz(6)
+  verifiedAt     DateTime?  @map("verified_at") @db.Timestamptz(6)
+  verifiedById   String?    @map("verified_by_id") @db.Uuid
+  version        Int        @default(1)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  milestones   GoalMilestone[]
+  updates      GoalUpdate[]
+  tasks        WorkTask[]
+  organization Organization    @relation("Goal_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, ownerId, status])
+  @@index([organizationId, reviewerId, status])
+  @@index([organizationId, targetDate])
+  @@map("goals")
+}
+
+model GoalMilestone {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  goalId         String    @map("goal_id") @db.Uuid
+  title          String
+  dueDate        DateTime? @map("due_date") @db.Date
+  done           Boolean   @default(false)
+  doneAt         DateTime? @map("done_at") @db.Timestamptz(6)
+  sortOrder      Int       @default(0) @map("sort_order")
+
+  goal         Goal         @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  organization Organization @relation("GoalMilestone_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([goalId])
+  @@map("goal_milestones")
+}
+
+/// Append-only history of a goal: progress updates, manager comments and verification decisions.
+model GoalUpdate {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  goalId         String         @map("goal_id") @db.Uuid
+  authorId       String         @map("author_id") @db.Uuid
+  kind           GoalUpdateKind
+  /// progress snapshot at the time (PROGRESS / SUBMITTED)
+  currentValue   Decimal?       @map("current_value") @db.Decimal(14, 2)
+  progressPct    Int?           @map("progress_pct")
+  note           String?
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  goal         Goal         @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  organization Organization @relation("GoalUpdate_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([goalId, createdAt])
+  @@map("goal_updates")
+}
+
+/// Employee work tasks (assignment, execution, review). Separate from CRM follow-up tasks (`tasks`) and cross-functional tasks.
+model WorkTask {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  title          String
+  description    String?
+  priority       WorkTaskPriority @default(MEDIUM)
+  assignerId     String           @map("assigner_id") @db.Uuid
+  assigneeId     String           @map("assignee_id") @db.Uuid
+  dueAt          DateTime?        @map("due_at") @db.Timestamptz(6)
+  status         WorkTaskStatus   @default(ASSIGNED)
+  goalId         String?          @map("goal_id") @db.Uuid
+  /// free-text project label (PDF: "linked goal/project")
+  project        String?
+  evidence       String?
+  completedAt    DateTime?        @map("completed_at") @db.Timestamptz(6)
+  reviewNote     String?          @map("review_note")
+  version        Int              @default(1)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  goal         Goal?           @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  events       WorkTaskEvent[]
+  organization Organization    @relation("WorkTask_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, assigneeId, status, dueAt])
+  @@index([organizationId, assignerId, status])
+  @@index([goalId])
+  @@map("work_tasks")
+}
+
+/// Append-only task history: status changes, progress notes, comments, evidence, reassignment.
+model WorkTaskEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  taskId         String   @map("task_id") @db.Uuid
+  actorId        String?  @map("actor_id") @db.Uuid
+  kind           String
+  fromStatus     String?  @map("from_status")
+  toStatus       String?  @map("to_status")
+  note           String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  task         WorkTask     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  organization Organization @relation("WorkTaskEvent_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, createdAt])
+  @@map("work_task_events")
+}
+
+/// Salary structure versions per employee (append-only; the newest effective row applies). Money = monthly amounts as decimal strings.
+model SalaryStructure {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  effectiveFrom  DateTime     @map("effective_from") @db.Date
+  currency       String       @default("INR")
+  /// [{ key, name, kind: EARNING|DEDUCTION, amount: "12345.00" }]  statutory items (PF/ESI/PT/TDS) are NOT computed; HR may add them as manual deduction components
+  components     Json
+  note           String?
+  createdById    String       @map("created_by_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization   Organization @relation("SalaryStructure_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, effectiveFrom])
+  @@index([organizationId, userId, effectiveFrom])
+  @@map("salary_structures")
+}
+
+model PayrollRun {
+  id               String           @id @default(uuid()) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  /// "YYYY-MM"
+  month            String
+  status           PayrollRunStatus @default(DRAFT)
+  workingDays      Int              @map("working_days")
+  createdById      String           @map("created_by_id") @db.Uuid
+  calculatedAt     DateTime?        @map("calculated_at") @db.Timestamptz(6)
+  approvedById     String?          @map("approved_by_id") @db.Uuid
+  approvedAt       DateTime?        @map("approved_at") @db.Timestamptz(6)
+  paidById         String?          @map("paid_by_id") @db.Uuid
+  paidAt           DateTime?        @map("paid_at") @db.Timestamptz(6)
+  /// reference of the EXTERNAL payout (bank batch id). SalesOS never moves money.
+  paymentReference String?          @map("payment_reference")
+  note             String?
+  version          Int              @default(1)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  payslips     Payslip[]
+  organization Organization @relation("PayrollRun_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, month])
+  @@map("payroll_runs")
+}
+
+model Payslip {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  runId           String   @map("run_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  structureId     String?  @map("structure_id") @db.Uuid
+  currency        String   @default("INR")
+  workingDays     Int      @map("working_days")
+  /// days paid = working days - lossOfPayDays (rounded to 2 dp)
+  paidDays        Decimal  @map("paid_days") @db.Decimal(6, 2)
+  lossOfPayDays   Decimal  @map("loss_of_pay_days") @db.Decimal(6, 2)
+  /// the exact attendance/leave facts the calculation used
+  basis           Json
+  earnings        Json
+  deductions      Json
+  gross           Decimal  @db.Decimal(14, 2)
+  totalDeductions Decimal  @map("total_deductions") @db.Decimal(14, 2)
+  net             Decimal  @db.Decimal(14, 2)
+  /// manual adjustment lines added by Finance before approval (bonus, arrears, recovery)
+  adjustments     Json     @default("[]")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  run          PayrollRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  organization Organization @relation("Payslip_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, userId])
+  @@index([organizationId, userId])
+  @@map("payslips")
+}
+
+model Announcement {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  title          String
+  body           String
+  /// role keys the announcement is for; empty = everyone
+  audienceRoles  String[]     @map("audience_roles")
+  publishedAt    DateTime     @default(now()) @map("published_at") @db.Timestamptz(6)
+  expiresAt      DateTime?    @map("expires_at") @db.Timestamptz(6)
+  createdById    String       @map("created_by_id") @db.Uuid
+  organization   Organization @relation("Announcement_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, publishedAt])
+  @@map("announcements")
+}

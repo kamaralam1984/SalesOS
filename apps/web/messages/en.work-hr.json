@@ -1,0 +1,311 @@
+{
+  "workHr": {
+    "errors": {
+      "titleShort": "Use at least 3 characters",
+      "expiryPast": "The expiry must be in the future",
+      "monthsRange": "Enter 1 to 6 months",
+      "noteRequired": "A note of at least 3 characters is required",
+      "dateInvalid": "Enter a valid date",
+      "monthsInvalid": "Enter a whole number from 1 to 12",
+      "dobInvalid": "Date of birth must be in the past",
+      "codeInvalid": "Letters, digits and . _ - / only"
+    },
+    "hub": {
+      "eyebrow": "HR",
+      "title": "HR hub",
+      "description": "Policy, probation, birthdays, announcements and reports in one place.",
+      "snapshot": "Organisation snapshot",
+      "headcount": "Headcount",
+      "onProbation": "On probation",
+      "endingSoon": "Probation ending in {days} days",
+      "birthdaysSoon": "Birthdays in {days} days",
+      "tools": "HR tools",
+      "tiles": {
+        "policy": {
+          "title": "Workforce policy",
+          "body": "Attendance, leave, Earned Leave, goals and probation rules."
+        },
+        "balances": {
+          "title": "Leave balances",
+          "body": "Opening balances and corrections."
+        },
+        "probation": {
+          "title": "Probation",
+          "body": "Confirm, extend or review."
+        },
+        "birthdays": {
+          "title": "Birthdays",
+          "body": "Upcoming birthdays of employees."
+        },
+        "announcements": {
+          "title": "Announcements",
+          "body": "Publish company announcements."
+        },
+        "reports": {
+          "title": "Reports",
+          "body": "Attendance, leave, tasks, goals and more, with export."
+        },
+        "directory": {
+          "title": "Directory",
+          "body": "Find any employee and open their 360 view."
+        }
+      }
+    },
+    "profile": {
+      "title": "HR details: {name}",
+      "description": "Joining date, probation length, date of birth and codes. Restricted HR data.",
+      "empty": "No HR record found",
+      "joinDate": "Joining date",
+      "probationMonths": "Probation (months)",
+      "probationHint": "Leave empty to use the policy default.",
+      "dateOfBirth": "Date of birth",
+      "dobHint": "HR only. The team never sees the year.",
+      "employeeCode": "Employee code",
+      "workLocation": "Work location",
+      "shareBirthday": "Employee agrees to share day and month of birthday with the team",
+      "audited": "Opening and saving this record is logged.",
+      "saved": "HR details saved"
+    },
+    "probation": {
+      "eyebrow": "HR",
+      "title": "Probation",
+      "description": "Track probation end dates and record decisions: confirm, extend or mark for review.",
+      "filterStatus": "Show",
+      "soonDays": "Ending soon means within",
+      "nDays": "{n} days",
+      "counts": "Probation states",
+      "empty": "No probation records",
+      "emptyBody": "Probation appears here once an employee has a joining date.",
+      "manager": "manager {name}",
+      "period": "{start} to {end} ({months} months)",
+      "daysLeft": "{n} days left",
+      "daysOver": "{n} days past the end date",
+      "extended": "Extended {n} time(s)",
+      "decide": "Record decision",
+      "history": "History",
+      "editHr": "Edit HR details",
+      "filter": {
+        "ACTIVE": "Not yet confirmed",
+        "IN_PROBATION": "In probation",
+        "ENDING_SOON": "Ending soon",
+        "DECISION_DUE": "Decision due",
+        "UNDER_REVIEW": "Under review",
+        "CONFIRMED": "Confirmed",
+        "ALL": "All"
+      },
+      "state": {
+        "IN_PROBATION": "In probation",
+        "ENDING_SOON": "Ending soon",
+        "DECISION_DUE": "Decision due",
+        "UNDER_REVIEW": "Under review",
+        "CONFIRMED": "Confirmed"
+      }
+    },
+    "decision": {
+      "title": "Probation decision: {name}",
+      "description": "The decision is saved in the history and audited.",
+      "decision": "Decision",
+      "CONFIRM": "Confirm employment",
+      "EXTEND": "Extend probation",
+      "MARK_FOR_REVIEW": "Mark for review",
+      "months": "Extend by (months)",
+      "note": "Note (required)",
+      "noteOptional": "Note (optional)",
+      "effect": "This does not change the employee's account, role or access.",
+      "submit": "Save decision",
+      "done": {
+        "CONFIRM": "Employment confirmed",
+        "EXTEND": "Probation extended",
+        "MARK_FOR_REVIEW": "Marked for review"
+      }
+    },
+    "history": {
+      "title": "Probation history: {name}",
+      "list": "Decisions",
+      "empty": "No decisions recorded yet.",
+      "months": "{n} months",
+      "ends": "Ends {date}"
+    },
+    "birthdays": {
+      "eyebrow": "HR",
+      "title": "Birthdays",
+      "description": "Upcoming birthdays of all employees with a date of birth on file.",
+      "privacy": "Date of birth is HR data. Only people who agreed to share are visible to their team, and only day and month. Birth year and age are never shown here.",
+      "window": "Look ahead",
+      "empty": "No birthdays in this window",
+      "emptyBody": "Add dates of birth in HR details to see them here.",
+      "shared": "Shared with team",
+      "notShared": "HR only",
+      "today": "Today",
+      "inDays": "in {n} days"
+    },
+    "announcements": {
+      "eyebrow": "HR",
+      "title": "Announcements",
+      "description": "Publish company announcements for everyone or for chosen roles.",
+      "new": "New announcement",
+      "empty": "No announcements yet",
+      "emptyBody": "Published announcements appear here and on every employee's work hub.",
+      "meta": "Published {date} by {by}",
+      "until": "until {date}",
+      "expired": "Expired",
+      "everyone": "Everyone",
+      "roles": "{n} roles",
+      "delete": "Delete",
+      "deleteAria": "Delete announcement {title}",
+      "deleteTitle": "Delete this announcement?",
+      "deleteBody": "\"{title}\" will no longer be shown to anyone. This is logged.",
+      "deleted": "Announcement deleted",
+      "createTitle": "New announcement",
+      "createDescription": "Employees in the audience get a notification and see it on their work hub.",
+      "titleField": "Title",
+      "bodyField": "Message",
+      "audience": "Audience",
+      "audienceHint": "Leave all unticked to send to everyone.",
+      "expires": "Expires",
+      "expiresHint": "Optional. After this time it is hidden from employees.",
+      "notifyNote": "The notification is generic and does not contain the message text.",
+      "publish": "Publish",
+      "published": "Announcement published"
+    },
+    "policy": {
+      "eyebrow": "HR",
+      "title": "Workforce policy",
+      "description": "Rules for attendance, leave, Earned Leave, goals, tasks, probation and payroll. Changes are logged with who and when.",
+      "empty": "No policy found",
+      "proposedTitle": "Proposed defaults",
+      "proposed": "These values are proposed defaults awaiting owner approval. Change them here to match the approved policy.",
+      "version": "Version {version} · last changed {when}",
+      "neverChanged": "never (defaults)",
+      "readOnly": "You can view the policy but not change it.",
+      "sections": {
+        "general": "General",
+        "attendance": "Attendance",
+        "leave": "Leave",
+        "earnedLeave": "Earned Leave",
+        "holidays": "Holidays",
+        "goals": "Goals",
+        "tasks": "Tasks",
+        "hr": "Probation and birthdays",
+        "payroll": "Payroll register"
+      },
+      "sectionHelp": {
+        "general": "Business timezone and weekly off days.",
+        "attendance": "Check-in rules and correction window.",
+        "leave": "Approval chain, limits and leave types.",
+        "earnedLeave": "How many eligible days earn how much leave, and how each attendance status counts.",
+        "holidays": "Locations and how suggested and optional holidays are treated.",
+        "goals": "Goal cycle length, risk threshold and reminders.",
+        "tasks": "Review step and due reminders.",
+        "hr": "Default probation length and reminder days.",
+        "payroll": "Register only: no statutory deductions are calculated."
+      },
+      "fields": {
+        "timezone": "Business timezone",
+        "attendance": {
+          "selfCheckIn": "Employees can check in themselves",
+          "lateAfter": "Late after (HH:MM)",
+          "fullDayMinutes": "Full day (minutes)",
+          "halfDayMinutes": "Half day (minutes)",
+          "autoMarkAbsent": "Mark absent automatically at day end",
+          "managerCorrectionWindowDays": "Manager correction window (days)"
+        },
+        "leave": {
+          "approvalChain": "Approval chain",
+          "balanceExceeded": "When the balance is not enough",
+          "backdateDays": "Apply for past days up to (days back)",
+          "allowHalfDay": "Allow half-day leave"
+        },
+        "earnedLeave": {
+          "enabled": "Earned Leave is on",
+          "requiredEligibleDays": "Eligible days needed per credit",
+          "creditDays": "Days credited",
+          "countFromJoiningDate": "Count from the joining date",
+          "maxBalance": "Maximum balance",
+          "carryForwardEnabled": "Carry forward at year end",
+          "carryForwardMax": "Maximum carried forward"
+        },
+        "holidays": {
+          "locations": "Locations (comma separated)",
+          "suggestFixedNational": "Suggest fixed-date national holidays",
+          "optionalCountAsOff": "Optional holidays count as days off"
+        },
+        "goals": {
+          "cycleDays": "Goal cycle (days)",
+          "atRiskGapPct": "At risk when behind by (points)",
+          "requireVerification": "Reviewer must verify completion",
+          "reminderDaysBeforeTarget": "Reminder days before target"
+        },
+        "tasks": {
+          "requireReview": "Assigner must review completion",
+          "reminderHoursBeforeDue": "Reminder hours before due"
+        },
+        "hr": {
+          "probationDefaultMonths": "Default probation (months)",
+          "probationReminderDays": "Probation reminder days before end",
+          "birthdayReminderDays": "Birthday reminder days before"
+        },
+        "payroll": {
+          "currency": "Currency (3 letters)",
+          "absentIsLossOfPay": "Absent days reduce pay",
+          "halfDayLossOfPay": "Half day loss of pay (0 to 1)"
+        }
+      },
+      "options": {
+        "leave": {
+          "approvalChain": {
+            "MANAGER_HR": "Manager, then HR",
+            "MANAGER": "Manager only",
+            "HR": "HR only"
+          },
+          "balanceExceeded": {
+            "BLOCK": "Block the request",
+            "UNPAID_WITH_CONFIRMATION": "Allow the excess as unpaid after confirmation"
+          }
+        }
+      },
+      "listHint": "Numbers or names separated by commas",
+      "nullHint": "Leave empty for no limit",
+      "invalidValue": "Enter a valid value",
+      "leaveTypes": "Leave types",
+      "typeName": "Name of {key}",
+      "typePaid": "Paid",
+      "typeNeedsBalance": "Needs a balance",
+      "typeActive": "Active",
+      "treatment": "Earned Leave counting",
+      "treatmentHelp": "How each attendance status counts toward the eligible days.",
+      "treatmentOptions": {
+        "COUNT": "Counts as 1 day",
+        "HALF": "Counts as half a day",
+        "SKIP": "Not counted"
+      },
+      "status": {
+        "PRESENT": "Present",
+        "LATE": "Late",
+        "WFH": "Work from home",
+        "HALF_DAY": "Half day",
+        "ABSENT": "Absent",
+        "HOLIDAY": "Holiday",
+        "WEEKLY_OFF": "Weekly off",
+        "ON_LEAVE": "On leave",
+        "UNPAID_LEAVE": "Unpaid leave"
+      },
+      "weeklyOff": "Weekly off days",
+      "weekday": {
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "7": "Sunday"
+      },
+      "fixErrors": "Some values are not valid. Correct the highlighted fields.",
+      "serverErrors": "The server rejected these values",
+      "restore": "Load proposed defaults",
+      "save": "Save policy",
+      "saved": "Policy saved",
+      "nothingChanged": "Nothing changed"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+# CoachEasily SalesOS local dev infra. Dedicated names/ports so unrelated containers on this machine are never touched.
+name: salesos
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: salesos-postgres
+    environment:
+      POSTGRES_USER: salesos
+      POSTGRES_PASSWORD: salesos_dev_only
+      POSTGRES_DB: salesos
+    ports: ["127.0.0.1:5533:5432"]
+    volumes: ["salesos_pg:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salesos"]
+      interval: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    container_name: salesos-redis
+    ports: ["127.0.0.1:6391:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+  minio:
+    image: minio/minio:latest
+    container_name: salesos-minio
+    command: server /data --console-address ":9101"
+    environment:
+      MINIO_ROOT_USER: salesos_minio
+      MINIO_ROOT_PASSWORD: salesos_minio_dev_only
+    ports: ["127.0.0.1:9100:9000", "127.0.0.1:9101:9101"]
+    volumes: ["salesos_minio:/data"]
+volumes:
+  salesos_pg:
+  salesos_minio:

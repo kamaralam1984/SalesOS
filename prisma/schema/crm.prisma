@@ -1,0 +1,989 @@
+// crm domain models (Phase 3). Owned by the crm agent.
+// Conventions: UUID PKs, organization_id scope, TIMESTAMPTZ, Decimal money + currency, @@map to snake_case.
+//
+// DEVIATION (documented in docs/crm-report.md): organization_id / user ids are plain indexed UUID columns WITHOUT
+// @relation to identity models (organizations/users/teams). Reason: parallel agents; adding ~40 back-relations to
+// identity.prisma would collide. Referential integrity to identity is enforced in services (every write validates
+// the org/user pair). The reconcile step may add the FKs. Relations INSIDE the crm domain are real FKs.
+
+enum StageCategory {
+  OPEN
+  WON
+  LOST
+  NURTURE
+}
+
+enum InterestLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum LeadConsentStatus {
+  UNKNOWN
+  GRANTED
+  WITHDRAWN
+  DND
+}
+
+enum LeadSourceType {
+  MANUAL
+  IMPORT
+  CAMPAIGN
+  WEBINAR
+  REFERRAL
+  WEBSITE
+  OTHER
+}
+
+enum ProgramKind {
+  PROGRAM
+  EVENT
+  APP
+}
+
+enum AssignmentMethod {
+  MANUAL
+  ROUND_ROBIN
+  IMPORT
+  REASSIGNMENT_QUEUE
+  MERGE
+  REACTIVATION
+  SYSTEM
+}
+
+enum StatusChangeSource {
+  MANUAL
+  CALL
+  SYSTEM
+  IMPORT
+  MERGE
+  EVENT
+}
+
+enum LeadNoteVisibility {
+  SHARED
+  PRIVATE
+}
+
+enum ContactKind {
+  PHONE
+  EMAIL
+  WHATSAPP
+}
+
+enum DuplicateMatchType {
+  PHONE_EXACT
+  EMAIL_EXACT
+  NAME_PHONE_SUFFIX
+}
+
+enum DuplicateStatus {
+  OPEN
+  MERGED
+  DISMISSED
+}
+
+/// MANUAL = typed in by a human via the disposition form. DEVICE / PROVIDER are reserved for future verified events.
+enum CallSource {
+  MANUAL
+  DEVICE
+  PROVIDER
+}
+
+enum CallDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum CallOutcome {
+  CONNECTED
+  NO_ANSWER
+  BUSY
+  SWITCHED_OFF
+  CALLBACK
+  FAILED
+  WON
+  LOST
+}
+
+enum ObjectionCategory {
+  PRICE
+  TIMING
+  TRUST
+  COMPETITOR
+  NEED_APPROVAL
+  NO_TIME
+  LANGUAGE
+  NOT_RELEVANT
+  OTHER
+}
+
+enum TaskType {
+  CALL
+  CALLBACK
+  FOLLOW_UP
+  DEMO
+  EMAIL
+  WEBINAR_REMINDER
+  ONBOARDING
+  MANAGER_REVIEW
+  OTHER
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+enum ExceptionKind {
+  NO_OWNER
+  NO_NEXT_ACTION
+  UNATTENDED
+  MANAGER_REVIEW
+  OWNER_DEACTIVATED
+}
+
+enum QueueStatus {
+  OPEN
+  RESOLVED
+  CANCELLED
+}
+
+enum ReassignmentReason {
+  OWNER_DEACTIVATED
+  MANAGER_REVIEW
+  OTHER
+}
+
+enum ReactivationStatus {
+  PENDING
+  ELIGIBLE
+  ASSIGNED
+  REACTIVATED
+  ARCHIVED
+  EXCLUDED
+}
+
+enum EventType {
+  WEBINAR
+  DEMO
+  EVENT
+}
+
+enum EventStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  INVITED
+  REGISTERED
+  ATTENDED
+  NO_SHOW
+  CANCELLED
+  RESCHEDULED
+  FOLLOWED_UP
+  CONVERTED
+  NOT_CONVERTED
+}
+
+enum ImportStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_ERRORS
+  FAILED
+  CANCELLED
+}
+
+enum DeliveryChannel {
+  IN_APP
+  EMAIL
+  PUSH
+  WHATSAPP
+}
+
+/// queued is NOT delivered: QUEUED -> SENT (handed to channel) -> DELIVERED (confirmed/read) | FAILED
+enum CrmDeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Configuration: stages, lost reasons, automation rules, assignment rules
+// ---------------------------------------------------------------------------------------------------------------
+
+model LeadStageConfig {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  key            String
+  label          String
+  category       StageCategory @default(OPEN)
+  sortOrder      Int           @map("sort_order")
+  /// May be jumped over on forward moves
+  skippable      Boolean       @default(false)
+  /// WON may be reached directly from this stage
+  canClose       Boolean       @default(false) @map("can_close")
+  /// Explicit forward edges (stage keys). Skippable forward jumps and LOST are derived.
+  allowedNext    String[]      @default([]) @map("allowed_next")
+  isActive       Boolean       @default(true) @map("is_active")
+  isSystem       Boolean       @default(false) @map("is_system")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("LeadStageConfig_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, key])
+  @@index([organizationId, sortOrder])
+  @@map("lead_stage_config")
+}
+
+model LostReasonConfig {
+  id                  String   @id @default(uuid()) @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  key                 String
+  label               String
+  requiresNote        Boolean  @default(false) @map("requires_note")
+  /// null = never enters the reactivation queue (e.g. DUPLICATE_OR_INVALID)
+  reactivateAfterDays Int?     @map("reactivate_after_days")
+  isActive            Boolean  @default(true) @map("is_active")
+  sortOrder           Int      @default(0) @map("sort_order")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("LostReasonConfig_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, key])
+  @@map("lost_reason_config")
+}
+
+/// Per organization (team_id null) or per team override. config validated by Zod in @salesos/crm-core.
+model AutomationRule {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  /// null = organization default
+  teamId         String?  @map("team_id") @db.Uuid
+  /// scope_key = team id or 'ORG' (gives a real unique constraint despite the nullable team)
+  scopeKey       String   @map("scope_key")
+  ruleKey        String   @map("rule_key")
+  config         Json     @default("{}")
+  isActive       Boolean  @default(true) @map("is_active")
+  updatedById    String?  @map("updated_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("AutomationRule_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("AutomationRule_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  updatedBy    User?        @relation("AutomationRule_updatedById", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, scopeKey, ruleKey])
+  @@index([organizationId, ruleKey])
+  @@map("automation_rules")
+}
+
+/// Round-robin configuration + persisted rotation pointer, one row per team (DEC-008).
+model AssignmentRule {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  teamId             String   @map("team_id") @db.Uuid
+  isEnabled          Boolean  @default(false) @map("is_enabled")
+  /// null = no cap
+  dailyCap           Int?     @map("daily_cap")
+  /// user ids excluded (on leave)
+  excludedUserIds    String[] @default([]) @map("excluded_user_ids")
+  /// optional filters (empty = all)
+  sourceIds          String[] @default([]) @map("source_ids")
+  programIds         String[] @default([]) @map("program_ids")
+  lastAssignedUserId String?  @map("last_assigned_user_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization     Organization @relation("AssignmentRule_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  team             Team         @relation("AssignmentRule_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  lastAssignedUser User?        @relation("AssignmentRule_lastAssignedUserId", fields: [lastAssignedUserId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, teamId])
+  @@map("assignment_rules")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Sources, campaigns, programs
+// ---------------------------------------------------------------------------------------------------------------
+
+model LeadSource {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  name           String
+  type           LeadSourceType @default(OTHER)
+  isActive       Boolean        @default(true) @map("is_active")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  campaigns LeadCampaign[]
+  leads     Lead[]
+
+  organization Organization @relation("LeadSource_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, name])
+  @@map("lead_sources")
+}
+
+model LeadCampaign {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  sourceId       String    @map("source_id") @db.Uuid
+  name           String
+  startsAt       DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime? @map("ends_at") @db.Timestamptz(6)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  source LeadSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  leads  Lead[]
+
+  organization Organization @relation("LeadCampaign_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, sourceId, name])
+  @@map("lead_campaigns")
+}
+
+/// Configurable programs/events (AI Sprint, CBAX, MCA X, MCA Elite X, CoachEasily X, Wealthy Coach Summit ...).
+/// No pricing/funnel assumptions (DEC-016); later phases attach versioned pricing.
+model Program {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  code           String
+  name           String
+  kind           ProgramKind @default(PROGRAM)
+  description    String?
+  isActive       Boolean     @default(true) @map("is_active")
+  sortOrder      Int         @default(0) @map("sort_order")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  leads         Lead[]
+  events        CrmEvent[]
+  deals         Deal[]                @relation("DealProgram")
+  dealsFrom     Deal[]                @relation("DealFromProgram")
+  prices        ProgramPrice[]
+  revenueConfig ProgramRevenueConfig?
+
+  organization Organization @relation("Program_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, code])
+  @@map("programs")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Leads
+// ---------------------------------------------------------------------------------------------------------------
+
+model Lead {
+  id              String  @id @default(uuid()) @db.Uuid
+  organizationId  String  @map("organization_id") @db.Uuid
+  fullName        String  @map("full_name")
+  /// E.164 when normalisable; null when the raw value could not be parsed (phone_valid=false => "flagged raw")
+  phoneE164       String? @map("phone_e164")
+  phoneRaw        String? @map("phone_raw")
+  phoneValid      Boolean @default(true) @map("phone_valid")
+  email           String?
+  /// lower(email) for case-insensitive exact matching
+  emailNormalized String? @map("email_normalized")
+  sourceId        String? @map("source_id") @db.Uuid
+  campaignId      String? @map("campaign_id") @db.Uuid
+  programId       String? @map("program_id") @db.Uuid
+  assignedToId    String? @map("assigned_to_id") @db.Uuid
+  teamId          String? @map("team_id") @db.Uuid
+
+  /// stage key from lead_stage_config
+  status               String
+  stageCategory        StageCategory  @default(OPEN) @map("stage_category")
+  interestLevel        InterestLevel? @map("interest_level")
+  nextActionAt         DateTime?      @map("next_action_at") @db.Timestamptz(6)
+  nextActionType       TaskType?      @map("next_action_type")
+  estimatedValue       Decimal?       @map("estimated_value") @db.Decimal(14, 2)
+  currency             String         @default("INR") @db.Char(3)
+  wonValue             Decimal?       @map("won_value") @db.Decimal(14, 2)
+  /// Learner-reported earnings from coaching (JD value statement: revenue-based ranks). Rank is derived from the configurable ladder in cx settings.
+  learnerEarnedRevenue Decimal?       @map("learner_earned_revenue") @db.Decimal(14, 2)
+  learnerEarnedAt      DateTime?      @map("learner_earned_at") @db.Timestamptz(6)
+  wonAt                DateTime?      @map("won_at") @db.Timestamptz(6)
+  lostReason           String?        @map("lost_reason")
+  lostNote             String?        @map("lost_note")
+  lostAt               DateTime?      @map("lost_at") @db.Timestamptz(6)
+  preferredLanguage    String?        @map("preferred_language")
+  isKeyProspect        Boolean        @default(false) @map("is_key_prospect")
+
+  consentStatus LeadConsentStatus @default(UNKNOWN) @map("consent_status")
+  consentAt     DateTime?         @map("consent_at") @db.Timestamptz(6)
+  consentSource String?           @map("consent_source")
+
+  /// last meaningful activity (call, note, status change, task completion, attendance) - not edits of fields
+  lastActivityAt         DateTime? @map("last_activity_at") @db.Timestamptz(6)
+  /// last call attempt (any outcome)
+  lastContactAt          DateTime? @map("last_contact_at") @db.Timestamptz(6)
+  firstContactAt         DateTime? @map("first_contact_at") @db.Timestamptz(6)
+  callAttemptCount       Int       @default(0) @map("call_attempt_count")
+  noAnswerCount          Int       @default(0) @map("no_answer_count")
+  consecutiveSwitchedOff Int       @default(0) @map("consecutive_switched_off")
+  duplicateFlag          Boolean   @default(false) @map("duplicate_flag")
+  reactivationCount      Int       @default(0) @map("reactivation_count")
+  assignedAt             DateTime? @map("assigned_at") @db.Timestamptz(6)
+
+  /// merge: loser leads are kept (audit-preserving) but hidden from lists
+  mergedIntoId String?  @map("merged_into_id") @db.Uuid
+  importJobId  String?  @map("import_job_id") @db.Uuid
+  /// `${importJobId}:${rowNumber}` - makes import retries idempotent
+  importRowKey String?  @map("import_row_key")
+  /// client supplied Idempotency-Key for retryable creates
+  createKey    String?  @map("create_key")
+  createdById  String?  @map("created_by_id") @db.Uuid
+  version      Int      @default(1)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  source    LeadSource?   @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  campaign  LeadCampaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  program   Program?      @relation(fields: [programId], references: [id], onDelete: SetNull)
+  importJob ImportJob?    @relation(fields: [importJobId], references: [id], onDelete: SetNull)
+
+  assignments   LeadAssignment[]
+  statusHistory LeadStatusHistory[]
+  notes         LeadNote[]
+  contacts      LeadContact[]
+  calls         CallLog[]
+  tasks         Task[]
+  attendances   EventAttendance[]
+  exceptions    LeadException[]
+  reassignments ReassignmentQueueEntry[]
+  reactivations ReactivationEntry[]
+  deals         Deal[]
+  duplicatesA   DuplicateCandidate[]     @relation("DupLead")
+  duplicatesB   DuplicateCandidate[]     @relation("DupOther")
+
+  organization Organization @relation("Lead_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  assignedTo   User?        @relation("Lead_assignedToId", fields: [assignedToId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("Lead_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("Lead_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, importRowKey])
+  @@unique([organizationId, createKey])
+  @@index([organizationId, assignedToId, status, createdAt(sort: Desc)])
+  @@index([organizationId, teamId, status])
+  @@index([organizationId, phoneE164])
+  @@index([organizationId, emailNormalized])
+  @@index([organizationId, stageCategory, nextActionAt])
+  @@index([organizationId, lastActivityAt])
+  @@map("leads")
+}
+
+model LeadAssignment {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  leadId         String           @map("lead_id") @db.Uuid
+  fromUserId     String?          @map("from_user_id") @db.Uuid
+  toUserId       String?          @map("to_user_id") @db.Uuid
+  changedById    String?          @map("changed_by_id") @db.Uuid
+  method         AssignmentMethod @default(MANUAL)
+  reason         String?
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("LeadAssignment_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  fromUser     User?        @relation("LeadAssignment_fromUserId", fields: [fromUserId], references: [id], onDelete: Restrict)
+  toUser       User?        @relation("LeadAssignment_toUserId", fields: [toUserId], references: [id], onDelete: Restrict)
+  changedBy    User?        @relation("LeadAssignment_changedById", fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([leadId, createdAt(sort: Desc)])
+  @@index([organizationId, toUserId, createdAt])
+  @@map("lead_assignments")
+}
+
+model LeadStatusHistory {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  leadId         String             @map("lead_id") @db.Uuid
+  oldStatus      String?            @map("old_status")
+  newStatus      String             @map("new_status")
+  oldCategory    StageCategory?     @map("old_category")
+  newCategory    StageCategory      @map("new_category")
+  changedById    String?            @map("changed_by_id") @db.Uuid
+  source         StatusChangeSource @default(MANUAL)
+  reason         String?
+  callLogId      String?            @map("call_log_id") @db.Uuid
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("LeadStatusHistory_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  changedBy    User?        @relation("LeadStatusHistory_changedById", fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([leadId, createdAt(sort: Desc)])
+  @@map("lead_status_history")
+}
+
+model LeadNote {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  leadId         String             @map("lead_id") @db.Uuid
+  authorId       String             @map("author_id") @db.Uuid
+  body           String
+  visibility     LeadNoteVisibility @default(SHARED)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("LeadNote_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  author       User         @relation("LeadNote_authorId", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([leadId, createdAt(sort: Desc)])
+  @@map("lead_notes")
+}
+
+model LeadContact {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  leadId         String      @map("lead_id") @db.Uuid
+  kind           ContactKind
+  value          String
+  label          String?
+  isPrimary      Boolean     @default(false) @map("is_primary")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("LeadContact_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([leadId, kind, value])
+  @@map("lead_contacts")
+}
+
+model DuplicateCandidate {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  /// canonical ordering: leadId < otherLeadId (string compare) so a pair exists once
+  leadId         String             @map("lead_id") @db.Uuid
+  otherLeadId    String             @map("other_lead_id") @db.Uuid
+  matchType      DuplicateMatchType @map("match_type")
+  status         DuplicateStatus    @default(OPEN)
+  reviewedById   String?            @map("reviewed_by_id") @db.Uuid
+  reviewedAt     DateTime?          @map("reviewed_at") @db.Timestamptz(6)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lead      Lead @relation("DupLead", fields: [leadId], references: [id], onDelete: Cascade)
+  otherLead Lead @relation("DupOther", fields: [otherLeadId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("DuplicateCandidate_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  reviewedBy   User?        @relation("DuplicateCandidate_reviewedById", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@unique([leadId, otherLeadId])
+  @@index([organizationId, status, createdAt])
+  @@map("duplicate_candidates")
+}
+
+/// Audit-preserving merge log (unmerge not supported in v1, DEC-011). snapshot holds the loser's full record.
+model LeadMerge {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  winnerId       String   @map("winner_id") @db.Uuid
+  loserId        String   @map("loser_id") @db.Uuid
+  candidateId    String?  @map("candidate_id") @db.Uuid
+  mergedById     String   @map("merged_by_id") @db.Uuid
+  snapshotBefore Json     @map("snapshot_before")
+  snapshotAfter  Json     @map("snapshot_after")
+  moved          Json
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("LeadMerge_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  mergedBy     User         @relation("LeadMerge_mergedById", fields: [mergedById], references: [id], onDelete: Restrict)
+
+  @@unique([loserId])
+  @@index([organizationId, winnerId])
+  @@map("lead_merges")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Calls (MANUAL by default; never invented)
+// ---------------------------------------------------------------------------------------------------------------
+
+model CallLog {
+  id                String             @id @default(uuid()) @db.Uuid
+  organizationId    String             @map("organization_id") @db.Uuid
+  leadId            String             @map("lead_id") @db.Uuid
+  userId            String             @map("user_id") @db.Uuid
+  source            CallSource         @default(MANUAL)
+  direction         CallDirection      @default(OUTBOUND)
+  outcome           CallOutcome
+  providerCallId    String?            @map("provider_call_id")
+  startedAt         DateTime           @map("started_at") @db.Timestamptz(6)
+  durationSeconds   Int?               @map("duration_seconds")
+  notes             String?
+  interestLevel     InterestLevel?     @map("interest_level")
+  objectionCategory ObjectionCategory? @map("objection_category")
+  /// next action chosen in the disposition form
+  nextActionAt      DateTime?          @map("next_action_at") @db.Timestamptz(6)
+  nextActionType    TaskType?          @map("next_action_type")
+  /// task this call completed (if the call was made from a task)
+  taskId            String?            @map("task_id") @db.Uuid
+  idempotencyKey    String?            @map("idempotency_key")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lead      Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  notesRows CallNote[]
+
+  organization Organization @relation("CallLog_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("CallLog_userId", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([leadId, createdAt(sort: Desc)])
+  @@index([organizationId, userId, createdAt])
+  @@map("call_logs")
+}
+
+model CallNote {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  callId         String   @map("call_id") @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  summary        String?
+  objections     String?
+  nextSteps      String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  call CallLog @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("CallNote_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  author       User         @relation("CallNote_authorId", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([callId])
+  @@map("call_notes")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------------------------------------------------
+
+model Task {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  leadId         String?      @map("lead_id") @db.Uuid
+  assignedToId   String       @map("assigned_to_id") @db.Uuid
+  createdById    String?      @map("created_by_id") @db.Uuid
+  teamId         String?      @map("team_id") @db.Uuid
+  type           TaskType     @default(FOLLOW_UP)
+  title          String
+  description    String?
+  dueAt          DateTime     @map("due_at") @db.Timestamptz(6)
+  status         TaskStatus   @default(OPEN)
+  priority       TaskPriority @default(NORMAL)
+  /// high-visibility (CALLBACK) tasks are pinned in the workspace
+  isPinned       Boolean      @default(false) @map("is_pinned")
+  completedAt    DateTime?    @map("completed_at") @db.Timestamptz(6)
+  completedById  String?      @map("completed_by_id") @db.Uuid
+  completionNote String?      @map("completion_note")
+  /// which automation rule created it (e.g. NO_ANSWER_RETRY)
+  ruleKey        String?      @map("rule_key")
+  /// escalation level reached: 0 none, 1 owner notified, 2 owner repeat, 3 manager, 4 team lead
+  overdueLevel   Int          @default(0) @map("overdue_level")
+  remindedAt     DateTime?    @map("reminded_at") @db.Timestamptz(6)
+  /// atomic claim by a worker (compare-and-set); expires so a crashed worker's claim is recoverable
+  lockedBy       String?      @map("locked_by")
+  lockedUntil    DateTime?    @map("locked_until") @db.Timestamptz(6)
+  idempotencyKey String?      @map("idempotency_key")
+  version        Int          @default(1)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lead          Lead?                    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  reassignments ReassignmentQueueEntry[]
+
+  organization Organization @relation("Task_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  assignedTo   User         @relation("Task_assignedToId", fields: [assignedToId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("Task_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  team         Team?        @relation("Task_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  completedBy  User?        @relation("Task_completedById", fields: [completedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([status, dueAt, assignedToId])
+  @@index([organizationId, assignedToId, status, dueAt])
+  @@index([leadId, status])
+  @@index([organizationId, teamId, status, dueAt])
+  @@map("tasks")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Exception queue, reassignment queue, reactivation queue
+// ---------------------------------------------------------------------------------------------------------------
+
+/// Materialised exception queue: one OPEN row per (lead, kind). Maintained in the same transaction as the change
+/// (syncLeadExceptions) and by the worker scans for time-based kinds. resolved_at set when the condition clears.
+model LeadException {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  leadId         String        @map("lead_id") @db.Uuid
+  kind           ExceptionKind
+  /// `${leadId}:${kind}` while open, null once resolved (unique => one open row per kind)
+  openKey        String?       @unique @map("open_key")
+  detail         String?
+  detectedAt     DateTime      @default(now()) @map("detected_at") @db.Timestamptz(6)
+  resolvedAt     DateTime?     @map("resolved_at") @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("LeadException_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, resolvedAt, kind])
+  @@index([leadId])
+  @@map("lead_exceptions")
+}
+
+model ReassignmentQueueEntry {
+  id              String             @id @default(uuid()) @db.Uuid
+  organizationId  String             @map("organization_id") @db.Uuid
+  leadId          String?            @map("lead_id") @db.Uuid
+  taskId          String?            @map("task_id") @db.Uuid
+  reason          ReassignmentReason
+  previousOwnerId String?            @map("previous_owner_id") @db.Uuid
+  /// team of previous owner (so team-scoped managers see the entry)
+  teamId          String?            @map("team_id") @db.Uuid
+  status          QueueStatus        @default(OPEN)
+  /// `lead:<id>` / `task:<id>` while OPEN, null when resolved => queue entry unique per open lead/task
+  openKey         String?            @unique @map("open_key")
+  sourceEventId   String?            @map("source_event_id")
+  resolvedById    String?            @map("resolved_by_id") @db.Uuid
+  resolvedAt      DateTime?          @map("resolved_at") @db.Timestamptz(6)
+  newOwnerId      String?            @map("new_owner_id") @db.Uuid
+  resolutionNote  String?            @map("resolution_note")
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  organization  Organization @relation("ReassignmentQueueEntry_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  previousOwner User?        @relation("ReassignmentQueueEntry_previousOwnerId", fields: [previousOwnerId], references: [id], onDelete: Restrict)
+  team          Team?        @relation("ReassignmentQueueEntry_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  resolvedBy    User?        @relation("ReassignmentQueueEntry_resolvedById", fields: [resolvedById], references: [id], onDelete: Restrict)
+  newOwner      User?        @relation("ReassignmentQueueEntry_newOwnerId", fields: [newOwnerId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, teamId, status])
+  @@map("reassignment_queue")
+}
+
+model ReactivationEntry {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  leadId         String             @map("lead_id") @db.Uuid
+  teamId         String?            @map("team_id") @db.Uuid
+  lostReason     String?            @map("lost_reason")
+  eligibleFrom   DateTime           @map("eligible_from") @db.Timestamptz(6)
+  attempts       Int                @default(0)
+  status         ReactivationStatus @default(PENDING)
+  /// `lead:<id>` while active (PENDING/ELIGIBLE/ASSIGNED)
+  openKey        String?            @unique @map("open_key")
+  assignedToId   String?            @map("assigned_to_id") @db.Uuid
+  outcome        String?
+  resolvedAt     DateTime?          @map("resolved_at") @db.Timestamptz(6)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("ReactivationEntry_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("ReactivationEntry_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  assignedTo   User?        @relation("ReactivationEntry_assignedToId", fields: [assignedToId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, eligibleFrom])
+  @@map("reactivation_queue")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Webinars / events / demos and attendance
+// ---------------------------------------------------------------------------------------------------------------
+
+model CrmEvent {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  type           EventType
+  title          String
+  programId      String?     @map("program_id") @db.Uuid
+  startsAt       DateTime    @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime?   @map("ends_at") @db.Timestamptz(6)
+  hostId         String?     @map("host_id") @db.Uuid
+  teamId         String?     @map("team_id") @db.Uuid
+  capacity       Int?
+  location       String?
+  status         EventStatus @default(SCHEDULED)
+  createdById    String?     @map("created_by_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  program     Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
+  attendances EventAttendance[]
+
+  organization Organization @relation("CrmEvent_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  host         User?        @relation("CrmEvent_hostId", fields: [hostId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("CrmEvent_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("CrmEvent_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, type, startsAt])
+  @@map("events")
+}
+
+model EventAttendance {
+  id                String           @id @default(uuid()) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  eventId           String           @map("event_id") @db.Uuid
+  leadId            String           @map("lead_id") @db.Uuid
+  status            AttendanceStatus @default(INVITED)
+  registeredAt      DateTime?        @map("registered_at") @db.Timestamptz(6)
+  joinedAt          DateTime?        @map("joined_at") @db.Timestamptz(6)
+  durationMinutes   Int?             @map("duration_minutes")
+  reason            String?
+  /// new attendance row created by RESCHEDULED links back to the no-show row
+  rescheduledFromId String?          @map("rescheduled_from_id") @db.Uuid
+  source            String           @default("MANUAL")
+  updatedById       String?          @map("updated_by_id") @db.Uuid
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event CrmEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  lead  Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("EventAttendance_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  updatedBy    User?        @relation("EventAttendance_updatedById", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([eventId, leadId])
+  @@index([organizationId, leadId])
+  @@map("event_attendance")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Imports
+// ---------------------------------------------------------------------------------------------------------------
+
+model ImportJob {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  createdById    String       @map("created_by_id") @db.Uuid
+  /// team of the importer (rows without an explicit owner inherit it)
+  teamId         String?      @map("team_id") @db.Uuid
+  idempotencyKey String       @map("idempotency_key")
+  fileName       String?      @map("file_name")
+  status         ImportStatus @default(QUEUED)
+  totalRows      Int          @default(0) @map("total_rows")
+  processedRows  Int          @default(0) @map("processed_rows")
+  createdRows    Int          @default(0) @map("created_rows")
+  duplicateRows  Int          @default(0) @map("duplicate_rows")
+  skippedRows    Int          @default(0) @map("skipped_rows")
+  errorRows      Int          @default(0) @map("error_rows")
+  /// column mapping + defaults (sourceId, programId, assignment mode ...) validated by Zod
+  options        Json         @default("{}")
+  /// raw CSV text kept for retries (bounded by upload limit); cleared after completion by retention task
+  rawCsv         String?      @map("raw_csv")
+  attempts       Int          @default(0)
+  lastError      String?      @map("last_error")
+  startedAt      DateTime?    @map("started_at") @db.Timestamptz(6)
+  finishedAt     DateTime?    @map("finished_at") @db.Timestamptz(6)
+  lockedUntil    DateTime?    @map("locked_until") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  errors ImportError[]
+  leads  Lead[]
+
+  organization Organization @relation("ImportJob_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("ImportJob_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  team         Team?        @relation("ImportJob_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("import_jobs")
+}
+
+model ImportError {
+  id        String   @id @default(uuid()) @db.Uuid
+  jobId     String   @map("job_id") @db.Uuid
+  rowNumber Int      @map("row_number")
+  field     String?
+  code      String
+  message   String
+  rawRow    Json     @default("{}") @map("raw_row")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  job ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, rowNumber, code])
+  @@index([jobId, rowNumber])
+  @@map("import_errors")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Notification delivery tracking (CRM-owned minimal table; Agent F's notifications module may supersede/consume it)
+// ---------------------------------------------------------------------------------------------------------------
+
+model CrmNotificationDelivery {
+  id                String            @id @default(uuid()) @db.Uuid
+  organizationId    String            @map("organization_id") @db.Uuid
+  recipientId       String            @map("recipient_id") @db.Uuid
+  /// task.due | task.reminder | task.overdue | task.escalated | lead.unattended | lead.exception | reassignment.created ...
+  kind              String
+  channel           DeliveryChannel   @default(IN_APP)
+  status            CrmDeliveryStatus @default(QUEUED)
+  title             String
+  body              String?
+  severity          String            @default("info")
+  entityType        String?           @map("entity_type")
+  entityId          String?           @map("entity_id")
+  data              Json              @default("{}")
+  attempts          Int               @default(0)
+  providerReference String?           @map("provider_reference")
+  providerErrorCode String?           @map("provider_error_code")
+  /// unique per (entity, channel, kind, window) => no duplicate reminders
+  idempotencyKey    String            @map("idempotency_key")
+  readAt            DateTime?         @map("read_at") @db.Timestamptz(6)
+  sentAt            DateTime?         @map("sent_at") @db.Timestamptz(6)
+  deliveredAt       DateTime?         @map("delivered_at") @db.Timestamptz(6)
+  nextAttemptAt     DateTime?         @map("next_attempt_at") @db.Timestamptz(6)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("CrmNotificationDelivery_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  recipient    User         @relation("CrmNotificationDelivery_recipientId", fields: [recipientId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([recipientId, createdAt(sort: Desc)])
+  @@index([status, nextAttemptAt])
+  @@map("crm_notification_deliveries")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Saved list views (per user)
+// ---------------------------------------------------------------------------------------------------------------
+
+model LeadSavedView {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  name           String
+  filters        Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("LeadSavedView_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("LeadSavedView_userId", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, name])
+  @@map("lead_saved_views")
+}

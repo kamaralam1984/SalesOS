@@ -1,0 +1,79 @@
+-- 565 ms
+ WITH a AS ( SELECT floor(extract(epoch FROM ($1::timestamptz - l.created_at)) / 86400)::int AS created_days, floor(extract(epoch FROM ($2::timestamptz - coalesce(l.last_activity_at, l.created_at))) / 86400)::int AS idle_days FROM leads l WHERE l.organization_id = $3::uuid AND l.stage_category = 'OPEN' AND l.merged_into_id IS NULL) SELECT count(*)::int AS
+Aggregate (actual rows=1 loops=1)
+  Buffers: shared hit=2000
+  ->  Seq Scan on leads l (actual rows=43722 loops=1)
+        Filter: ((merged_into_id IS NULL) AND (organization_id = 'e2653cec-1d78-4057-ab80-ea43f7f8a837'::uuid) AND (stage_category = 'OPEN'::"StageCategory"))
+        Rows Removed by Filter: 16278
+        Buffers: shared hit=2000
+Planning:
+  Buffers: shared hit=3
+Planning Time: 0.611 ms
+Execution Time: 1376.125 ms
+
+-- 163 ms
+ WITH x AS MATERIALIZED ( SELECT l.assigned_to_id IS NOT NULL AS has_owner, (l.next_action_at IS NOT NULL OR EXISTS (SELECT 1 FROM tasks t WHERE t.lead_id = l.id AND t.status = 'OPEN')) AS has_next, (btrim(l.full_name) <> '' AND ((l.phone_e164 IS NOT NULL AND l.phone_valid) OR l.email IS NOT NULL)) AS has_fields, (coalesce(l.last_activity_
+Aggregate (actual rows=1 loops=1)
+  Buffers: shared hit=2580
+  CTE x
+    ->  Seq Scan on leads l (actual rows=43693 loops=1)
+          Filter: ((merged_into_id IS NULL) AND (organization_id = 'e2653cec-1d78-4057-ab80-ea43f7f8a837'::uuid) AND (stage_category = 'OPEN'::"StageCategory") AND (created_at < (('2026-10-14 22:53:30.725 UTC'::cstring)::timestamp with time zone - '01:00:00'::interval)))
+          Rows Removed by Filter: 16307
+          Buffers: shared hit=2580
+          SubPlan 2
+            ->  Index Only Scan using tasks_lead_id_status_idx on tasks t (actual rows=30000 loops=1)
+                  Index Cond: (status = 'OPEN'::"TaskStatus")
+                  Heap Fetches: 0
+                  Buffers: shared hit=580
+  ->  CTE Scan on x (actual rows=43693 loops=1)
+        Buffers: shared hit=2580
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.616 ms
+Execution Time: 223.595 ms
+
+-- 93 ms
+ SELECT (count(*) FILTER (WHERE t.status = 'DONE' AND t.completed_at >= $1::timestamptz AND t.completed_at < $2::timestamptz))::int AS completed, (count(*) FILTER (WHERE t.due_at >= $3::timestamptz AND t.due_at < $4::timestamptz AND t.status <> 'CANCELLED' AND (t.status = 'DONE' OR t.due_at < $5::timestamptz)))::int AS due, (count(*) FILTER (WHERE t.due_at >= $6::timestam
+Finalize Aggregate (actual rows=1 loops=1)
+  Buffers: shared hit=2500
+  ->  Gather (actual rows=2 loops=1)
+        Workers Planned: 1
+        Workers Launched: 1
+        Buffers: shared hit=2500
+        ->  Partial Aggregate (actual rows=1 loops=2)
+              Buffers: shared hit=2500
+              ->  Parallel Seq Scan on tasks t (actual rows=8149 loops=2)
+                    Filter: ((organization_id = 'e2653cec-1d78-4057-ab80-ea43f7f8a837'::uuid) AND (type = ANY ('{FOLLOW_UP,CALLBACK,DEMO,EMAIL}'::"TaskType"[])) AND (assigned_to_id = ANY ('{36a7720e-8d50-4321-9563-d241cf87329d,0662091a-38bd-4189-927c-1d6e352218f6,c704351c-37cb-443b-8d85-ddd570913ae6,f1b159a5-53a3-4879-8062-e2ea3819bdf2,ff7dbe7b-f18b-4eec-a909-a2d9f15bff99,0554d558-2521-4069-9fda-806f38d37a5d,f429d98b-f969-4739-b712-010a60598e9a,11f38432-2368-48df-9038-ac62e065ff63,c7cf3bea-8196-4358-9bac-1cfd8e2add95,171d4e21-8c28-4f0b-8120-620e51837ade,71563ad8-8198-4255-8c53-e26e9d9827c2,38b209f7-b43b-43be-b8c4-509fa5881957,9b5f1a0c-4bf7-4997-9d04-6ef2d24b5113,9eee8c6d-7e6b-4d1b-a2ac-7490d36055d9,5e86ecd3-c9b9-4bfd-bfa1-ae8d056024f9,9eabacc8-c636-4634-aa60-e5b93920c8f4,dd8265c1-b207-4232-af97-96f1533fe188,6a697b90-92e5-419a-b2f8-9171202e567d,757b6941-06e7-48a1-b0a5-39049fb3ef15,b10191d5-1b99-4e53-b071-32a0f8b0afff,f5b7695d-a49b-4226-b5fa-4c4cb2dcbf5a,d629858f-c190-4ded-a7a4-2c42c5d5b78a,30edd95f-bee3-4d3a-a180-85fa612a93f0,0fbf12b4-8878-4d6d-b9c2-42b4de646507,bdabfb57-f1df-4790-a537-c59ffef7671c,31746ac7-93a1-476d-93dd-f040cb765cad,beeb508a-539c-4d00-bd3f-4d086bdf6bc0,1f1fddc9-b348-4e02-9bda-6fc2270c3cb8,58b9c3a6-3fe9-442c-abd3-bb491c2c7cff,6dc13c5c-4f6d-4eba-9003-2b4e92f0c0da,e3247612-1a0e-4dd1-8625-5e15796f48b4,31e8d03d-8fa1-4c05-88e9-7f7bde7a04c3,d7c737de-586d-46bd-acaa-9085c80e828b,8be17d26-7046-47fd-b439-e87c95f50cda,19423f01-c18f-48e1-b5a1-55269bb6d852,66e784e2-fa98-4390-8396-0ab7988fe36a,2c5e24fe-c255-4f2d-96a7-9fc2b84eb92e,e6d9c14c-0a19-444b-9ee4-a69250f45416,41d7e3ca-fa4a-4c1f-8c49-4f0711b91e3a,abaef5d3-b7b7-4385-bd47-bc22bb9f4df1}'::uuid[])) AND (((due_at >= ('2026-09-13 18:30:00 UTC'::cstring)::timestamp with time zone) AND (due_at < ('2026-10-14 18:30:00 UTC'::cstring)::timestamp with time zone)) OR ((completed_at >= ('2026-09-13 18:30:00 UTC'::cstring)::timestamp with time zone) AND (completed_at < ('2026-10-14 18:30:00 UTC'::cstring)::timestamp with time zone))))
+                    Rows Removed by Filter: 51851
+                    Buffers: shared hit=2500
+Planning:
+  Buffers: shared hit=3
+Planning Time: 0.528 ms
+Execution Time: 159.715 ms
+
+-- 93 ms
+ SELECT count(*)::int AS attempts, (count(*) FILTER (WHERE c.outcome <> 'FAILED'))::int AS completed, (count(*) FILTER (WHERE c.outcome IN ('CONNECTED','WON','LOST','CALLBACK')))::int AS connected, count(DISTINCT c.lead_id)::int AS unique_clients, (count(DISTINCT c.lead_id) FILTER (WHERE c.outcome IN ('CONNECTED','WON','LOST','CALLBACK')))::int AS un
+Aggregate (actual rows=1 loops=1)
+  Buffers: shared hit=4490
+  ->  Sort (actual rows=41185 loops=1)
+        Sort Key: lead_id
+        Sort Method: quicksort  Memory: 3296kB
+        Buffers: shared hit=4490
+        ->  Bitmap Heap Scan on call_logs c (actual rows=41185 loops=1)
+              Recheck Cond: ((organization_id = 'e2653cec-1d78-4057-ab80-ea43f7f8a837'::uuid) AND (user_id = ANY ('{36a7720e-8d50-4321-9563-d241cf87329d,0662091a-38bd-4189-927c-1d6e352218f6,c704351c-37cb-443b-8d85-ddd570913ae6,f1b159a5-53a3-4879-8062-e2ea3819bdf2,ff7dbe7b-f18b-4eec-a909-a2d9f15bff99,0554d558-2521-4069-9fda-806f38d37a5d,f429d98b-f969-4739-b712-010a60598e9a,11f38432-2368-48df-9038-ac62e065ff63,c7cf3bea-8196-4358-9bac-1cfd8e2add95,171d4e21-8c28-4f0b-8120-620e51837ade,71563ad8-8198-4255-8c53-e26e9d9827c2,38b209f7-b43b-43be-b8c4-509fa5881957,9b5f1a0c-4bf7-4997-9d04-6ef2d24b5113,9eee8c6d-7e6b-4d1b-a2ac-7490d36055d9,5e86ecd3-c9b9-4bfd-bfa1-ae8d056024f9,9eabacc8-c636-4634-aa60-e5b93920c8f4,dd8265c1-b207-4232-af97-96f1533fe188,6a697b90-92e5-419a-b2f8-9171202e567d,757b6941-06e7-48a1-b0a5-39049fb3ef15,b10191d5-1b99-4e53-b071-32a0f8b0afff,f5b7695d-a49b-4226-b5fa-4c4cb2dcbf5a,d629858f-c190-4ded-a7a4-2c42c5d5b78a,30edd95f-bee3-4d3a-a180-85fa612a93f0,0fbf12b4-8878-4d6d-b9c2-42b4de646507,bdabfb57-f1df-4790-a537-c59ffef7671c,31746ac7-93a1-476d-93dd-f040cb765cad,beeb508a-539c-4d00-bd3f-4d086bdf6bc0,1f1fddc9-b348-4e02-9bda-6fc2270c3cb8,58b9c3a6-3fe9-442c-abd3-bb491c2c7cff,6dc13c5c-4f6d-4eba-9003-2b4e92f0c0da,e3247612-1a0e-4dd1-8625-5e15796f48b4,31e8d03d-8fa1-4c05-88e9-7f7bde7a04c3,d7c737de-586d-46bd-acaa-9085c80e828b,8be17d26-7046-47fd-b439-e87c95f50cda,19423f01-c18f-48e1-b5a1-55269bb6d852,66e784e2-fa98-4390-8396-0ab7988fe36a,2c5e24fe-c255-4f2d-96a7-9fc2b84eb92e,e6d9c14c-0a19-444b-9ee4-a69250f45416,41d7e3ca-fa4a-4c1f-8c49-4f0711b91e3a,abaef5d3-b7b7-4385-bd47-bc22bb9f4df1}'::uuid[])) AND (started_at >= ('2026-09-13 18:30:00 UTC'::cstring)::timestamp with time zone) AND (started_at < ('2026-10-14 18:30:00 UTC'::cstring)::timestamp with time zone))
+              Heap Blocks: exact=4138
+              Buffers: shared hit=4490
+              ->  Bitmap Index Scan on call_logs_org_user_started_idx (actual rows=41185 loops=1)
+                    Index Cond: ((organization_id = 'e2653cec-1d78-4057-ab80-ea43f7f8a837'::uuid) AND (user_id = ANY ('{36a7720e-8d50-4321-9563-d241cf87329d,0662091a-38bd-4189-927c-1d6e352218f6,c704351c-37cb-443b-8d85-ddd570913ae6,f1b159a5-53a3-4879-8062-e2ea3819bdf2,ff7dbe7b-f18b-4eec-a909-a2d9f15bff99,0554d558-2521-4069-9fda-806f38d37a5d,f429d98b-f969-4739-b712-010a60598e9a,11f38432-2368-48df-9038-ac62e065ff63,c7cf3bea-8196-4358-9bac-1cfd8e2add95,171d4e21-8c28-4f0b-8120-620e51837ade,71563ad8-8198-4255-8c53-e26e9d9827c2,38b209f7-b43b-43be-b8c4-509fa5881957,9b5f1a0c-4bf7-4997-9d04-6ef2d24b5113,9eee8c6d-7e6b-4d1b-a2ac-7490d36055d9,5e86ecd3-c9b9-4bfd-bfa1-ae8d056024f9,9eabacc8-c636-4634-aa60-e5b93920c8f4,dd8265c1-b207-4232-af97-96f1533fe188,6a697b90-92e5-419a-b2f8-9171202e567d,757b6941-06e7-48a1-b0a5-39049fb3ef15,b10191d5-1b99-4e53-b071-32a0f8b0afff,f5b7695d-a49b-4226-b5fa-4c4cb2dcbf5a,d629858f-c190-4ded-a7a4-2c42c5d5b78a,30edd95f-bee3-4d3a-a180-85fa612a93f0,0fbf12b4-8878-4d6d-b9c2-42b4de646507,bdabfb57-f1df-4790-a537-c59ffef7671c,31746ac7-93a1-476d-93dd-f040cb765cad,beeb508a-539c-4d00-bd3f-4d086bdf6bc0,1f1fddc9-b348-4e02-9bda-6fc2270c3cb8,58b9c3a6-3fe9-442c-abd3-bb491c2c7cff,6dc13c5c-4f6d-4eba-9003-2b4e92f0c0da,e3247612-1a0e-4dd1-8625-5e15796f48b4,31e8d03d-8fa1-4c05-88e9-7f7bde7a04c3,d7c737de-586d-46bd-acaa-9085c80e828b,8be17d26-7046-47fd-b439-e87c95f50cda,19423f01-c18f-48e1-b5a1-55269bb6d852,66e784e2-fa98-4390-8396-0ab7988fe36a,2c5e24fe-c255-4f2d-96a7-9fc2b84eb92e,e6d9c14c-0a19-444b-9ee4-a69250f45416,41d7e3ca-fa4a-4c1f-8c49-4f0711b91e3a,abaef5d3-b7b7-4385-bd47-bc22bb9f4df1}'::uuid[])) AND (started_at >= ('2026-09-13 18:30:00 UTC'::cstring)::timestamp with time zone) AND (started_at < ('2026-10-14 18:30:00 UTC'::cstring)::timestamp with time zone))
+                    Buffers: shared hit=352
+Planning:
+  Buffers: shared hit=3
+Planning Time: 0.397 ms
+Execution Time: 42.071 ms
+
+-- 35 ms (EXPLAIN failed: 
+Invalid `prisma.$queryRawUnsafe()` invocation:
+
+
+Raw query failed. Code: `42883`. Message: `ERROR: operator does not ex)
+SELECT "public"."sales_records"."id", "public"."sales_records"."organization_id", "public"."sales_records"."deal_id", "public"."sales_records"."lead_id", "public"."sales_records"."program_id", "public"."sales_records"."deal_type"::text, "public"."sales_records"."sale_value", "public"."sales_records"

@@ -1,0 +1,721 @@
+// cx + collaboration + Founder reporting domain models (Phase 7). Owned by the cx agent (Agent H).
+// Conventions: UUID PKs, organization_id scope, TIMESTAMPTZ, Decimal money + currency, @@map snake_case.
+// Cross-domain references (User, Lead, Program, CrmEvent, LeadCampaign, Deal, Refund, File) are PLAIN UUID columns
+// with no @relation, so this domain never edits another domain's model (same approach as people.prisma).
+// Tenant and membership checks are enforced in services. TODO(reconcile): when the lead wires consolidated
+// migrations, FKs for lead_id/deal_id/refund_id/program_id may be added in SQL; see docs/cx-report.md "Reconcile".
+
+// ---------------------------------------------------------------- enums
+
+enum ComplaintPriority {
+  P1
+  P2
+  P3
+  P4
+}
+
+/// docs/state-machines.md section 7
+enum ComplaintStatus {
+  OPEN
+  ACKNOWLEDGED
+  IN_PROGRESS
+  ESCALATED
+  RESOLVED
+  CLOSED
+  REOPENED
+}
+
+enum EscalationType {
+  HIGH_VALUE
+  COMPLEX_CONVERSATION
+}
+
+/// OPEN -> IN_REVIEW -> RESOLVED ; OPEN|IN_REVIEW -> CANCELLED
+enum EscalationStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  CANCELLED
+}
+
+enum SurveyKind {
+  CSAT
+  NPS
+  ENROLMENT_EXPERIENCE
+}
+
+/// docs/state-machines.md section 6
+enum HandoverStatus {
+  DRAFT
+  SUBMITTED
+  INFO_REQUESTED
+  ACKNOWLEDGED
+  OVERDUE
+  COMPLETED
+}
+
+/// Shared by action items and cross-functional tasks (docs/state-machines.md section 8)
+enum WorkStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  ESCALATED
+  CANCELLED
+}
+
+enum XfDepartment {
+  FOUNDER
+  SALES
+  MARKETING
+  COMMUNITY
+  OPERATIONS
+  STUDENT_SUCCESS
+}
+
+enum XfTaskKind {
+  TASK
+  HANDOFF
+  CAMPAIGN_ALIGNMENT
+  WEBINAR_PLANNING
+  INSIGHT_REQUEST
+}
+
+enum FounderReportType {
+  WEEKLY
+  MONTHLY
+}
+
+/// DRAFT -> PUBLISHED (immutable snapshot). A correction is a NEW report row (version+1) that supersedes the old one.
+enum FounderReportStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum RiskStatus {
+  OPEN
+  MITIGATING
+  RESOLVED
+  ACCEPTED
+}
+
+enum ActionItemSource {
+  REVIEW
+  FOUNDER_REPORT
+  MANUAL
+}
+
+enum PlanLinkKind {
+  CAMPAIGN
+  WEBINAR
+  EVENT
+  LEAD_GEN
+}
+
+// ---------------------------------------------------------------- settings
+
+/// One row per organization: complaint SLA table (DEC-017), handover alert timer, report due rules (DEC-028),
+/// handover checklist template, escalation thresholds. All values configurable; defaults live in @salesos/cx-core.
+model CxSetting {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @unique @map("organization_id") @db.Uuid
+  config         Json     @default("{}")
+  updatedById    String?  @map("updated_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("CxSetting_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  updatedBy    User?        @relation("CxSetting_updatedById", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@map("cx_settings")
+}
+
+/// Generic state history for every CX aggregate (complaint, escalation, handover, action_item, xf_task, founder_report).
+model CxStateLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  entityType     String   @map("entity_type")
+  entityId       String   @map("entity_id") @db.Uuid
+  fromStatus     String?  @map("from_status")
+  toStatus       String   @map("to_status")
+  actorId        String?  @map("actor_id") @db.Uuid
+  /// SYSTEM for sweeps
+  actorKind      String   @default("USER") @map("actor_kind")
+  note           String?
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("CxStateLog_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  actor        User?        @relation("CxStateLog_actorId", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, entityType, entityId, createdAt])
+  @@map("cx_state_log")
+}
+
+// ---------------------------------------------------------------- complaints & escalations
+
+model Complaint {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  /// learner / prospect = a Lead row (crm.leads.id). TODO(reconcile): FK in consolidated migration.
+  leadId         String?           @map("lead_id") @db.Uuid
+  /// TODO(revenue): FK to deals(id) when Agent G publishes the Deal model
+  dealId         String?           @map("deal_id") @db.Uuid
+  /// optional link to refunds(id) (revenue domain); the refund itself is never copied here
+  refundId       String?           @map("refund_id") @db.Uuid
+  title          String
+  description    String
+  category       String
+  priority       ComplaintPriority
+  status         ComplaintStatus   @default(OPEN)
+  ownerId        String            @map("owner_id") @db.Uuid
+  createdById    String            @map("created_by_id") @db.Uuid
+  teamId         String?           @map("team_id") @db.Uuid
+  /// true when no owner was supplied and the creator's manager was auto-assigned (state-machine failure handling)
+  autoAssigned   Boolean           @default(false) @map("auto_assigned")
+  isHighValue    Boolean           @default(false) @map("is_high_value")
+
+  /// SLA clock: restarts on REOPENED. All instants are absolute (business hours already applied).
+  slaStartedAt            DateTime  @default(now()) @map("sla_started_at") @db.Timestamptz(6)
+  firstResponseDueAt      DateTime  @map("first_response_due_at") @db.Timestamptz(6)
+  resolutionDueAt         DateTime  @map("resolution_due_at") @db.Timestamptz(6)
+  acknowledgedAt          DateTime? @map("acknowledged_at") @db.Timestamptz(6)
+  firstResponseNote       String?   @map("first_response_note")
+  firstResponseBreachedAt DateTime? @map("first_response_breached_at") @db.Timestamptz(6)
+  resolutionBreachedAt    DateTime? @map("resolution_breached_at") @db.Timestamptz(6)
+  /// 0 none, 1 owner notified, 2 team lead notified, 3 founder notified (P1)
+  breachLevel             Int       @default(0) @map("breach_level")
+  escalatedAt             DateTime? @map("escalated_at") @db.Timestamptz(6)
+  escalatedToId           String?   @map("escalated_to_id") @db.Uuid
+  escalationReason        String?   @map("escalation_reason")
+  resolvedAt              DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolution              String?
+  rootCauseCategory       String?   @map("root_cause_category")
+  /// true when resolved on/before resolutionDueAt (frozen at resolve time; KPI-CX-003 SLA adherence)
+  resolvedWithinSla       Boolean?  @map("resolved_within_sla")
+  closedAt                DateTime? @map("closed_at") @db.Timestamptz(6)
+  closeReason             String?   @map("close_reason")
+  /// invalid / duplicate closures are excluded from KPI-CX-003
+  closedAsInvalid         Boolean   @default(false) @map("closed_as_invalid")
+  reopenCount             Int       @default(0) @map("reopen_count")
+  version                 Int       @default(1)
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("Complaint_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("Complaint_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("Complaint_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  team         Team?        @relation("Complaint_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  escalatedTo  User?        @relation("Complaint_escalatedToId", fields: [escalatedToId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, priority])
+  @@index([organizationId, ownerId, status])
+  @@index([organizationId, leadId])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([status, resolutionDueAt])
+  @@map("complaints")
+}
+
+/// High-value / complex-conversation escalation raised from a lead (JD-CX-005), tracked to resolution.
+model RelationshipEscalation {
+  id              String           @id @default(uuid()) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  leadId          String           @map("lead_id") @db.Uuid
+  type            EscalationType
+  title           String
+  context         String
+  blocker         String?
+  requestedHelp   String?          @map("requested_help")
+  status          EscalationStatus @default(OPEN)
+  ownerId         String           @map("owner_id") @db.Uuid
+  createdById     String           @map("created_by_id") @db.Uuid
+  teamId          String?          @map("team_id") @db.Uuid
+  teamLeadId      String?          @map("team_lead_id") @db.Uuid
+  founderInvolved Boolean          @default(false) @map("founder_involved")
+  resolution      String?
+  resolvedAt      DateTime?        @map("resolved_at") @db.Timestamptz(6)
+  version         Int              @default(1)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("RelationshipEscalation_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("RelationshipEscalation_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("RelationshipEscalation_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  team         Team?        @relation("RelationshipEscalation_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  teamLead     User?        @relation("RelationshipEscalation_teamLeadId", fields: [teamLeadId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([organizationId, ownerId, status])
+  @@index([organizationId, leadId])
+  @@map("relationship_escalations")
+}
+
+model RelationshipNote {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  /// NOTE | PROMISE | PREFERENCE | MILESTONE
+  kind           String   @default("NOTE")
+  body           String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("RelationshipNote_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  author       User         @relation("RelationshipNote_authorId", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, leadId, createdAt(sort: Desc)])
+  @@map("relationship_notes")
+}
+
+/// Per-user watchlist of key prospects (JD-CX-002). The CRM flag Lead.isKeyProspect is owned by CRM.
+model KeyProspectWatch {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  reason         String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("KeyProspectWatch_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("KeyProspectWatch_userId", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, leadId, userId])
+  @@index([organizationId, userId])
+  @@map("key_prospect_watches")
+}
+
+// ---------------------------------------------------------------- satisfaction / enrolment experience / refunds view
+
+model SurveyTemplate {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  key            String
+  name           String
+  kind           SurveyKind
+  /// [{ id, text, type: RATING_1_5 | NPS_0_10 | TEXT | YES_NO, required }]; configurable
+  questions      Json
+  version        Int        @default(1)
+  isActive       Boolean    @default(true) @map("is_active")
+  createdById    String     @map("created_by_id") @db.Uuid
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("SurveyTemplate_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("SurveyTemplate_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, key])
+  @@index([organizationId, kind, isActive])
+  @@map("survey_templates")
+}
+
+/// CSAT / NPS / enrolment-experience responses. kind = ENROLMENT_EXPERIENCE rows are what the data model calls
+/// enrolment_feedback (KPI-CX-004); CSAT rows feed KPI-CX-001.
+model SatisfactionResponse {
+  id              String     @id @default(uuid()) @db.Uuid
+  organizationId  String     @map("organization_id") @db.Uuid
+  templateId      String?    @map("template_id") @db.Uuid
+  templateVersion Int?       @map("template_version")
+  kind            SurveyKind
+  /// respondent reference: the learner (lead row) and/or an external reference such as a survey link id
+  leadId          String?    @map("lead_id") @db.Uuid
+  respondentRef   String?    @map("respondent_ref")
+  respondentName  String?    @map("respondent_name")
+  dealId          String?    @map("deal_id") @db.Uuid
+  complaintId     String?    @map("complaint_id") @db.Uuid
+  handoverId      String?    @map("handover_id") @db.Uuid
+  programId       String?    @map("program_id") @db.Uuid
+  /// headline score: CSAT / enrolment 1..5, NPS 0..10
+  score           Int
+  answers         Json       @default("[]")
+  comment         String?
+  /// DPDP: respondent consent to store the answer and name is mandatory
+  consentGiven    Boolean    @map("consent_given")
+  consentAt       DateTime   @map("consent_at") @db.Timestamptz(6)
+  channel         String     @default("MANUAL")
+  respondedAt     DateTime   @map("responded_at") @db.Timestamptz(6)
+  capturedById    String     @map("captured_by_id") @db.Uuid
+  /// owner of the learner relationship at capture time (scoping)
+  ownerId         String?    @map("owner_id") @db.Uuid
+  /// enrolment feedback beyond 7 days of the enrolment is flagged (KPI-CX-004 exclusions)
+  outsideWindow   Boolean    @default(false) @map("outside_window")
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("SatisfactionResponse_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  capturedBy   User         @relation("SatisfactionResponse_capturedById", fields: [capturedById], references: [id], onDelete: Restrict)
+  owner        User?        @relation("SatisfactionResponse_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, kind, respondedAt(sort: Desc)])
+  @@index([organizationId, leadId])
+  @@index([organizationId, ownerId])
+  @@map("satisfaction_responses")
+}
+
+/// CX-owned root-cause tag for a refund. Refund requested / approved / processed live ONLY in the revenue domain.
+/// TODO(revenue): add FK to refunds(id) once Agent G ships the Refund model.
+model RefundRootCause {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  refundId       String   @map("refund_id") @db.Uuid
+  category       String
+  note           String?
+  complaintId    String?  @map("complaint_id") @db.Uuid
+  taggedById     String   @map("tagged_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("RefundRootCause_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  taggedBy     User         @relation("RefundRootCause_taggedById", fields: [taggedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, refundId])
+  @@index([organizationId, category])
+  @@map("refund_root_causes")
+}
+
+// ---------------------------------------------------------------- Student Success handover
+
+model HandoverRecord {
+  id               String         @id @default(uuid()) @db.Uuid
+  organizationId   String         @map("organization_id") @db.Uuid
+  /// The WON deal (revenue domain; TODO FK). Unique per deal => handover creation from the deal-won event is idempotent.
+  dealId           String?        @map("deal_id") @db.Uuid
+  leadId           String?        @map("lead_id") @db.Uuid
+  programId        String?        @map("program_id") @db.Uuid
+  /// snapshot labels so Student Success never needs lead/deal/program read access
+  programName      String?        @map("program_name")
+  status           HandoverStatus @default(DRAFT)
+  /// sales owner (the person who closed the sale)
+  ownerId          String         @map("owner_id") @db.Uuid
+  teamId           String?        @map("team_id") @db.Uuid
+  createdById      String?        @map("created_by_id") @db.Uuid
+  receivingOwnerId String?        @map("receiving_owner_id") @db.Uuid
+  /// outbox event that created it (idempotent consumer key); null for manual
+  sourceEventId    String?        @unique @map("source_event_id") @db.Uuid
+
+  // ---- checklist fields (required set is configurable; defaults in @salesos/cx-core)
+  learnerName        String?  @map("learner_name")
+  learnerContact     String?  @map("learner_contact")
+  languagePreference String?  @map("language_preference")
+  amountPaid         Decimal? @map("amount_paid") @db.Decimal(14, 2)
+  amountDue          Decimal? @map("amount_due") @db.Decimal(14, 2)
+  currency           String   @default("INR") @db.Char(3)
+  paymentVerified    Boolean? @map("payment_verified")
+  promisesMade       String?  @map("promises_made")
+  goals              String?
+  objections         String?
+  specialNotes       String?  @map("special_notes")
+  /// { dataSharing: bool, contact: bool, marketing?: bool, confirmedAt? }
+  consents           Json?
+  /// FileRef ids only (FileService owns the bytes); resolver 'handover' registered by the cx module
+  attachmentFileIds  String[] @default([]) @map("attachment_file_ids")
+
+  submittedAt     DateTime? @map("submitted_at") @db.Timestamptz(6)
+  /// pending-handover alert deadline = submittedAt + SLA (default 24h)
+  ackDueAt        DateTime? @map("ack_due_at") @db.Timestamptz(6)
+  overdueAt       DateTime? @map("overdue_at") @db.Timestamptz(6)
+  /// 0 none, 1 manager notified, 2 team lead notified
+  overdueLevel    Int       @default(0) @map("overdue_level")
+  infoRequest     String?   @map("info_request")
+  infoRequestedAt DateTime? @map("info_requested_at") @db.Timestamptz(6)
+  acknowledgedAt  DateTime? @map("acknowledged_at") @db.Timestamptz(6)
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(6)
+  completionNote  String?   @map("completion_note")
+  version         Int       @default(1)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization   Organization @relation("HandoverRecord_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner          User         @relation("HandoverRecord_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  team           Team?        @relation("HandoverRecord_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  createdBy      User?        @relation("HandoverRecord_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  receivingOwner User?        @relation("HandoverRecord_receivingOwnerId", fields: [receivingOwnerId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, dealId])
+  @@index([organizationId, status])
+  @@index([organizationId, ownerId, status])
+  @@index([status, ackDueAt])
+  @@map("handover_records")
+}
+
+// ---------------------------------------------------------------- cross-functional collaboration
+
+model XfTask {
+  id                  String       @id @default(uuid()) @db.Uuid
+  organizationId      String       @map("organization_id") @db.Uuid
+  title               String
+  description         String?
+  kind                XfTaskKind   @default(TASK)
+  /// receiving department (drives department-scoped visibility)
+  department          XfDepartment
+  requesterDepartment XfDepartment @default(SALES) @map("requester_department")
+  ownerId             String       @map("owner_id") @db.Uuid
+  requesterId         String       @map("requester_id") @db.Uuid
+  teamId              String?      @map("team_id") @db.Uuid
+  priority            Int          @default(3)
+  dueAt               DateTime     @map("due_at") @db.Timestamptz(6)
+  status              WorkStatus   @default(OPEN)
+  programId           String?      @map("program_id") @db.Uuid
+  eventId             String?      @map("event_id") @db.Uuid
+  campaignId          String?      @map("campaign_id") @db.Uuid
+  planLinkId          String?      @map("plan_link_id") @db.Uuid
+  /// minimum-data payload only; PII keys are rejected at the API
+  payload             Json         @default("{}")
+  completedAt         DateTime?    @map("completed_at") @db.Timestamptz(6)
+  completionNote      String?      @map("completion_note")
+  evidenceFileIds     String[]     @default([]) @map("evidence_file_ids")
+  /// completion confirmation by the requester (separation: assignee completes, requester confirms)
+  confirmedById       String?      @map("confirmed_by_id") @db.Uuid
+  confirmedAt         DateTime?    @map("confirmed_at") @db.Timestamptz(6)
+  cancelReason        String?      @map("cancel_reason")
+  overdueLevel        Int          @default(0) @map("overdue_level")
+  escalatedAt         DateTime?    @map("escalated_at") @db.Timestamptz(6)
+  version             Int          @default(1)
+  createdAt           DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  comments   XfTaskComment[]
+  dependsOn  XfTaskDependency[] @relation("Dependent")
+  dependedBy XfTaskDependency[] @relation("Dependency")
+
+  organization Organization @relation("XfTask_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("XfTask_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  requester    User         @relation("XfTask_requesterId", fields: [requesterId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("XfTask_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  confirmedBy  User?        @relation("XfTask_confirmedById", fields: [confirmedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, department, status])
+  @@index([organizationId, ownerId, status])
+  @@index([organizationId, requesterId])
+  @@index([status, dueAt])
+  @@map("xf_tasks")
+}
+
+model XfTaskComment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  taskId         String   @map("task_id") @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  body           String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  task XfTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("XfTaskComment_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  author       User         @relation("XfTaskComment_authorId", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, createdAt])
+  @@map("xf_task_comments")
+}
+
+model XfTaskDependency {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  taskId         String   @map("task_id") @db.Uuid
+  dependsOnId    String   @map("depends_on_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  task      XfTask @relation("Dependent", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn XfTask @relation("Dependency", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("XfTaskDependency_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([taskId, dependsOnId])
+  @@map("xf_task_dependencies")
+}
+
+/// Campaign / webinar / event / lead-gen alignment with the sales plan (JD-CROSS-006..008).
+model CampaignPlanLink {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  kind           PlanLinkKind
+  title          String
+  programId      String?      @map("program_id") @db.Uuid
+  /// crm.events(id) when the plan is a webinar/event/demo
+  eventId        String?      @map("event_id") @db.Uuid
+  campaignId     String?      @map("campaign_id") @db.Uuid
+  sourceId       String?      @map("source_id") @db.Uuid
+  windowStart    DateTime     @map("window_start") @db.Timestamptz(6)
+  windowEnd      DateTime     @map("window_end") @db.Timestamptz(6)
+  /// planned lead intake (marketing) vs sales capacity note
+  plannedLeads   Int?         @map("planned_leads")
+  salesPlanNote  String?      @map("sales_plan_note")
+  ownerId        String       @map("owner_id") @db.Uuid
+  createdById    String       @map("created_by_id") @db.Uuid
+  status         String       @default("PLANNED")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("CampaignPlanLink_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("CampaignPlanLink_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("CampaignPlanLink_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, kind, windowStart])
+  @@map("campaign_plan_links")
+}
+
+/// Learner / market insights shared with other departments with minimum data (no contact details, no names).
+model Insight {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  /// LEARNER | MARKET | OBJECTION | COMPETITOR
+  kind           String   @default("LEARNER")
+  title          String
+  body           String
+  programId      String?  @map("program_id") @db.Uuid
+  tags           String[] @default([])
+  /// departments (XfDepartment keys) the insight is shared with; empty = leadership only
+  audience       String[] @default([])
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("Insight_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  author       User         @relation("Insight_authorId", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("insights")
+}
+
+// ---------------------------------------------------------------- Founder reporting
+
+model FounderReport {
+  id               String              @id @default(uuid()) @db.Uuid
+  organizationId   String              @map("organization_id") @db.Uuid
+  type             FounderReportType
+  periodStart      DateTime            @map("period_start") @db.Date
+  periodEnd        DateTime            @map("period_end") @db.Date
+  /// correction number for this (type, period): 1 = original; >1 = corrected version that supersedes the previous
+  versionNumber    Int                 @default(1) @map("version_number")
+  supersedesId     String?             @map("supersedes_id") @db.Uuid
+  status           FounderReportStatus @default(DRAFT)
+  title            String
+  /// { performance, risks, opportunities, solutions } - narrative + item lists; never fabricated numbers
+  sections         Json                @default("{}")
+  authorId         String              @map("author_id") @db.Uuid
+  /// when the report is due (DEC-028); computed at creation from the configured cadence
+  dueAt            DateTime            @map("due_at") @db.Timestamptz(6)
+  publishedAt      DateTime?           @map("published_at") @db.Timestamptz(6)
+  publishedById    String?             @map("published_by_id") @db.Uuid
+  contentHash      String?             @map("content_hash")
+  /// frozen at publish: publishedAt <= dueAt (KPI-FND-003). Corrections never change the original's flag.
+  onTime           Boolean?            @map("on_time")
+  completenessPct  Int?                @map("completeness_pct")
+  /// Founder review (DEC-028): optional 1-5 rating + note
+  rating           Int?
+  reviewNote       String?             @map("review_note")
+  reviewedById     String?             @map("reviewed_by_id") @db.Uuid
+  reviewedAt       DateTime?           @map("reviewed_at") @db.Timestamptz(6)
+  /// overdue reminder level already sent (0 none, 1 author reminded at due, 2 founder alerted)
+  dueReminderLevel Int                 @default(0) @map("due_reminder_level")
+  version          Int                 @default(1)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  snapshots   FounderReportSnapshot[]
+  actionItems ActionItem[]
+
+  organization Organization @relation("FounderReport_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  author       User         @relation("FounderReport_authorId", fields: [authorId], references: [id], onDelete: Restrict)
+  publishedBy  User?        @relation("FounderReport_publishedById", fields: [publishedById], references: [id], onDelete: Restrict)
+  reviewedBy   User?        @relation("FounderReport_reviewedById", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, type, periodStart, versionNumber])
+  @@index([organizationId, status, dueAt])
+  @@index([organizationId, type, periodStart(sort: Desc)])
+  @@map("founder_reports")
+}
+
+/// IMMUTABLE. A DB trigger (prisma/sql/cx-guards.sql, applied by the API at boot) blocks UPDATE and DELETE.
+model FounderReportSnapshot {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  reportId       String            @unique @map("report_id") @db.Uuid
+  type           FounderReportType
+  periodStart    DateTime          @map("period_start") @db.Date
+  periodEnd      DateTime          @map("period_end") @db.Date
+  versionNumber  Int               @map("version_number")
+  /// canonical, frozen content (title, sections, data placeholders, risks, action-item summary)
+  content        Json
+  contentHash    String            @map("content_hash")
+  dueAt          DateTime          @map("due_at") @db.Timestamptz(6)
+  publishedAt    DateTime          @map("published_at") @db.Timestamptz(6)
+  publishedById  String            @map("published_by_id") @db.Uuid
+  onTime         Boolean           @map("on_time")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  report FounderReport @relation(fields: [reportId], references: [id], onDelete: Restrict)
+
+  organization Organization @relation("FounderReportSnapshot_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  publishedBy  User         @relation("FounderReportSnapshot_publishedById", fields: [publishedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, type, periodStart(sort: Desc)])
+  @@map("founder_report_snapshots")
+}
+
+/// Issue / risk register: "raise issues early with proposed solutions" (JD-REPORT-003).
+model RiskEntry {
+  id               String     @id @default(uuid()) @db.Uuid
+  organizationId   String     @map("organization_id") @db.Uuid
+  title            String
+  description      String
+  /// 1 low .. 4 critical
+  severity         Int        @default(2)
+  status           RiskStatus @default(OPEN)
+  /// required before the risk can be included in a published report
+  proposedSolution String?    @map("proposed_solution")
+  /// raised before it hit a target = early warning
+  earlyWarning     Boolean    @default(false) @map("early_warning")
+  ownerId          String     @map("owner_id") @db.Uuid
+  raisedById       String     @map("raised_by_id") @db.Uuid
+  raisedAt         DateTime   @default(now()) @map("raised_at") @db.Timestamptz(6)
+  resolvedAt       DateTime?  @map("resolved_at") @db.Timestamptz(6)
+  resolutionNote   String?    @map("resolution_note")
+  lastReportId     String?    @map("last_report_id") @db.Uuid
+  version          Int        @default(1)
+  updatedAt        DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("RiskEntry_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("RiskEntry_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  raisedBy     User         @relation("RiskEntry_raisedById", fields: [raisedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, severity])
+  @@map("risk_register")
+}
+
+model ActionItem {
+  id              String           @id @default(uuid()) @db.Uuid
+  organizationId  String           @map("organization_id") @db.Uuid
+  reportId        String?          @map("report_id") @db.Uuid
+  source          ActionItemSource @default(MANUAL)
+  title           String
+  description     String?
+  ownerId         String           @map("owner_id") @db.Uuid
+  createdById     String           @map("created_by_id") @db.Uuid
+  teamId          String?          @map("team_id") @db.Uuid
+  dueAt           DateTime         @map("due_at") @db.Timestamptz(6)
+  status          WorkStatus       @default(OPEN)
+  completedAt     DateTime?        @map("completed_at") @db.Timestamptz(6)
+  completionNote  String?          @map("completion_note")
+  /// evidence: text reference and/or FileService ids
+  evidence        String?
+  evidenceFileIds String[]         @default([]) @map("evidence_file_ids")
+  /// frozen at completion: completedAt <= dueAt (KPI-FND-001 numerator)
+  completedOnTime Boolean?         @map("completed_on_time")
+  cancelReason    String?          @map("cancel_reason")
+  /// 0 none, 1 owner alerted, 2 Founder alerted
+  overdueLevel    Int              @default(0) @map("overdue_level")
+  escalatedAt     DateTime?        @map("escalated_at") @db.Timestamptz(6)
+  version         Int              @default(1)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  report FounderReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  organization Organization @relation("ActionItem_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("ActionItem_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("ActionItem_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  team         Team?        @relation("ActionItem_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, ownerId, status])
+  @@index([organizationId, status, dueAt])
+  @@index([status, dueAt])
+  @@map("action_items")
+}

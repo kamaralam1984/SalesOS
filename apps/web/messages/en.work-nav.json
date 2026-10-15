@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "work": "My Work",
+    "workAttendance": "Attendance",
+    "workLeave": "Leave",
+    "workGoals": "Goals",
+    "workTasks": "Tasks",
+    "workHolidays": "Holidays",
+    "workPayslips": "Payslips",
+    "workApprovals": "Leave approvals",
+    "workGoalCycle": "45-day goals",
+    "workDirectory": "Directory",
+    "workOrgChart": "Org chart",
+    "workHr": "HR",
+    "workHrPolicy": "Policy",
+    "workHrBalances": "Leave balances",
+    "workHrBirthdays": "Birthdays",
+    "workHrProbation": "Probation",
+    "workHrAnnouncements": "Announcements",
+    "workPayroll": "Payroll",
+    "workPayrollStructures": "Salary structures",
+    "workReports": "Workforce reports",
+    "sections": {
+      "work": "Work"
+    }
+  }
+}

@@ -1,0 +1,215 @@
+import { Injectable } from '@nestjs/common';
+import { Prisma, type AttendanceRecord } from '@prisma/client';
+import { PLATFORM_EVENTS, WORKFORCE_EVENTS } from '@salesos/shared-types';
+import type { attendanceCorrectionSchema, attendanceMonthQuerySchema, checkInSchema, correctionsQuerySchema, teamSummaryQuerySchema } from '@salesos/validation';
+import {
+  addDays, classifyCheckIn, classifyCheckOut, eachDay, localDay, minutesBetween, monthEnd, monthOf, monthStart, summarise,
+  type AttendanceSummary,
+} from '@salesos/workforce-core';
+import type { z } from 'zod';
+import { AuditService } from '../../../common/audit/audit.service';
+import { AccessService, type Principal } from '../../../common/authz';
+import { AppError, conflict, forbidden, notFound } from '../../../common/http/errors';
+import { OutboxService } from '../../../common/outbox/outbox.service';
+import { pageArgs, pageResult } from '../../../common/pagination/pagination';
+import { PrismaService } from '../../../common/prisma';
+import { asPage, assertTargetInScope, isoDay, scopeUserIds, toDate, userNameMap } from '../../people/common/helpers';
+import { WorkforceConfigService } from '../common/workforce-config.service';
+import { assertEmployee } from '../leave/leave.common';
+
+type Dto<T extends z.ZodTypeAny> = z.infer<T>;
+
+/** Roles whose attendance corrections are not limited by `managerCorrectionWindowDays` (HR and the Boss). */
+const UNLIMITED_CORRECTORS = ['HR', 'FOUNDER_CEO'];
+
+const recordView = (r: AttendanceRecord) => ({
+  id: r.id, userId: r.userId, date: isoDay(r.date)!, status: r.status, checkInAt: r.checkInAt, checkOutAt: r.checkOutAt, workMinutes: r.workMinutes,
+  source: r.source, note: r.note, version: r.version,
+});
+
+@Injectable()
+export class AttendanceService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: AccessService,
+    private readonly audit: AuditService,
+    private readonly outbox: OutboxService,
+    private readonly cfg: WorkforceConfigService,
+  ) {}
+
+  // ------------------------------------------------------------------ self service
+  async checkIn(user: Principal, body: Dto<typeof checkInSchema>) {
+    const now = new Date();
+    const { config } = await this.cfg.getConfig(user.organizationId);
+    if (!config.attendance.selfCheckIn) throw new AppError('SELF_CHECK_IN_DISABLED', 'Self check-in is turned off by policy; ask HR or your manager to record attendance', 403);
+    const today = localDay(now, config.timezone);
+    const { calendar } = await this.cfg.getCalendar(user.organizationId, today, today);
+    const kind = calendar.kindOf(today);
+    if (kind !== 'WORKING') throw new AppError('NON_WORKING_DAY', kind === 'HOLIDAY' ? 'Today is a holiday' : 'Today is not a working day. HR can record attendance if you worked.', 409);
+    const status = classifyCheckIn(config, now, body.mode);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const rec = await tx.attendanceRecord.create({ data: { organizationId: user.organizationId, userId: user.userId, date: toDate(today), status, checkInAt: now, source: 'SELF' } });
+        await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'attendance.checked_in', entityType: 'attendance_record', entityId: rec.id, metadata: { date: today, status, mode: body.mode } });
+        return recordView(rec);
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        const existing = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId: user.userId, date: toDate(today) } } });
+        throw new AppError('ALREADY_CHECKED_IN', 'Attendance for today is already recorded', 409, existing ? recordView(existing) : undefined);
+      }
+      throw e;
+    }
+  }
+
+  async checkOut(user: Principal) {
+    const now = new Date();
+    const { config } = await this.cfg.getConfig(user.organizationId);
+    const today = localDay(now, config.timezone);
+    // today's record, or yesterday's still-open one (overnight shift)
+    const rec = await this.prisma.attendanceRecord.findFirst({
+      where: { userId: user.userId, organizationId: user.organizationId, date: { gte: toDate(addDays(today, -1)), lte: toDate(today) }, checkInAt: { not: null }, checkOutAt: null },
+      orderBy: { date: 'desc' },
+    });
+    if (!rec || !rec.checkInAt) {
+      const done = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId: user.userId, date: toDate(today) } } });
+      if (done?.checkOutAt) throw new AppError('ALREADY_CHECKED_OUT', 'You have already checked out today', 409, recordView(done));
+      throw new AppError('NOT_CHECKED_IN', 'Check in first', 409);
+    }
+    const res = classifyCheckOut(config, rec.status, rec.checkInAt, now);
+    return this.prisma.$transaction(async (tx) => {
+      const upd = await tx.attendanceRecord.updateMany({ where: { id: rec.id, checkOutAt: null, version: rec.version }, data: { checkOutAt: now, workMinutes: res.workMinutes, status: res.status, version: { increment: 1 } } });
+      if (upd.count !== 1) throw conflict('ALREADY_CHECKED_OUT', 'You have already checked out');
+      const out = await tx.attendanceRecord.findUniqueOrThrow({ where: { id: rec.id } });
+      await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'attendance.checked_out', entityType: 'attendance_record', entityId: rec.id, metadata: { date: isoDay(rec.date), workMinutes: res.workMinutes, status: res.status, needsReview: res.needsReview } });
+      return { ...recordView(out), needsReview: res.needsReview };
+    });
+  }
+
+  async today(user: Principal) {
+    const now = new Date();
+    const { config } = await this.cfg.getConfig(user.organizationId);
+    const today = localDay(now, config.timezone);
+    const { calendar } = await this.cfg.getCalendar(user.organizationId, today, today);
+    const rec = await this.prisma.attendanceRecord.findFirst({
+      where: { userId: user.userId, organizationId: user.organizationId, date: { gte: toDate(addDays(today, -1)), lte: toDate(today) } },
+      orderBy: { date: 'desc' },
+    });
+    const todays = rec && isoDay(rec.date) === today ? rec : null;
+    const open = rec && rec.checkInAt && !rec.checkOutAt ? rec : null;
+    const holiday = calendar.holidayOn(today);
+    const kind = calendar.kindOf(today);
+    return {
+      date: today, timezone: config.timezone, dayKind: kind, holiday: holiday ? { name: holiday.name, kind: holiday.kind } : null,
+      record: todays ? recordView(todays) : open ? recordView(open) : null,
+      can: { checkIn: config.attendance.selfCheckIn && kind === 'WORKING' && !todays, checkOut: !!open },
+      policy: { lateAfter: config.attendance.lateAfter, fullDayMinutes: config.attendance.fullDayMinutes, selfCheckIn: config.attendance.selfCheckIn },
+    };
+  }
+
+  // ------------------------------------------------------------------ reads
+  async month(user: Principal, q: Dto<typeof attendanceMonthQuerySchema>) {
+    const targetId = q.userId ?? user.userId;
+    await assertTargetInScope(this.access, user, 'attendance:view', targetId);
+    const target = await this.prisma.user.findFirst({ where: { id: targetId, organizationId: user.organizationId }, select: { id: true, name: true } });
+    if (!target) throw notFound('Employee');
+    const { config } = await this.cfg.getConfig(user.organizationId);
+    const month = q.month ?? monthOf(localDay(new Date(), config.timezone));
+    const from = monthStart(month);
+    const to = monthEnd(month);
+    const [{ calendar }, records, leaves] = await Promise.all([
+      this.cfg.getCalendar(user.organizationId, from, to),
+      this.prisma.attendanceRecord.findMany({ where: { userId: targetId, organizationId: user.organizationId, date: { gte: toDate(from), lte: toDate(to) } }, orderBy: { date: 'asc' } }),
+      this.prisma.leaveRequest.findMany({ where: { userId: targetId, organizationId: user.organizationId, status: { in: ['APPROVED', 'PENDING_MANAGER', 'PENDING_HR'] }, startDate: { lte: toDate(to) }, endDate: { gte: toDate(from) } }, select: { startDate: true, endDate: true, status: true, typeKey: true, halfDay: true } }),
+    ]);
+    const byDay = new Map(records.map((r) => [isoDay(r.date)!, r]));
+    const days = eachDay(from, to).map((date) => {
+      const rec = byDay.get(date);
+      const holiday = calendar.holidayOn(date);
+      const leave = leaves.find((l) => isoDay(l.startDate)! <= date && isoDay(l.endDate)! >= date);
+      return {
+        date, dayKind: calendar.kindOf(date), holiday: holiday?.name ?? null, record: rec ? recordView(rec) : null,
+        leave: leave ? { typeKey: leave.typeKey, status: leave.status, halfDay: leave.halfDay } : null,
+      };
+    });
+    const summary: AttendanceSummary = summarise(records.map((r) => ({ status: r.status, workMinutes: r.workMinutes })));
+    return { userId: targetId, userName: target.name, month, from, to, summary, workingDays: calendar.workingDaysBetween(from, to), days };
+  }
+
+  async teamSummary(user: Principal, q: Dto<typeof teamSummaryQuerySchema>) {
+    const ids = await scopeUserIds(this.access, user, 'attendance:view');
+    const { config } = await this.cfg.getConfig(user.organizationId);
+    const date = q.date ?? localDay(new Date(), config.timezone);
+    const { calendar } = await this.cfg.getCalendar(user.organizationId, date, date);
+    const people = await this.prisma.user.findMany({ where: { organizationId: user.organizationId, isActive: true, ...(ids ? { id: { in: ids } } : {}) }, select: { id: true }, take: 5000 });
+    const grouped = await this.prisma.attendanceRecord.groupBy({ by: ['status'], where: { organizationId: user.organizationId, date: toDate(date), userId: { in: people.map((p) => p.id) } }, _count: { _all: true } });
+    const byStatus: Record<string, number> = {};
+    for (const g of grouped) byStatus[g.status] = g._count._all;
+    const recorded = grouped.reduce((n, g) => n + g._count._all, 0);
+    const kind = calendar.kindOf(date);
+    return { date, dayKind: kind, total: people.length, recorded, notMarked: kind === 'WORKING' ? Math.max(0, people.length - recorded) : 0, byStatus };
+  }
+
+  async corrections(user: Principal, q: Dto<typeof correctionsQuerySchema>) {
+    const ids = await scopeUserIds(this.access, user, 'attendance:view');
+    if (q.userId && ids && !ids.includes(q.userId)) throw notFound('Employee');
+    const where: Prisma.AttendanceCorrectionWhereInput = {
+      organizationId: user.organizationId,
+      ...(q.userId ? { userId: q.userId } : ids ? { userId: { in: ids } } : {}),
+      ...(q.from || q.to ? { date: { ...(q.from ? { gte: toDate(q.from) } : {}), ...(q.to ? { lte: toDate(q.to) } : {}) } } : {}),
+    };
+    const rows = await this.prisma.attendanceCorrection.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], ...pageArgs(q) });
+    const res = pageResult(rows, q);
+    const names = await userNameMap(this.prisma, user.organizationId, res.data.flatMap((r) => [r.userId, r.correctedById]));
+    return asPage(res, res.data.map((r) => ({ id: r.id, userId: r.userId, userName: names.get(r.userId) ?? null, date: isoDay(r.date), oldValue: r.oldValue, newValue: r.newValue, reason: r.reason, correctedById: r.correctedById, correctedByName: names.get(r.correctedById) ?? null, createdAt: r.createdAt })));
+  }
+
+  // ------------------------------------------------------------------ correction (HR / manager)
+  async correct(user: Principal, dto: Dto<typeof attendanceCorrectionSchema>) {
+    if (dto.userId === user.userId) throw forbidden('You cannot correct your own attendance; ask your manager or HR');
+    await assertTargetInScope(this.access, user, 'attendance:correct', dto.userId);
+    await assertEmployee(this.prisma, user.organizationId, dto.userId);
+    const { config } = await this.cfg.getConfig(user.organizationId);
+    const today = localDay(new Date(), config.timezone);
+    if (dto.date > today) throw new AppError('FUTURE_DATE', 'Attendance cannot be corrected for a future date', 400);
+    const unlimited = user.roles.some((r) => UNLIMITED_CORRECTORS.includes(r));
+    const window = config.attendance.managerCorrectionWindowDays;
+    if (!unlimited && dto.date < addDays(today, -window)) throw new AppError('CORRECTION_WINDOW_EXPIRED', `Managers can correct attendance up to ${window} days back; ask HR`, 403);
+    for (const t of [dto.checkInAt, dto.checkOutAt]) if (t && localDay(t, config.timezone) < dto.date) throw new AppError('TIME_OUTSIDE_DATE', 'Check-in/out cannot be before the corrected date', 400);
+    if (dto.checkInAt && localDay(dto.checkInAt, config.timezone) !== dto.date) throw new AppError('TIME_OUTSIDE_DATE', 'Check-in must be on the corrected date', 400);
+    const source = unlimited ? 'HR' : 'MANAGER';
+    const date = toDate(dto.date);
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`att:${dto.userId}:${dto.date}`}))`;
+      const old = await tx.attendanceRecord.findUnique({ where: { userId_date: { userId: dto.userId, date } } });
+      if (old && old.organizationId !== user.organizationId) throw notFound('Employee');
+      if (dto.version !== undefined && (old?.version ?? 0) !== dto.version) throw conflict('VERSION_CONFLICT', 'The record changed since you opened it; reload and try again');
+      const checkInAt = dto.checkInAt === undefined ? old?.checkInAt ?? null : dto.checkInAt;
+      const checkOutAt = dto.checkOutAt === undefined ? old?.checkOutAt ?? null : dto.checkOutAt;
+      const workMinutes = checkInAt && checkOutAt ? minutesBetween(checkInAt, checkOutAt) : null;
+      const data = { status: dto.status, checkInAt, checkOutAt, workMinutes, source: source as 'HR' | 'MANAGER', note: dto.reason };
+      const rec = old
+        ? await tx.attendanceRecord.update({ where: { id: old.id }, data: { ...data, version: { increment: 1 } } })
+        : await tx.attendanceRecord.create({ data: { organizationId: user.organizationId, userId: dto.userId, date, ...data } });
+      const snap = (r: { status: string; checkInAt: Date | null; checkOutAt: Date | null; workMinutes: number | null; source?: string } | null) =>
+        r ? { status: r.status, checkInAt: r.checkInAt, checkOutAt: r.checkOutAt, workMinutes: r.workMinutes, source: r.source ?? null } : null;
+      await tx.attendanceCorrection.create({
+        data: { organizationId: user.organizationId, recordId: rec.id, userId: dto.userId, date, oldValue: (snap(old) ?? { status: null }) as Prisma.InputJsonValue, newValue: snap(rec) as Prisma.InputJsonValue, reason: dto.reason, correctedById: user.userId },
+      });
+      await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'attendance.corrected', entityType: 'attendance_record', entityId: rec.id, metadata: { userId: dto.userId, date: dto.date, from: old?.status ?? null, to: rec.status, source } });
+      const key = `${rec.id}:${rec.version}`;
+      await this.outbox.publish(tx, {
+        eventType: WORKFORCE_EVENTS.ATTENDANCE_CORRECTED, aggregateType: 'attendance_record', aggregateId: rec.id, organizationId: user.organizationId,
+        payload: { organizationId: user.organizationId, userId: dto.userId, date: dto.date, status: rec.status, correctedById: user.userId }, idempotencyKey: `${WORKFORCE_EVENTS.ATTENDANCE_CORRECTED}:${key}`,
+      });
+      await this.outbox.publish(tx, {
+        eventType: PLATFORM_EVENTS.NOTIFICATION_REQUESTED, aggregateType: 'attendance_record', aggregateId: rec.id, organizationId: user.organizationId,
+        payload: { organizationId: user.organizationId, type: 'attendance.exception', userIds: [dto.userId], entity: { type: 'attendance_record', id: rec.id }, dedupeKey: `attendance.corrected:${key}`, actionUrl: '/work/attendance', title: 'Your attendance record was corrected' },
+        idempotencyKey: `notification.requested:attendance.corrected:${key}`,
+      });
+      return rec;
+    });
+    return recordView(result);
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "workTasks": {
+    "eyebrow": "My Work",
+    "title": "Work tasks",
+    "description": "Tasks you own, tasks you assigned, and tasks waiting for your review.",
+    "new": "New task",
+    "viewsLabel": "Task views",
+    "views": {
+      "mine": "My tasks",
+      "assigned": "Assigned by me",
+      "team": "Team tasks",
+      "all": "Everyone I can see"
+    },
+    "filterStatus": "Status",
+    "filterDue": "Due",
+    "any": "Any",
+    "dueFilter": {
+      "overdue": "Overdue only",
+      "notOverdue": "Not overdue"
+    },
+    "status": {
+      "ASSIGNED": "Assigned",
+      "ACCEPTED": "Accepted",
+      "IN_PROGRESS": "In progress",
+      "REVIEW": "In review",
+      "COMPLETED": "Completed",
+      "REJECTED": "Declined",
+      "CANCELLED": "Cancelled"
+    },
+    "priority": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "stats": {
+      "title": "Task summary",
+      "open": "My open tasks",
+      "overdue": "My overdue tasks",
+      "dueSoon": "Due soon",
+      "review": "Waiting for my review"
+    },
+    "empty": "No tasks here yet",
+    "emptyBody": "Tasks you create or that are assigned to you appear here.",
+    "emptyFiltered": "No tasks match these filters",
+    "assignee": "Assignee",
+    "assigner": "Assigned by",
+    "due": "Due {date}",
+    "noDue": "No due date",
+    "overdue": "Overdue",
+    "linkedGoal": "Goal: {title}",
+    "pageSummary": "Task list",
+    "create": {
+      "title": "New task",
+      "description": "Create a task for yourself, or assign it to someone in your team.",
+      "name": "Task",
+      "details": "Details",
+      "assignee": "Assign to",
+      "assigneeSelf": "Myself",
+      "priority": "Priority",
+      "due": "Due date and time",
+      "dueHint": "Optional. Shown in your local time.",
+      "goal": "Linked goal",
+      "noGoal": "No goal",
+      "project": "Project label",
+      "submit": "Create task",
+      "created": "Task created"
+    },
+    "errors": {
+      "required": "This field is required",
+      "titleShort": "Use at least 3 characters",
+      "tooLong": "That is too long",
+      "pastDue": "The due date cannot be in the past",
+      "noteShort": "Write at least 3 characters"
+    },
+    "detail": {
+      "breadcrumb": "Tasks",
+      "notFound": "Task not found",
+      "notFoundBody": "It may have been removed, or you may not have access to it.",
+      "edit": "Edit",
+      "assignee": "Assignee",
+      "assigner": "Assigned by",
+      "priority": "Priority",
+      "due": "Due",
+      "completedAt": "Completed {date}",
+      "goal": "Goal",
+      "project": "Project",
+      "evidence": "Evidence",
+      "reviewNote": "Reviewer note",
+      "history": "History",
+      "noHistory": "No history yet",
+      "comment": "Add a comment",
+      "commentButton": "Post comment",
+      "commented": "Comment posted",
+      "commentLocked": "You can read this task but not comment on it.",
+      "kind": {
+        "CREATED": "Created",
+        "STATUS": "Status changed",
+        "COMMENT": "Comment",
+        "EVIDENCE": "Evidence added",
+        "REASSIGNED": "Reassigned",
+        "UPDATED": "Updated"
+      },
+      "statusChange": "{from} to {to}",
+      "overdueTitle": "This task is overdue",
+      "overdueBody": "It was due {date} and is still open."
+    },
+    "actions": {
+      "ACCEPTED": "Accept",
+      "IN_PROGRESS": "Start work",
+      "REVIEW": "Send for review",
+      "COMPLETED": "Mark complete",
+      "REJECTED": "Decline",
+      "CANCELLED": "Cancel task",
+      "SEND_BACK": "Send back",
+      "REASSIGN": "Reopen as assigned",
+      "confirm": "Confirm",
+      "note": "Note (optional)",
+      "noteRequired": "Reason (required)",
+      "evidence": "Evidence or link (optional)",
+      "title": {
+        "ACCEPTED": "Accept this task?",
+        "IN_PROGRESS": "Start work on this task?",
+        "REVIEW": "Send this task for review?",
+        "COMPLETED": "Mark this task complete?",
+        "REJECTED": "Decline this task?",
+        "CANCELLED": "Cancel this task?",
+        "SEND_BACK": "Send this task back?",
+        "REASSIGN": "Reopen this task?"
+      },
+      "done": {
+        "ACCEPTED": "Task accepted",
+        "IN_PROGRESS": "Task started",
+        "REVIEW": "Sent for review",
+        "COMPLETED": "Task completed",
+        "REJECTED": "Task declined",
+        "CANCELLED": "Task cancelled",
+        "SEND_BACK": "Task sent back",
+        "REASSIGN": "Task reopened"
+      }
+    },
+    "editTitle": "Edit task",
+    "editDescription": "Only the person who assigned the task can edit it.",
+    "saved": "Task updated",
+    "reassignHint": "Choosing someone else reassigns the task and resets it to Assigned."
+  }
+}

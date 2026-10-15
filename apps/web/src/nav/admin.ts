@@ -1,0 +1,58 @@
+import { ScrollText, Settings2, ShieldCheck, UsersRound, UserCog } from 'lucide-react';
+import type { NavDomain } from './types';
+
+/** Administration (Phase 2). Identity, teams, organisation settings, audit. */
+export const adminNav: NavDomain = {
+  sectionKey: 'administration',
+  items: [
+    {
+      id: 'admin.users',
+      labelKey: 'adminUsers',
+      href: '/admin/users',
+      icon: UserCog,
+      permission: 'users:view',
+      minScope: 'team',
+      mobilePriority: null,
+      order: 90,
+    },
+    {
+      id: 'admin.teams',
+      labelKey: 'adminTeams',
+      href: '/admin/teams',
+      icon: UsersRound,
+      permission: 'teams:view',
+      minScope: 'team',
+      mobilePriority: null,
+      order: 91,
+    },
+    {
+      id: 'admin.settings',
+      labelKey: 'adminSettings',
+      href: '/admin/settings',
+      icon: Settings2,
+      permission: 'settings:view',
+      minScope: 'org',
+      mobilePriority: null,
+      order: 92,
+    },
+    {
+      id: 'admin.audit',
+      labelKey: 'adminAudit',
+      href: '/admin/audit',
+      icon: ScrollText,
+      permission: 'audit:view',
+      minScope: 'team',
+      mobilePriority: null,
+      order: 93,
+    },
+    {
+      id: 'admin.roles',
+      labelKey: 'adminRoles',
+      href: '/admin/roles',
+      icon: ShieldCheck,
+      permission: 'users:role:assign',
+      mobilePriority: null,
+      order: 94,
+    },
+  ],
+};

@@ -1,0 +1,241 @@
+{
+  "workPeople": {
+    "notVisible": "Not visible to you",
+    "status": {
+      "ACTIVE": "Active",
+      "PROBATION": "On probation",
+      "EXITED": "Exited"
+    },
+    "attendanceStatus": {
+      "PRESENT": "Present",
+      "ABSENT": "Absent",
+      "HALF_DAY": "Half day",
+      "WFH": "Work from home",
+      "LATE": "Late",
+      "HOLIDAY": "Holiday",
+      "WEEKLY_OFF": "Weekly off",
+      "ON_LEAVE": "On leave",
+      "UNPAID_LEAVE": "Unpaid leave"
+    },
+    "risk": {
+      "ON_TRACK": "On track",
+      "AT_RISK": "At risk",
+      "COMPLETED": "Completed",
+      "OVERDUE": "Overdue"
+    },
+    "taskStatus": {
+      "ASSIGNED": "Assigned",
+      "ACCEPTED": "Accepted",
+      "IN_PROGRESS": "In progress",
+      "REVIEW": "In review",
+      "COMPLETED": "Completed",
+      "REJECTED": "Declined",
+      "CANCELLED": "Cancelled"
+    },
+    "dayKind": {
+      "WORKING": "Working day",
+      "WEEKLY_OFF": "Weekly off",
+      "HOLIDAY": "Holiday"
+    },
+    "hub": {
+      "eyebrow": "My Work",
+      "title": "Work hub",
+      "description": {
+        "own": "Your day at a glance: attendance, tasks, goals, leave and announcements.",
+        "team": "Your day and your team's attendance, tasks, goals and pending leave.",
+        "org": "Organisation overview plus your own day."
+      },
+      "asOf": "As of {date}",
+      "empty": "Nothing to show yet",
+      "me": "My day",
+      "announcements": {
+        "title": "Announcements",
+        "empty": "No announcements right now.",
+        "until": "until {date}"
+      },
+      "attendance": {
+        "title": "Attendance today",
+        "open": "Open attendance",
+        "notMarked": "Not marked yet today.",
+        "holiday": "Holiday: {name}",
+        "times": "In {in} · Out {out}"
+      },
+      "tasks": {
+        "title": "My tasks",
+        "open": "All tasks",
+        "empty": "No open tasks.",
+        "overdue": "Overdue",
+        "summary": "{open} open · {overdue} overdue · {today} due today"
+      },
+      "goals": {
+        "title": "My goals",
+        "open": "All goals",
+        "empty": "No active goals.",
+        "progress": "Progress of {title}: {pct} percent",
+        "target": "{pct}% done · target {date}",
+        "next": "next: {title}"
+      },
+      "leave": {
+        "title": "Leave balance",
+        "open": "Leave",
+        "empty": "No leave balance recorded yet.",
+        "pending": "{n} pending",
+        "earnedTitle": "Earned Leave progress",
+        "earnedAria": "Earned Leave progress towards the next credit",
+        "earnedBody": "{done} of {required} eligible days · {left} to go for the next credit",
+        "earnedNotStarted": "Counting has not started yet."
+      },
+      "holidays": {
+        "title": "Upcoming holidays",
+        "open": "Calendar",
+        "empty": "No approved holidays coming up."
+      },
+      "birthdays": {
+        "title": "Team birthdays",
+        "today": "Today",
+        "inDays": "in {n} days",
+        "empty": "No shared birthdays coming up."
+      },
+      "team": {
+        "title": "My team ({n} people)",
+        "attendance": "Team attendance today",
+        "attendanceEmpty": "No attendance marked today.",
+        "notMarked": "Not marked: {n}",
+        "tasks": "Team tasks",
+        "tasksEmpty": "No tasks assigned to the team.",
+        "notStarted": "Not started",
+        "inProgress": "In progress",
+        "inReview": "In review",
+        "done30": "Done in 30 days",
+        "overdue": "Overdue",
+        "goals": "Team goals",
+        "goalsEmpty": "No open goals in the team.",
+        "lowest": "Lowest average progress",
+        "leave": "Pending leave requests",
+        "leaveEmpty": "No pending leave requests.",
+        "review": "Review",
+        "drilldown": "Team shortcuts",
+        "links": {
+          "directory": "Directory",
+          "orgChartTeam": "Team org chart",
+          "goals": "Goals",
+          "tasks": "Tasks",
+          "attendance": "Attendance",
+          "approvals": "Leave approvals"
+        }
+      },
+      "org": {
+        "title": "Organisation",
+        "headcount": "Headcount",
+        "onProbation": "On probation",
+        "joiners": "Joined in 30 days",
+        "pendingLeave": "Pending leave",
+        "departments": "Departments",
+        "departmentsEmpty": "No departments recorded.",
+        "probation": "Probation ending in {days} days",
+        "probationList": "Probation ending soon",
+        "probationEmpty": "No probation ending soon.",
+        "openProbation": "Probation",
+        "daysLeft": "{n} days left",
+        "birthdays": "Upcoming birthdays",
+        "openBirthdays": "Birthdays",
+        "exceptions": "Attendance exceptions today",
+        "exceptionsEmpty": "No attendance exceptions today.",
+        "missingCheckout": "Missing check-out yesterday: {n}",
+        "earned": "Earned Leave credited in 30 days: {n}",
+        "earnedList": "Recent Earned Leave credits",
+        "earnedEmpty": "No Earned Leave credited recently."
+      }
+    },
+    "directory": {
+      "eyebrow": "People",
+      "title": "Employee directory",
+      "description": "Find colleagues by name, code, role, department or manager. Work details only.",
+      "filters": "Directory filters",
+      "search": "Search",
+      "searchPlaceholder": "Name, code, role, department or manager",
+      "department": "Department",
+      "anyDepartment": "All departments",
+      "status": "Status",
+      "currentStaff": "Current staff",
+      "empty": "No employees to show",
+      "noMatches": "No one matches these filters",
+      "noMatchesBody": "Try a different name or clear the filters.",
+      "noRole": "No role recorded",
+      "reportsTo": "reports to {name}"
+    },
+    "p360": {
+      "breadcrumb": "Employee navigation",
+      "title": "Employee",
+      "eyebrow": "Employee 360",
+      "notFound": "Employee not found",
+      "profile": "Profile",
+      "code": "Employee code",
+      "designation": "Designation",
+      "department": "Department",
+      "manager": "Manager",
+      "joined": "Joined",
+      "location": "Work location",
+      "hrContact": "HR contact",
+      "email": "Work email",
+      "hr": "HR record",
+      "hrOpen": "Edit HR details",
+      "employmentType": "Employment type",
+      "exitDate": "Exit date",
+      "noHrRecord": "No HR record yet.",
+      "probation": "Probation",
+      "probationStatus": {
+        "ON_PROBATION": "On probation",
+        "COMPLETED": "Completed",
+        "UNKNOWN": "Not recorded"
+      },
+      "probationDates": "{start} to {end} ({months} months)",
+      "probationLeft": "{n} days left",
+      "probationNone": "No joining date recorded, so probation cannot be shown.",
+      "attendance": "Attendance",
+      "attendanceMonth": "Attendance counts for {month}",
+      "attendanceRecent": "Recent days",
+      "attendanceNone": "No attendance recorded yet.",
+      "leave": "Leave balances",
+      "leaveUsed": "used {used} · pending {pending}",
+      "leaveNone": "No leave activity yet.",
+      "performance": "Performance",
+      "goals": "Goals",
+      "goalProgress": "Progress of {title}: {pct} percent",
+      "goalsNone": "No goals yet.",
+      "goalsHidden": "Goals are not visible to you.",
+      "tasksAssigned": "Tasks assigned",
+      "tasksDone": "Completed",
+      "tasksOverdue": "Overdue",
+      "tasksRate": "Completion rate",
+      "tasksNone": "No tasks assigned yet.",
+      "tasksHidden": "Tasks are not visible to you.",
+      "activity": "Recent activity",
+      "activityNone": "No recent activity."
+    },
+    "org": {
+      "eyebrow": "People",
+      "title": "Organisation chart",
+      "description": "Who reports to whom, built from each person's manager.",
+      "view": "View",
+      "views": {
+        "organisation": "Whole organisation",
+        "department": "Department",
+        "team": "Team"
+      },
+      "department": "Department",
+      "chooseDepartment": "Choose a department",
+      "pickDepartment": "Choose a department to see its chart",
+      "team": "Team",
+      "myTeam": "My reporting line",
+      "empty": "Nobody to show in this view",
+      "initialsNote": "Photos are not stored, so initials are shown.",
+      "count": "{n} people shown",
+      "truncated": "The chart is cut at {max} people. Use the department or team view to see the rest.",
+      "reports": "{n} reports",
+      "loop": "Reporting loop in the data: this person is shown as a top level.",
+      "expand": "Expand {name}",
+      "collapse": "Collapse {name}"
+    }
+  }
+}

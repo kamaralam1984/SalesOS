@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "work": "मेरा काम",
+    "workAttendance": "उपस्थिति",
+    "workLeave": "छुट्टी",
+    "workGoals": "लक्ष्य",
+    "workTasks": "कार्य",
+    "workHolidays": "अवकाश",
+    "workPayslips": "वेतन पर्ची",
+    "workApprovals": "छुट्टी स्वीकृतियाँ",
+    "workGoalCycle": "45-दिन के लक्ष्य",
+    "workDirectory": "निर्देशिका",
+    "workOrgChart": "संगठन चार्ट",
+    "workHr": "एचआर",
+    "workHrPolicy": "नीति",
+    "workHrBalances": "छुट्टी शेष",
+    "workHrBirthdays": "जन्मदिन",
+    "workHrProbation": "परिवीक्षा",
+    "workHrAnnouncements": "घोषणाएँ",
+    "workPayroll": "पेरोल",
+    "workPayrollStructures": "वेतन संरचना",
+    "workReports": "वर्कफ़ोर्स रिपोर्ट",
+    "sections": {
+      "work": "कार्य"
+    }
+  }
+}

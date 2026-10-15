@@ -1,0 +1,79 @@
+{
+  "workReports": {
+    "eyebrow": "Workforce",
+    "title": "Workforce reports",
+    "description": "Attendance, leave, Earned Leave, tasks, goals, holidays, probation and more. You only see people in your scope.",
+    "filters": {
+      "report": "Report",
+      "from": "From",
+      "to": "To",
+      "rangeBad": "The start date must not be after the end date.",
+      "department": "Department",
+      "allDepartments": "All departments",
+      "groupBy": "Group by",
+      "byDepartment": "Department",
+      "byManager": "Manager"
+    },
+    "names": {
+      "attendance": "Attendance",
+      "leave": "Leave",
+      "earned-leave": "Earned Leave transactions",
+      "tasks": "Tasks",
+      "goals": "Goals",
+      "holidays": "Holidays",
+      "probation": "Probation",
+      "birthdays": "Birthdays",
+      "department-performance": "Department and manager performance"
+    },
+    "help": {
+      "attendance": "One row per employee per day in the range.",
+      "leave": "Leave requests that overlap the range.",
+      "earned-leave": "Every Earned Leave credit and balance change with its calculation.",
+      "tasks": "Tasks assigned in the range with status and due dates.",
+      "goals": "Goals active in the range with progress and risk.",
+      "holidays": "Approved and suggested holidays in the range.",
+      "probation": "Probation end dates and decisions. Default range: last 30 to next 90 days.",
+      "birthdays": "Upcoming birthdays (HR and Founder only). Birth year and age are never included.",
+      "department-performance": "Attendance, task and goal results grouped by department or manager."
+    },
+    "level": {
+      "own": "your own records",
+      "team": "your team",
+      "org": "the whole organisation"
+    },
+    "scope": "{from} to {to} · showing {level}",
+    "summary": "Summary",
+    "summaryKeys": {
+      "records": "Records",
+      "byStatus": "By status",
+      "attendancePct": "Attendance",
+      "requests": "Requests",
+      "approvedDays": "Approved days",
+      "transactions": "Transactions",
+      "byKind": "By kind",
+      "creditsCount": "Credits",
+      "creditedDays": "Days credited",
+      "tasks": "Tasks",
+      "overdue": "Overdue",
+      "completionPct": "Completion",
+      "goals": "Goals",
+      "byRisk": "By risk",
+      "averageProgressPct": "Average progress",
+      "holidays": "Holidays",
+      "employees": "Employees",
+      "byState": "By state",
+      "birthdays": "Birthdays",
+      "shared": "Shared with team",
+      "groups": "Groups"
+    },
+    "empty": "No rows for these filters",
+    "emptyBody": "Try a wider date range. Empty cells in a report mean not applicable, never zero.",
+    "truncated": "Only the first {n} rows are included. Narrow the date range or filters to see the rest.",
+    "export": {
+      "csv": "Export CSV",
+      "xlsx": "Export Excel",
+      "done": "Export downloaded: {n} rows. The export is logged.",
+      "doneTruncated": "Export downloaded with only {n} rows (row limit reached)."
+    }
+  }
+}

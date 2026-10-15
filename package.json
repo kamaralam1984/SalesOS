@@ -1,0 +1,38 @@
+{
+  "name": "coacheasily-salesos",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build:packages": "pnpm --filter @salesos/shared-types --filter @salesos/validation --filter @salesos/platform-core run build && pnpm --filter @salesos/crm-core run build && pnpm --filter @salesos/cx-core run build && pnpm --filter @salesos/workforce-core run build",
+    "build": "pnpm build:packages && pnpm db:generate && pnpm -r --workspace-concurrency=1 build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm build:packages && pnpm db:generate && pnpm -r typecheck",
+    "test": "pnpm build:packages && pnpm db:generate && pnpm -r test",
+    "format": "prettier --write .",
+    "db:generate": "prisma generate --schema prisma/schema",
+    "db:validate": "prisma validate --schema prisma/schema",
+    "db:push": "prisma db push --schema prisma/schema --skip-generate",
+    "db:seed": "pnpm --filter @salesos/api db:seed",
+    "db:seed:starter": "pnpm --filter @salesos/api db:seed:starter",
+    "db:seed:demo": "pnpm --filter @salesos/api db:seed:demo",
+    "db:guards:export": "pnpm --filter @salesos/api db:guards:export",
+    "db:migration:build": "pnpm --filter @salesos/api db:migration:build",
+    "db:migrate": "prisma migrate deploy --schema prisma/schema",
+    "migration-check": "pnpm --filter @salesos/api migration-check"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@prisma/client": "6.19.3",
+    "eslint": "9.39.5",
+    "globals": "16.4.0",
+    "prettier": "3.9.10",
+    "prisma": "6.19.3",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@salesos/validation",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "echo \"covered by api tests\""
+  },
+  "dependencies": { "@salesos/shared-types": "workspace:*", "zod": "3.25.76" },
+  "devDependencies": { "typescript": "5.9.3" }
+}

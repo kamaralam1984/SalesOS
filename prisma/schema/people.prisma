@@ -1,0 +1,1275 @@
+// people + sop domain models (Phase 6). Owned by the people agent.
+// Conventions: UUID PKs, organization_id scope, TIMESTAMPTZ, Decimal money + currency, @@map snake_case.
+// User / organization references are plain UUID columns (no @relation) so this domain never edits the identity
+// models; tenant and user-membership checks are enforced in services (see docs/people-report.md, "Reconcile").
+// FileRef: `fileId` / `*FileIds` columns store ids only; the file service (Agent F) owns the bytes.
+
+// ---------------------------------------------------------------- SOP centre
+
+enum SopCategory {
+  LEAD_HANDLING
+  FOLLOW_UP_CADENCE
+  WEBINAR_DEMO
+  OBJECTION_HANDLING
+  CLOSING_NEGOTIATION
+  PAYMENT
+  HANDOVER_STUDENT_SUCCESS
+  CALL_SCRIPT
+  WHATSAPP_TEMPLATE
+  CRM_USAGE
+  REPORTING_FORMAT
+  OTHER
+}
+
+enum SopDocumentStatus {
+  ACTIVE
+  RETIRED
+}
+
+/// DRAFT -> PENDING_APPROVAL -> APPROVED (immutable) -> SUPERSEDED | RETIRED ; PENDING_APPROVAL -> REJECTED | DRAFT
+enum SopVersionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  RETIRED
+}
+
+enum ProcessGapStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  WONT_FIX
+}
+
+enum ProcessGapKind {
+  PROCESS_GAP
+  AUTOMATION
+}
+
+model SopDocument {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  category       SopCategory
+  title          String
+  summary        String?
+  ownerId        String            @map("owner_id") @db.Uuid
+  isMandatory    Boolean           @default(true) @map("is_mandatory")
+  /**
+   * Role keys that must acknowledge the effective version (empty = every active user).
+   */
+  audienceRoles  String[]          @default([]) @map("audience_roles")
+  tags           String[]          @default([])
+  status         SopDocumentStatus @default(ACTIVE)
+  createdById    String            @map("created_by_id") @db.Uuid
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  versions SopVersion[]
+
+  organization Organization @relation("SopDocument_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("SopDocument_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("SopDocument_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, category])
+  @@index([organizationId, status])
+  @@map("sop_documents")
+}
+
+model SopVersion {
+  id                String           @id @default(uuid()) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  documentId        String           @map("document_id") @db.Uuid
+  versionNumber     Int              @map("version_number")
+  title             String
+  body              String
+  changeSummary     String?          @map("change_summary")
+  effectiveDate     DateTime?        @map("effective_date") @db.Date
+  status            SopVersionStatus @default(DRAFT)
+  /**
+   * FileRef placeholders: ids owned by the file service.
+   */
+  attachmentFileIds String[]         @default([]) @map("attachment_file_ids")
+  createdById       String           @map("created_by_id") @db.Uuid
+  submittedAt       DateTime?        @map("submitted_at") @db.Timestamptz(6)
+  approvedById      String?          @map("approved_by_id") @db.Uuid
+  approvedAt        DateTime?        @map("approved_at") @db.Timestamptz(6)
+  rejectedById      String?          @map("rejected_by_id") @db.Uuid
+  rejectionReason   String?          @map("rejection_reason")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  document         SopDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  acknowledgements SopAcknowledgement[]
+
+  organization Organization @relation("SopVersion_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("SopVersion_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy   User?        @relation("SopVersion_approvedById", fields: [approvedById], references: [id], onDelete: Restrict)
+  rejectedBy   User?        @relation("SopVersion_rejectedById", fields: [rejectedById], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, versionNumber])
+  @@index([organizationId, status])
+  @@index([documentId, status])
+  @@map("sop_versions")
+}
+
+model SopAcknowledgement {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  versionId      String   @map("version_id") @db.Uuid
+  documentId     String   @map("document_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  acknowledgedAt DateTime @default(now()) @map("acknowledged_at") @db.Timestamptz(6)
+
+  version SopVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("SopAcknowledgement_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("SopAcknowledgement_userId", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([versionId, userId])
+  @@index([organizationId, userId])
+  @@index([documentId, userId])
+  @@map("sop_acknowledgements")
+}
+
+model ProcessGap {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  kind           ProcessGapKind   @default(PROCESS_GAP)
+  title          String
+  description    String?
+  ownerId        String?          @map("owner_id") @db.Uuid
+  status         ProcessGapStatus @default(OPEN)
+  priority       Int              @default(3)
+  resolution     String?
+  linkedSopId    String?          @map("linked_sop_id") @db.Uuid
+  reportedById   String           @map("reported_by_id") @db.Uuid
+  resolvedAt     DateTime?        @map("resolved_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("ProcessGap_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User?        @relation("ProcessGap_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  reportedBy   User         @relation("ProcessGap_reportedById", fields: [reportedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@map("process_gaps")
+}
+
+// ---------------------------------------------------------------- shared state log
+
+/// Append-style history for state machines (PIP, incentive, review). Rows are never updated.
+model PeopleStateLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  entityType     String   @map("entity_type")
+  entityId       String   @map("entity_id") @db.Uuid
+  fromStatus     String?  @map("from_status")
+  toStatus       String   @map("to_status")
+  actorId        String?  @map("actor_id") @db.Uuid
+  note           String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("PeopleStateLog_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  actor        User?        @relation("PeopleStateLog_actorId", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, createdAt])
+  @@map("people_state_log")
+}
+
+// ---------------------------------------------------------------- coaching
+
+enum CoachingTopic {
+  CALL_QUALITY
+  OBJECTION_HANDLING
+  CONSULTATIVE_SELLING
+  CLOSING
+  NEGOTIATION
+  PIPELINE_MANAGEMENT
+  FORECASTING
+  CRM_USAGE
+  LEADERSHIP
+  OTHER
+}
+
+enum CoachingKind {
+  COACHING
+  SCORECARD_REVIEW
+  CALL_REVIEW
+  ROLE_PLAY
+}
+
+/// Who may read the free-text notes of a session.
+enum NoteVisibility {
+  COACH_ONLY
+  PARTICIPANTS
+  MANAGEMENT
+}
+
+enum ActionStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum OneOnOneStatus {
+  SCHEDULED
+  HELD
+  CANCELLED
+}
+
+model CoachingSession {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  coachId        String          @map("coach_id") @db.Uuid
+  kind           CoachingKind    @default(COACHING)
+  sessionDate    DateTime        @map("session_date") @db.Timestamptz(6)
+  durationMin    Int             @map("duration_min")
+  topics         CoachingTopic[]
+  notes          String?
+  noteVisibility NoteVisibility  @default(PARTICIPANTS) @map("note_visibility")
+  /**
+   * Optional reference to a call record (CRM phase) - id only.
+   */
+  callRef        String?         @map("call_ref")
+  createdById    String          @map("created_by_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  participants CoachingParticipant[]
+  actions      CoachingAction[]
+
+  organization Organization @relation("CoachingSession_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  coach        User         @relation("CoachingSession_coachId", fields: [coachId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("CoachingSession_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, sessionDate])
+  @@index([organizationId, coachId])
+  @@map("coaching_sessions")
+}
+
+model CoachingParticipant {
+  id             String @id @default(uuid()) @db.Uuid
+  sessionId      String @map("session_id") @db.Uuid
+  userId         String @map("user_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+
+  session CoachingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  user         User         @relation("CoachingParticipant_userId", fields: [userId], references: [id], onDelete: Restrict)
+  organization Organization @relation("CoachingParticipant_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, userId])
+  @@index([organizationId, userId])
+  @@map("coaching_participants")
+}
+
+model OneOnOne {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  managerId      String         @map("manager_id") @db.Uuid
+  employeeId     String         @map("employee_id") @db.Uuid
+  status         OneOnOneStatus @default(HELD)
+  scheduledFor   DateTime       @map("scheduled_for") @db.Timestamptz(6)
+  durationMin    Int            @default(30) @map("duration_min")
+  agenda         String?
+  /**
+   * Visible to the employee and the manager.
+   */
+  sharedNotes    String?        @map("shared_notes")
+  /**
+   * Manager-only notes (never returned to the employee).
+   */
+  privateNotes   String?        @map("private_notes")
+  createdById    String         @map("created_by_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  actions CoachingAction[]
+
+  organization Organization @relation("OneOnOne_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  manager      User         @relation("OneOnOne_managerId", fields: [managerId], references: [id], onDelete: Restrict)
+  employee     User         @relation("OneOnOne_employeeId", fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("OneOnOne_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, employeeId, scheduledFor])
+  @@index([organizationId, managerId])
+  @@map("one_on_ones")
+}
+
+model CoachingAction {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  sessionId      String?      @map("session_id") @db.Uuid
+  oneOnOneId     String?      @map("one_on_one_id") @db.Uuid
+  /**
+   * Free source reference for actions raised from reviews/PIPs: `review:<id>` etc.
+   */
+  sourceRef      String?      @map("source_ref")
+  ownerId        String       @map("owner_id") @db.Uuid
+  title          String
+  dueDate        DateTime?    @map("due_date") @db.Date
+  status         ActionStatus @default(OPEN)
+  completedAt    DateTime?    @map("completed_at") @db.Timestamptz(6)
+  createdById    String       @map("created_by_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  session  CoachingSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  oneOnOne OneOnOne?        @relation(fields: [oneOnOneId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("CoachingAction_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("CoachingAction_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("CoachingAction_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, ownerId, status])
+  @@map("coaching_actions")
+}
+
+// ---------------------------------------------------------------- KPI/KRA, scorecards, reviews
+
+enum KpiKind {
+  KPI
+  KRA
+}
+
+enum PeriodType {
+  WEEK
+  MONTH
+}
+
+enum ReviewStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  ACKNOWLEDGED
+}
+
+model KpiDefinition {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  key            String
+  name           String
+  kind           KpiKind  @default(KPI)
+  description    String?
+  unit           String?
+  /**
+   * Key in docs/kpi-dictionary.md (Phase 5 computes the value; Phase 6 only references it).
+   */
+  dictionaryKey  String?  @map("dictionary_key")
+  roleKeys       String[] @default([]) @map("role_keys")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("KpiDefinition_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, key])
+  @@map("kpi_definitions")
+}
+
+model KpiAssignment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  assigneeId     String   @map("assignee_id") @db.Uuid
+  /**
+   * Monday (UTC date) of the assigned week.
+   */
+  weekStart      DateTime @map("week_start") @db.Date
+  /**
+   * [{ definitionId?, key, name, kind, target?, unit?, notes? }]
+   */
+  items          Json     @default("[]")
+  setById        String   @map("set_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("KpiAssignment_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  assignee     User         @relation("KpiAssignment_assigneeId", fields: [assigneeId], references: [id], onDelete: Restrict)
+  setBy        User         @relation("KpiAssignment_setById", fields: [setById], references: [id], onDelete: Restrict)
+
+  @@unique([assigneeId, weekStart])
+  @@index([organizationId, weekStart])
+  @@map("kpi_assignments")
+}
+
+/// Stores scorecard INPUTS (targets, manual entries, references to Phase 5 KPI keys). Computed values come from Phase 5.
+model Scorecard {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  subjectId      String     @map("subject_id") @db.Uuid
+  periodType     PeriodType @default(WEEK) @map("period_type")
+  periodStart    DateTime   @map("period_start") @db.Date
+  periodEnd      DateTime   @map("period_end") @db.Date
+  /**
+   * [{ key, name, target?, actual?, unit?, source: 'MANUAL' | 'PHASE5' }]
+   */
+  inputs         Json       @default("[]")
+  comments       String?
+  createdById    String     @map("created_by_id") @db.Uuid
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("Scorecard_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  subject      User         @relation("Scorecard_subjectId", fields: [subjectId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("Scorecard_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([subjectId, periodType, periodStart])
+  @@index([organizationId, periodStart])
+  @@map("scorecards")
+}
+
+/// Competency framework (JD key competencies). Used in reviews, probation and interviews.
+model ReviewRubric {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  key            String
+  name           String
+  description    String?
+  /**
+   * Behavioural indicators by level: { "1": "...", "3": "...", "5": "..." }
+   */
+  indicators     Json     @default("{}")
+  sortOrder      Int      @default(0) @map("sort_order")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("ReviewRubric_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, key])
+  @@map("review_rubrics")
+}
+
+model PerformanceReview {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
+  employeeId       String       @map("employee_id") @db.Uuid
+  reviewerId       String       @map("reviewer_id") @db.Uuid
+  periodType       PeriodType   @default(MONTH) @map("period_type")
+  periodStart      DateTime     @map("period_start") @db.Date
+  periodEnd        DateTime     @map("period_end") @db.Date
+  status           ReviewStatus @default(DRAFT)
+  /**
+   * KPI inputs/outcomes summarised by the reviewer (references, not computed values).
+   */
+  kpiSummary       Json         @default("[]") @map("kpi_summary")
+  /**
+   * { competencyKey: 1..5 }
+   */
+  competencyScores Json         @default("{}") @map("competency_scores")
+  rating           Int?
+  strengths        String?
+  improvements     String?
+  goals            String?
+  employeeComment  String?      @map("employee_comment")
+  approvedById     String?      @map("approved_by_id") @db.Uuid
+  approvedAt       DateTime?    @map("approved_at") @db.Timestamptz(6)
+  acknowledgedAt   DateTime?    @map("acknowledged_at") @db.Timestamptz(6)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("PerformanceReview_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     User         @relation("PerformanceReview_employeeId", fields: [employeeId], references: [id], onDelete: Restrict)
+  reviewer     User         @relation("PerformanceReview_reviewerId", fields: [reviewerId], references: [id], onDelete: Restrict)
+  approvedBy   User?        @relation("PerformanceReview_approvedById", fields: [approvedById], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, periodType, periodStart])
+  @@index([organizationId, periodStart])
+  @@map("performance_reviews")
+}
+
+// ---------------------------------------------------------------- PIP
+
+enum PipStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  EXTENDED
+  COMPLETED_SUCCESS
+  COMPLETED_NOT_IMPROVED
+  CANCELLED
+}
+
+enum CheckpointStatus {
+  PENDING
+  DONE
+  MISSED
+}
+
+model ImprovementPlan {
+  id                     String    @id @default(uuid()) @db.Uuid
+  organizationId         String    @map("organization_id") @db.Uuid
+  employeeId             String    @map("employee_id") @db.Uuid
+  createdById            String    @map("created_by_id") @db.Uuid
+  /// created by a Sales Manager through pip:propose; stays DRAFT until the Team Lead / HR takes it forward
+  proposedByManager      Boolean   @default(false) @map("proposed_by_manager")
+  status                 PipStatus @default(DRAFT)
+  reason                 String
+  kpiGaps                Json      @default("[]") @map("kpi_gaps")
+  evidence               String?
+  goals                  Json      @default("[]")
+  measures               Json      @default("[]")
+  durationDays           Int       @default(30) @map("duration_days")
+  startDate              DateTime? @map("start_date") @db.Date
+  endDate                DateTime? @map("end_date") @db.Date
+  extensionCount         Int       @default(0) @map("extension_count")
+  extensionReason        String?   @map("extension_reason")
+  /**
+   * End date proposed by the Team Lead while status = EXTENDED (awaiting approver).
+   */
+  proposedEndDate        DateTime? @map("proposed_end_date") @db.Date
+  approvedById           String?   @map("approved_by_id") @db.Uuid
+  approvedAt             DateTime? @map("approved_at") @db.Timestamptz(6)
+  employeeAcknowledgedAt DateTime? @map("employee_acknowledged_at") @db.Timestamptz(6)
+  finalReview            String?   @map("final_review")
+  recommendedAction      String?   @map("recommended_action")
+  cancelReason           String?   @map("cancel_reason")
+  version                Int       @default(1)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  checkpoints PipCheckpoint[]
+
+  organization Organization @relation("ImprovementPlan_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     User         @relation("ImprovementPlan_employeeId", fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("ImprovementPlan_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy   User?        @relation("ImprovementPlan_approvedById", fields: [approvedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([organizationId, employeeId])
+  @@map("improvement_plans")
+}
+
+model PipCheckpoint {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  pipId          String           @map("pip_id") @db.Uuid
+  dueDate        DateTime         @map("due_date") @db.Date
+  title          String
+  status         CheckpointStatus @default(PENDING)
+  notes          String?
+  completedAt    DateTime?        @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  pip ImprovementPlan @relation(fields: [pipId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("PipCheckpoint_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([pipId, dueDate])
+  @@map("pip_checkpoints")
+}
+
+// ---------------------------------------------------------------- recognition
+
+enum RecognitionKind {
+  TOP_PERFORMER
+  CULTURE
+  MILESTONE
+  AWARD
+}
+
+model RecognitionProgram {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  key            String
+  name           String
+  description    String?
+  kind           RecognitionKind @default(AWARD)
+  /**
+   * Criteria text only; winner selection is a human decision.
+   */
+  criteria       String?
+  isActive       Boolean         @default(true) @map("is_active")
+  createdById    String          @map("created_by_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  recognitions Recognition[]
+
+  organization Organization @relation("RecognitionProgram_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("RecognitionProgram_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, key])
+  @@map("recognition_programs")
+}
+
+model Recognition {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  programId      String   @map("program_id") @db.Uuid
+  recipientId    String   @map("recipient_id") @db.Uuid
+  grantedById    String   @map("granted_by_id") @db.Uuid
+  reason         String
+  periodLabel    String?  @map("period_label")
+  competencyKey  String?  @map("competency_key")
+  /**
+   * Shown on the org-wide recognition wall (minimum-data projection).
+   */
+  isPublic       Boolean  @default(false) @map("is_public")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  program RecognitionProgram @relation(fields: [programId], references: [id], onDelete: Restrict)
+
+  organization Organization @relation("Recognition_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  recipient    User         @relation("Recognition_recipientId", fields: [recipientId], references: [id], onDelete: Restrict)
+  grantedBy    User         @relation("Recognition_grantedById", fields: [grantedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, recipientId])
+  @@index([organizationId, isPublic, createdAt])
+  @@map("recognitions")
+}
+
+// ---------------------------------------------------------------- incentives
+
+enum IncentivePolicyStatus {
+  DRAFT
+  APPROVED
+  SUPERSEDED
+}
+
+enum IncentiveStatus {
+  CALCULATED
+  SUBMITTED
+  APPROVED
+  REJECTED
+  ON_HOLD
+  PAID
+  CLAWBACK_PROPOSED
+  ADJUSTED
+  WAIVED
+}
+
+enum AdjustmentStatus {
+  PROPOSED
+  APPLIED
+  WAIVED
+}
+
+model IncentivePolicy {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @map("organization_id") @db.Uuid
+  versionNumber  Int                   @map("version_number")
+  name           String
+  status         IncentivePolicyStatus @default(DRAFT)
+  /**
+   * Validated structure: basis, periodType, slabs, gates, cap, clawbackWindowDays, currency. No seeded amounts.
+   */
+  structure      Json
+  effectiveFrom  DateTime?             @map("effective_from") @db.Date
+  notes          String?
+  createdById    String                @map("created_by_id") @db.Uuid
+  approvedById   String?               @map("approved_by_id") @db.Uuid
+  approvedAt     DateTime?             @map("approved_at") @db.Timestamptz(6)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  recommendations IncentiveRecommendation[]
+
+  organization Organization @relation("IncentivePolicy_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("IncentivePolicy_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy   User?        @relation("IncentivePolicy_approvedById", fields: [approvedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, versionNumber])
+  @@index([organizationId, status])
+  @@map("incentive_policies")
+}
+
+model IncentiveRecommendation {
+  id               String          @id @default(uuid()) @db.Uuid
+  organizationId   String          @map("organization_id") @db.Uuid
+  policyId         String          @map("policy_id") @db.Uuid
+  employeeId       String          @map("employee_id") @db.Uuid
+  periodStart      DateTime        @map("period_start") @db.Date
+  periodEnd        DateTime        @map("period_end") @db.Date
+  status           IncentiveStatus @default(CALCULATED)
+  snapshotVersion  Int             @default(1) @map("snapshot_version")
+  /**
+   * Immutable inputs snapshot (caller-supplied or provider-supplied) for this calculation.
+   */
+  inputs           Json
+  inputSource      String          @default("MANUAL") @map("input_source")
+  breakdown        Json
+  computedAmount   Decimal         @map("computed_amount") @db.Decimal(14, 2)
+  currency         String          @default("INR") @db.Char(3)
+  approvedAmount   Decimal?        @map("approved_amount") @db.Decimal(14, 2)
+  overrideReason   String?         @map("override_reason")
+  recommendedById  String          @map("recommended_by_id") @db.Uuid
+  submitComments   String?         @map("submit_comments")
+  submittedAt      DateTime?       @map("submitted_at") @db.Timestamptz(6)
+  decidedById      String?         @map("decided_by_id") @db.Uuid
+  decidedAt        DateTime?       @map("decided_at") @db.Timestamptz(6)
+  rejectionReason  String?         @map("rejection_reason")
+  holdReason       String?         @map("hold_reason")
+  paidAt           DateTime?       @map("paid_at") @db.Timestamptz(6)
+  paidById         String?         @map("paid_by_id") @db.Uuid
+  paymentReference String?         @map("payment_reference")
+  version          Int             @default(1)
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  policy      IncentivePolicy       @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  adjustments IncentiveAdjustment[]
+
+  organization  Organization @relation("IncentiveRecommendation_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  employee      User         @relation("IncentiveRecommendation_employeeId", fields: [employeeId], references: [id], onDelete: Restrict)
+  recommendedBy User         @relation("IncentiveRecommendation_recommendedById", fields: [recommendedById], references: [id], onDelete: Restrict)
+  decidedBy     User?        @relation("IncentiveRecommendation_decidedById", fields: [decidedById], references: [id], onDelete: Restrict)
+  paidBy        User?        @relation("IncentiveRecommendation_paidById", fields: [paidById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([organizationId, employeeId, periodStart])
+  @@map("incentive_recommendations")
+}
+
+/// Clawback proposals created from refund events (never applied automatically).
+model IncentiveAdjustment {
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @map("organization_id") @db.Uuid
+  recommendationId   String           @map("recommendation_id") @db.Uuid
+  employeeId         String           @map("employee_id") @db.Uuid
+  refundId           String           @map("refund_id") @db.Uuid
+  /**
+   * Proposed negative adjustment amount (positive number = amount to claw back).
+   */
+  proposedAmount     Decimal          @map("proposed_amount") @db.Decimal(14, 2)
+  decidedAmount      Decimal?         @map("decided_amount") @db.Decimal(14, 2)
+  currency           String           @default("INR") @db.Char(3)
+  status             AdjustmentStatus @default(PROPOSED)
+  reason             String?
+  decidedById        String?          @map("decided_by_id") @db.Uuid
+  decidedAt          DateTime?        @map("decided_at") @db.Timestamptz(6)
+  appliedPeriodStart DateTime?        @map("applied_period_start") @db.Date
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  recommendation IncentiveRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("IncentiveAdjustment_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     User         @relation("IncentiveAdjustment_employeeId", fields: [employeeId], references: [id], onDelete: Restrict)
+  decidedBy    User?        @relation("IncentiveAdjustment_decidedById", fields: [decidedById], references: [id], onDelete: Restrict)
+
+  @@unique([recommendationId, refundId])
+  @@index([organizationId, status])
+  @@map("incentive_adjustments")
+}
+
+// ---------------------------------------------------------------- hiring / HR
+
+enum RequisitionStatus {
+  OPEN
+  ON_HOLD
+  FILLED
+  CANCELLED
+}
+
+enum CandidateStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  ASSESSMENT
+  OFFER
+  HIRED
+  REJECTED
+  WITHDRAWN
+}
+
+enum InterviewRecommendation {
+  STRONG_YES
+  YES
+  NO
+  STRONG_NO
+}
+
+enum ExitType {
+  VOLUNTARY
+  INVOLUNTARY
+  PROBATION_FAILURE
+  TRANSFER
+}
+
+/// Configurable hiring criteria per role (education, experience years, industries). Seeded from the JD as [DEMO]-labelled defaults.
+model HiringRoleProfile {
+  id                  String   @id @default(uuid()) @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  roleKey             String   @map("role_key")
+  title               String
+  minEducation        String?  @map("min_education")
+  preferredEducation  String?  @map("preferred_education")
+  minExperienceYears  Int?     @map("min_experience_years")
+  maxExperienceYears  Int?     @map("max_experience_years")
+  minTeamMgmtYears    Int?     @map("min_team_mgmt_years")
+  preferredIndustries String[] @default([]) @map("preferred_industries")
+  requiredBackgrounds String[] @default([]) @map("required_backgrounds")
+  /// Free-text preferred/required criteria (e.g. proven record of hitting revenue targets, direct work with senior leadership).
+  additionalCriteria  String[] @default([]) @map("additional_criteria")
+  competencyKeys      String[] @default([]) @map("competency_keys")
+  notes               String?
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("HiringRoleProfile_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, roleKey])
+  @@map("hiring_role_profiles")
+}
+
+model Requisition {
+  id              String            @id @default(uuid()) @db.Uuid
+  organizationId  String            @map("organization_id") @db.Uuid
+  title           String
+  roleKey         String            @map("role_key")
+  profileId       String?           @map("profile_id") @db.Uuid
+  hiringManagerId String            @map("hiring_manager_id") @db.Uuid
+  teamId          String?           @map("team_id") @db.Uuid
+  headcount       Int               @default(1)
+  status          RequisitionStatus @default(OPEN)
+  targetDate      DateTime?         @map("target_date") @db.Date
+  notes           String?
+  createdById     String            @map("created_by_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  candidates Candidate[]
+
+  organization  Organization @relation("Requisition_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  hiringManager User         @relation("Requisition_hiringManagerId", fields: [hiringManagerId], references: [id], onDelete: Restrict)
+  team          Team?        @relation("Requisition_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  createdBy     User         @relation("Requisition_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@index([organizationId, hiringManagerId])
+  @@map("requisitions")
+}
+
+model Candidate {
+  id              String         @id @default(uuid()) @db.Uuid
+  organizationId  String         @map("organization_id") @db.Uuid
+  requisitionId   String         @map("requisition_id") @db.Uuid
+  name            String
+  email           String?
+  phone           String?
+  source          String?
+  stage           CandidateStage @default(APPLIED)
+  educationLevel  String?        @map("education_level")
+  experienceYears Int?           @map("experience_years")
+  teamMgmtYears   Int?           @map("team_mgmt_years")
+  industries      String[]       @default([])
+  /**
+   * FileRef placeholder for the CV.
+   */
+  resumeFileId    String?        @map("resume_file_id") @db.Uuid
+  stageReason     String?        @map("stage_reason")
+  createdById     String         @map("created_by_id") @db.Uuid
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  requisition Requisition         @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  feedback    InterviewFeedback[]
+
+  organization Organization @relation("Candidate_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("Candidate_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, requisitionId, stage])
+  @@map("candidates")
+}
+
+model InterviewFeedback {
+  id               String                  @id @default(uuid()) @db.Uuid
+  organizationId   String                  @map("organization_id") @db.Uuid
+  candidateId      String                  @map("candidate_id") @db.Uuid
+  interviewerId    String                  @map("interviewer_id") @db.Uuid
+  round            Int                     @default(1)
+  interviewAt      DateTime                @map("interview_at") @db.Timestamptz(6)
+  recommendation   InterviewRecommendation
+  competencyScores Json                    @default("{}") @map("competency_scores")
+  notes            String?
+  createdAt        DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  candidate Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("InterviewFeedback_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  interviewer  User         @relation("InterviewFeedback_interviewerId", fields: [interviewerId], references: [id], onDelete: Restrict)
+
+  @@index([candidateId])
+  @@map("interview_feedback")
+}
+
+/// HR-restricted employee data (hr:records:*). Payroll, leave and attendance live in workforce.prisma (DEC-048 supersedes DEC-023).
+model EmployeeProfile {
+  id               String    @id @default(uuid()) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  userId           String    @unique @map("user_id") @db.Uuid
+  employmentType   String    @default("FULL_TIME") @map("employment_type")
+  positionTitle    String?   @map("position_title")
+  joinDate         DateTime? @map("join_date") @db.Date
+  probationEndDate DateTime? @map("probation_end_date") @db.Date
+  /// probation length in months used to compute probationEndDate from joinDate (default 3, DEC-048)
+  probationMonths  Int?      @map("probation_months")
+  dateOfBirth      DateTime? @map("date_of_birth") @db.Date
+  /// employee agrees that day+month (never the year) of the birthday is shown to the team
+  shareBirthday    Boolean   @default(false) @map("share_birthday")
+  employeeCode     String?   @map("employee_code")
+  workLocation     String?   @map("work_location")
+  hrContactId      String?   @map("hr_contact_id") @db.Uuid
+  exitDate         DateTime? @map("exit_date") @db.Date
+  exitType         ExitType? @map("exit_type")
+  exitReason       String?   @map("exit_reason")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("EmployeeProfile_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("EmployeeProfile_userId", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, employeeCode])
+  @@index([organizationId, exitDate])
+  @@map("employee_profiles")
+}
+
+// ---------------------------------------------------------------- onboarding, probation, succession
+
+enum OnboardingPlanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ChecklistItemStatus {
+  PENDING
+  DONE
+  SKIPPED
+}
+
+enum ChecklistCategory {
+  ONBOARDING
+  TRAINING
+  TOOLS
+  CULTURE
+}
+
+enum ProbationStatus {
+  SCHEDULED
+  COMPLETED
+  WAIVED
+}
+
+enum ProbationOutcome {
+  ON_TRACK
+  CONCERNS
+  CONFIRM
+  EXTEND
+  NOT_CONFIRMED
+}
+
+enum Readiness {
+  READY_NOW
+  READY_LATER
+}
+
+model OnboardingTemplate {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  roleKey        String   @map("role_key")
+  name           String
+  /**
+   * [{ title, category, dueDay, description?, resourceId? }]
+   */
+  items          Json     @default("[]")
+  /**
+   * Probation review checkpoints in days since join (default 30/60/90, configurable).
+   */
+  probationDays  Int[]    @default([30, 60, 90]) @map("probation_days")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("OnboardingTemplate_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, roleKey])
+  @@map("onboarding_templates")
+}
+
+model OnboardingPlan {
+  id             String               @id @default(uuid()) @db.Uuid
+  organizationId String               @map("organization_id") @db.Uuid
+  employeeId     String               @map("employee_id") @db.Uuid
+  templateId     String?              @map("template_id") @db.Uuid
+  startDate      DateTime             @map("start_date") @db.Date
+  status         OnboardingPlanStatus @default(ACTIVE)
+  createdById    String               @map("created_by_id") @db.Uuid
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  items OnboardingItem[]
+
+  organization Organization @relation("OnboardingPlan_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     User         @relation("OnboardingPlan_employeeId", fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("OnboardingPlan_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, employeeId])
+  @@map("onboarding_plans")
+}
+
+model OnboardingItem {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  planId         String              @map("plan_id") @db.Uuid
+  title          String
+  category       ChecklistCategory   @default(ONBOARDING)
+  description    String?
+  dueDate        DateTime?           @map("due_date") @db.Date
+  status         ChecklistItemStatus @default(PENDING)
+  resourceId     String?             @map("resource_id") @db.Uuid
+  completedAt    DateTime?           @map("completed_at") @db.Timestamptz(6)
+  completedById  String?             @map("completed_by_id") @db.Uuid
+  notes          String?
+
+  plan OnboardingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("OnboardingItem_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  completedBy  User?        @relation("OnboardingItem_completedById", fields: [completedById], references: [id], onDelete: Restrict)
+
+  @@index([planId, status])
+  @@map("onboarding_items")
+}
+
+model ProbationReview {
+  id               String            @id @default(uuid()) @db.Uuid
+  organizationId   String            @map("organization_id") @db.Uuid
+  employeeId       String            @map("employee_id") @db.Uuid
+  checkpointDay    Int               @map("checkpoint_day")
+  dueDate          DateTime          @map("due_date") @db.Date
+  status           ProbationStatus   @default(SCHEDULED)
+  outcome          ProbationOutcome?
+  competencyScores Json              @default("{}") @map("competency_scores")
+  notes            String?
+  reviewerId       String?           @map("reviewer_id") @db.Uuid
+  completedAt      DateTime?         @map("completed_at") @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation("ProbationReview_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  employee     User         @relation("ProbationReview_employeeId", fields: [employeeId], references: [id], onDelete: Restrict)
+  reviewer     User?        @relation("ProbationReview_reviewerId", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, checkpointDay])
+  @@index([organizationId, dueDate])
+  @@map("probation_reviews")
+}
+
+model SuccessionPosition {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  title          String
+  roleKey        String   @map("role_key")
+  incumbentId    String?  @map("incumbent_id") @db.Uuid
+  notes          String?
+  createdById    String   @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  candidates SuccessionCandidate[]
+
+  organization Organization @relation("SuccessionPosition_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  incumbent    User?        @relation("SuccessionPosition_incumbentId", fields: [incumbentId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("SuccessionPosition_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@map("succession_positions")
+}
+
+model SuccessionCandidate {
+  id                 String    @id @default(uuid()) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  positionId         String    @map("position_id") @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  readiness          Readiness
+  /**
+   * [{ title, dueDate?, status }]
+   */
+  developmentActions Json      @default("[]") @map("development_actions")
+  notes              String?
+  addedById          String    @map("added_by_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  position SuccessionPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("SuccessionCandidate_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("SuccessionCandidate_userId", fields: [userId], references: [id], onDelete: Restrict)
+  addedBy      User         @relation("SuccessionCandidate_addedById", fields: [addedById], references: [id], onDelete: Restrict)
+
+  @@unique([positionId, userId])
+  @@map("succession_candidates")
+}
+
+enum ExpectationKind {
+  OWNERSHIP
+  ACCOUNTABILITY
+  CULTURE
+}
+
+/// Ownership / accountability / culture expectations per role (shown to the employee and used in reviews).
+model RoleExpectation {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  roleKey        String          @map("role_key")
+  kind           ExpectationKind
+  title          String
+  body           String
+  isActive       Boolean         @default(true) @map("is_active")
+  createdById    String          @map("created_by_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  acknowledgements RoleExpectationAcknowledgement[]
+
+  organization Organization @relation("RoleExpectation_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("RoleExpectation_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, roleKey])
+  @@map("role_expectations")
+}
+
+/// JD-HR-009: an employee acknowledges the ownership / accountability expectations of their role. The acknowledgement is
+/// bound to the content hash it was given for: editing the text requires a fresh acknowledgement. Never deleted.
+model RoleExpectationAcknowledgement {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  expectationId  String   @map("expectation_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  contentHash    String   @map("content_hash")
+  acknowledgedAt DateTime @default(now()) @map("acknowledged_at") @db.Timestamptz(6)
+
+  expectation RoleExpectation @relation(fields: [expectationId], references: [id], onDelete: Restrict)
+
+  organization Organization @relation("RoleExpectationAcknowledgement_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("RoleExpectationAcknowledgement_userId", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([expectationId, userId, contentHash])
+  @@index([organizationId, userId])
+  @@map("role_expectation_acknowledgements")
+}
+
+// ---------------------------------------------------------------- engagement (anonymous pulse)
+
+enum SurveyStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+model EngagementSurvey {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  title          String
+  /**
+   * [{ id, text, type: 'SCALE_5' | 'TEXT' }]
+   */
+  questions      Json
+  status         SurveyStatus @default(OPEN)
+  closesAt       DateTime?    @map("closes_at") @db.Timestamptz(6)
+  createdById    String       @map("created_by_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  responses     EngagementResponse[]
+  participation EngagementParticipation[]
+
+  organization Organization @relation("EngagementSurvey_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("EngagementSurvey_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("engagement_surveys")
+}
+
+/// Anonymous: NO user id column. Duplicate prevention lives in EngagementParticipation (no link to the response).
+model EngagementResponse {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  surveyId       String   @map("survey_id") @db.Uuid
+  answers        Json
+  /**
+   * Truncated to the day to reduce re-identification.
+   */
+  respondedOn    DateTime @map("responded_on") @db.Date
+
+  survey EngagementSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("EngagementResponse_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([surveyId])
+  @@map("engagement_responses")
+}
+
+model EngagementParticipation {
+  surveyId String @map("survey_id") @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+
+  survey EngagementSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  user User @relation("EngagementParticipation_userId", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([surveyId, userId])
+  @@map("engagement_participation")
+}
+
+// ---------------------------------------------------------------- skills & coaching resource library
+
+enum ResourceType {
+  ARTICLE
+  VIDEO
+  DOCUMENT
+  TEMPLATE
+  LINK
+  COURSE
+}
+
+enum ResourceAssignmentStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Resource {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  title          String
+  description    String?
+  type           ResourceType @default(ARTICLE)
+  url            String?
+  /**
+   * FileRef placeholder.
+   */
+  fileId         String?      @map("file_id") @db.Uuid
+  skillTags      String[]     @default([]) @map("skill_tags")
+  isActive       Boolean      @default(true) @map("is_active")
+  createdById    String       @map("created_by_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assignments ResourceAssignment[]
+
+  organization Organization @relation("Resource_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("Resource_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, isActive])
+  @@map("resources")
+}
+
+model ResourceAssignment {
+  id             String                   @id @default(uuid()) @db.Uuid
+  organizationId String                   @map("organization_id") @db.Uuid
+  resourceId     String                   @map("resource_id") @db.Uuid
+  userId         String                   @map("user_id") @db.Uuid
+  assignedById   String                   @map("assigned_by_id") @db.Uuid
+  dueDate        DateTime?                @map("due_date") @db.Date
+  status         ResourceAssignmentStatus @default(ASSIGNED)
+  completedAt    DateTime?                @map("completed_at") @db.Timestamptz(6)
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("ResourceAssignment_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("ResourceAssignment_userId", fields: [userId], references: [id], onDelete: Restrict)
+  assignedBy   User         @relation("ResourceAssignment_assignedById", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@unique([resourceId, userId])
+  @@index([organizationId, userId, status])
+  @@map("resource_assignments")
+}

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline - SalesOS</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #fbf8f2;
+        color: #1d1a16;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        padding: 24px;
+        text-align: center;
+      }
+      main {
+        max-width: 26rem;
+      }
+      h1 {
+        font-family: Georgia, serif;
+        font-size: 1.75rem;
+        margin: 0 0 0.5rem;
+      }
+      p {
+        color: #6a6358;
+        line-height: 1.55;
+        margin: 0.25rem 0;
+      }
+      .rule {
+        height: 2px;
+        width: 64px;
+        background: #b8923a;
+        margin: 1rem auto;
+        border-radius: 2px;
+      }
+      a.btn {
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        margin-top: 1.25rem;
+        min-height: 44px;
+        padding: 0 1.25rem;
+        border-radius: 10px;
+        border: 1px solid #1d1a16;
+        background: #1d1a16;
+        color: #fbf8f2;
+        font: inherit;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You are offline</h1>
+      <div class="rule" aria-hidden="true"></div>
+      <p>
+        SalesOS needs a connection to show your leads and tasks. For your security, no business data
+        is stored on this device.
+      </p>
+      <p>Nothing you were doing has been saved. Reconnect, then try again.</p>
+      <a class="btn" href="/">Try again</a>
+    </main>
+  </body>
+</html>

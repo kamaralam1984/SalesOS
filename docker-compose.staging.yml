@@ -1,0 +1,135 @@
+# SalesOS STAGING stack. Self-contained: brings its own Postgres/Redis/MinIO (salesosl-stage-*), demo seed allowed here ONLY.
+#   cp .env.staging.example .env.staging   # fill placeholders
+#   docker compose -p salesosl-stage -f docker-compose.staging.yml --env-file .env.staging up -d --build
+#   docker compose -p salesosl-stage -f docker-compose.staging.yml --env-file .env.staging run --rm migrate
+#   ALLOW_DEMO_SEED=yes docker compose -p salesosl-stage -f docker-compose.staging.yml --env-file .env.staging run --rm seed
+# Host ports (loopback only) are configurable: STAGE_API_PORT, STAGE_WEB_PORT, STAGE_PG_PORT, STAGE_REDIS_PORT, STAGE_MINIO_PORT.
+name: ${COMPOSE_PROJECT_NAME:-salesosl-stage}
+
+x-app-env: &app-env
+  NODE_ENV: ${APP_NODE_ENV:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  DATABASE_URL: postgresql://${PG_USER}:${PG_PASSWORD}@postgres:5432/${PG_DB}?schema=public
+  REDIS_URL: redis://redis:6379
+  BULLMQ_PREFIX: ${BULLMQ_PREFIX:-salesos-stage}
+  SESSION_SECRET: ${SESSION_SECRET}
+  PLATFORM_ENCRYPTION_KEY: ${PLATFORM_ENCRYPTION_KEY}
+  CORS_ORIGINS: ${CORS_ORIGINS}
+  APP_BASE_URL: ${APP_BASE_URL}
+  TRUST_PROXY: ${TRUST_PROXY:-false}
+  ENABLE_DOCS: ${ENABLE_DOCS:-true}
+  THROTTLE_STORAGE: redis
+  S3_ENDPOINT: http://minio:9000
+  S3_REGION: us-east-1
+  S3_BUCKET: ${S3_BUCKET:-salesos-stage-private}
+  S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+  S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-salesosl-stage}-postgres
+    restart: unless-stopped
+    environment: { POSTGRES_USER: "${PG_USER}", POSTGRES_PASSWORD: "${PG_PASSWORD}", POSTGRES_DB: "${PG_DB}" }
+    ports: ["127.0.0.1:${STAGE_PG_PORT:-55312}:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    networks: [backend]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DB}"], interval: 5s, timeout: 3s, retries: 12 }
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512M } } }
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-salesosl-stage}-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "noeviction"]
+    ports: ["127.0.0.1:${STAGE_REDIS_PORT:-63312}:6379"]
+    volumes: ["redisdata:/data"]
+    networks: [backend]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 3s, retries: 12 }
+    deploy: { resources: { limits: { cpus: "0.5", memory: 192M } } }
+  minio:
+    image: minio/minio:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-salesosl-stage}-minio
+    restart: unless-stopped
+    command: server /data
+    environment: { MINIO_ROOT_USER: "${MINIO_ROOT_USER}", MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}" }
+    ports: ["127.0.0.1:${STAGE_MINIO_PORT:-19312}:9000"]
+    volumes: ["miniodata:/data"]
+    networks: [backend]
+    healthcheck: { test: ["CMD-SHELL", "mc ready local || curl -fs http://127.0.0.1:9000/minio/health/live"], interval: 10s, timeout: 3s, retries: 12 }
+    deploy: { resources: { limits: { cpus: "0.5", memory: 384M } } }
+
+  # one-off jobs (profile "ops"): not started by `up`
+  migrate:
+    image: salesosl-tools:${RELEASE:-local}
+    build: { context: ., dockerfile: deploy/docker/tools.Dockerfile }
+    profiles: ["ops"]
+    command: ["migrate"]
+    environment: { DATABASE_URL: "postgresql://${PG_USER}:${PG_PASSWORD}@postgres:5432/${PG_DB}?schema=public" }
+    depends_on: { postgres: { condition: service_healthy } }
+    networks: [backend]
+  seed:
+    image: salesosl-tools:${RELEASE:-local}
+    profiles: ["ops"]
+    command: ["seed"]
+    environment:
+      ALLOW_DEMO_SEED: ${ALLOW_DEMO_SEED:-no}
+      DATABASE_URL: postgresql://${PG_USER}:${PG_PASSWORD}@postgres:5432/${PG_DB}?schema=public
+      REDIS_URL: redis://redis:6379
+      SESSION_SECRET: ${SESSION_SECRET}
+    depends_on: { postgres: { condition: service_healthy } }
+    networks: [backend]
+
+  api:
+    image: salesosl-api:${RELEASE:-local}
+    build: { context: ., dockerfile: deploy/docker/api.Dockerfile }
+    container_name: ${COMPOSE_PROJECT_NAME:-salesosl-stage}-api
+    restart: unless-stopped
+    environment: { <<: *app-env, PORT: "4100" }
+    ports: ["127.0.0.1:${STAGE_API_PORT:-4312}:4100"]
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    networks: [backend, frontend]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    stop_grace_period: 30s
+    deploy: { resources: { limits: { cpus: "1.0", memory: 768M } } }
+  worker:
+    image: salesosl-worker:${RELEASE:-local}
+    build: { context: ., dockerfile: deploy/docker/worker.Dockerfile }
+    container_name: ${COMPOSE_PROJECT_NAME:-salesosl-stage}-worker
+    restart: unless-stopped
+    environment: { <<: *app-env }
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    networks: [backend]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    stop_grace_period: 40s
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512M } } }
+  web:
+    image: salesosl-web:${RELEASE:-local}
+    build:
+      context: .
+      dockerfile: deploy/docker/web.Dockerfile
+      args: { NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}" }
+    container_name: ${COMPOSE_PROJECT_NAME:-salesosl-stage}-web
+    restart: unless-stopped
+    environment: { PORT: "3100", NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}" }
+    ports: ["127.0.0.1:${STAGE_WEB_PORT:-3312}:3100"]
+    depends_on: { api: { condition: service_healthy } }
+    networks: [frontend]
+    read_only: true
+    tmpfs: ["/tmp", "/app/apps/web/.next/cache"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512M } } }
+
+networks:
+  backend: { internal: false }
+  frontend: {}
+volumes:
+  pgdata: {}
+  redisdata: {}
+  miniodata: {}

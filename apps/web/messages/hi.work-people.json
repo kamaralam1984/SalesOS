@@ -1,0 +1,241 @@
+{
+  "workPeople": {
+    "notVisible": "आपको दिखाई नहीं देता",
+    "status": {
+      "ACTIVE": "सक्रिय",
+      "PROBATION": "परिवीक्षा में",
+      "EXITED": "छोड़ चुके"
+    },
+    "attendanceStatus": {
+      "PRESENT": "उपस्थित",
+      "ABSENT": "अनुपस्थित",
+      "HALF_DAY": "आधा दिन",
+      "WFH": "घर से काम",
+      "LATE": "देर से",
+      "HOLIDAY": "अवकाश",
+      "WEEKLY_OFF": "साप्ताहिक अवकाश",
+      "ON_LEAVE": "छुट्टी पर",
+      "UNPAID_LEAVE": "अवैतनिक छुट्टी"
+    },
+    "risk": {
+      "ON_TRACK": "सही राह पर",
+      "AT_RISK": "जोखिम में",
+      "COMPLETED": "पूर्ण",
+      "OVERDUE": "विलंबित"
+    },
+    "taskStatus": {
+      "ASSIGNED": "सौंपा गया",
+      "ACCEPTED": "स्वीकृत",
+      "IN_PROGRESS": "प्रगति में",
+      "REVIEW": "समीक्षा में",
+      "COMPLETED": "पूर्ण",
+      "REJECTED": "अस्वीकृत",
+      "CANCELLED": "रद्द"
+    },
+    "dayKind": {
+      "WORKING": "कार्य दिवस",
+      "WEEKLY_OFF": "साप्ताहिक अवकाश",
+      "HOLIDAY": "अवकाश"
+    },
+    "hub": {
+      "eyebrow": "मेरा कार्य",
+      "title": "कार्य केंद्र",
+      "description": {
+        "own": "आपका दिन एक नज़र में: उपस्थिति, कार्य, लक्ष्य, छुट्टी और घोषणाएँ।",
+        "team": "आपका दिन और आपकी टीम की उपस्थिति, कार्य, लक्ष्य और लंबित छुट्टियाँ।",
+        "org": "संगठन का अवलोकन और आपका अपना दिन।"
+      },
+      "asOf": "{date} तक",
+      "empty": "अभी दिखाने के लिए कुछ नहीं",
+      "me": "मेरा दिन",
+      "announcements": {
+        "title": "घोषणाएँ",
+        "empty": "अभी कोई घोषणा नहीं।",
+        "until": "{date} तक"
+      },
+      "attendance": {
+        "title": "आज की उपस्थिति",
+        "open": "उपस्थिति खोलें",
+        "notMarked": "आज अभी दर्ज नहीं हुई।",
+        "holiday": "अवकाश: {name}",
+        "times": "आगमन {in} · प्रस्थान {out}"
+      },
+      "tasks": {
+        "title": "मेरे कार्य",
+        "open": "सभी कार्य",
+        "empty": "कोई खुला कार्य नहीं।",
+        "overdue": "विलंबित",
+        "summary": "{open} खुले · {overdue} विलंबित · {today} आज देय"
+      },
+      "goals": {
+        "title": "मेरे लक्ष्य",
+        "open": "सभी लक्ष्य",
+        "empty": "कोई सक्रिय लक्ष्य नहीं।",
+        "progress": "{title} की प्रगति: {pct} प्रतिशत",
+        "target": "{pct}% पूर्ण · लक्ष्य तिथि {date}",
+        "next": "अगला: {title}"
+      },
+      "leave": {
+        "title": "छुट्टी शेष",
+        "open": "छुट्टी",
+        "empty": "अभी कोई छुट्टी शेष दर्ज नहीं।",
+        "pending": "{n} लंबित",
+        "earnedTitle": "अर्जित छुट्टी की प्रगति",
+        "earnedAria": "अगली क्रेडिट की ओर अर्जित छुट्टी की प्रगति",
+        "earnedBody": "{required} में से {done} पात्र दिन · अगली क्रेडिट में {left} शेष",
+        "earnedNotStarted": "गिनती अभी शुरू नहीं हुई।"
+      },
+      "holidays": {
+        "title": "आगामी अवकाश",
+        "open": "कैलेंडर",
+        "empty": "कोई स्वीकृत अवकाश नहीं आ रहा।"
+      },
+      "birthdays": {
+        "title": "टीम के जन्मदिन",
+        "today": "आज",
+        "inDays": "{n} दिन में",
+        "empty": "कोई साझा जन्मदिन नहीं आ रहा।"
+      },
+      "team": {
+        "title": "मेरी टीम ({n} लोग)",
+        "attendance": "आज टीम की उपस्थिति",
+        "attendanceEmpty": "आज कोई उपस्थिति दर्ज नहीं।",
+        "notMarked": "दर्ज नहीं: {n}",
+        "tasks": "टीम के कार्य",
+        "tasksEmpty": "टीम को कोई कार्य नहीं सौंपा गया।",
+        "notStarted": "शुरू नहीं हुए",
+        "inProgress": "प्रगति में",
+        "inReview": "समीक्षा में",
+        "done30": "30 दिन में पूर्ण",
+        "overdue": "विलंबित",
+        "goals": "टीम के लक्ष्य",
+        "goalsEmpty": "टीम में कोई खुला लक्ष्य नहीं।",
+        "lowest": "सबसे कम औसत प्रगति",
+        "leave": "लंबित छुट्टी अनुरोध",
+        "leaveEmpty": "कोई लंबित छुट्टी अनुरोध नहीं।",
+        "review": "समीक्षा करें",
+        "drilldown": "टीम शॉर्टकट",
+        "links": {
+          "directory": "निर्देशिका",
+          "orgChartTeam": "टीम संगठन चार्ट",
+          "goals": "लक्ष्य",
+          "tasks": "कार्य",
+          "attendance": "उपस्थिति",
+          "approvals": "छुट्टी स्वीकृतियाँ"
+        }
+      },
+      "org": {
+        "title": "संगठन",
+        "headcount": "कर्मचारी संख्या",
+        "onProbation": "परिवीक्षा में",
+        "joiners": "30 दिन में जुड़े",
+        "pendingLeave": "लंबित छुट्टी",
+        "departments": "विभाग",
+        "departmentsEmpty": "कोई विभाग दर्ज नहीं।",
+        "probation": "{days} दिन में समाप्त होती परिवीक्षा",
+        "probationList": "जल्द समाप्त होती परिवीक्षा",
+        "probationEmpty": "जल्द कोई परिवीक्षा समाप्त नहीं हो रही।",
+        "openProbation": "परिवीक्षा",
+        "daysLeft": "{n} दिन शेष",
+        "birthdays": "आगामी जन्मदिन",
+        "openBirthdays": "जन्मदिन",
+        "exceptions": "आज उपस्थिति अपवाद",
+        "exceptionsEmpty": "आज कोई उपस्थिति अपवाद नहीं।",
+        "missingCheckout": "कल चेक-आउट छूटा: {n}",
+        "earned": "30 दिन में जमा अर्जित छुट्टी: {n}",
+        "earnedList": "हाल की अर्जित छुट्टी क्रेडिट",
+        "earnedEmpty": "हाल में कोई अर्जित छुट्टी जमा नहीं हुई।"
+      }
+    },
+    "directory": {
+      "eyebrow": "लोग",
+      "title": "कर्मचारी निर्देशिका",
+      "description": "नाम, कोड, भूमिका, विभाग या प्रबंधक से सहकर्मी खोजें। केवल कार्य विवरण।",
+      "filters": "निर्देशिका फ़िल्टर",
+      "search": "खोजें",
+      "searchPlaceholder": "नाम, कोड, भूमिका, विभाग या प्रबंधक",
+      "department": "विभाग",
+      "anyDepartment": "सभी विभाग",
+      "status": "स्थिति",
+      "currentStaff": "वर्तमान कर्मचारी",
+      "empty": "दिखाने के लिए कोई कर्मचारी नहीं",
+      "noMatches": "इन फ़िल्टर से कोई मेल नहीं खाता",
+      "noMatchesBody": "कोई दूसरा नाम आज़माएँ या फ़िल्टर हटाएँ।",
+      "noRole": "कोई भूमिका दर्ज नहीं",
+      "reportsTo": "{name} को रिपोर्ट करते हैं"
+    },
+    "p360": {
+      "breadcrumb": "कर्मचारी नेविगेशन",
+      "title": "कर्मचारी",
+      "eyebrow": "कर्मचारी 360",
+      "notFound": "कर्मचारी नहीं मिला",
+      "profile": "प्रोफ़ाइल",
+      "code": "कर्मचारी कोड",
+      "designation": "पदनाम",
+      "department": "विभाग",
+      "manager": "प्रबंधक",
+      "joined": "जुड़ने की तिथि",
+      "location": "कार्य स्थान",
+      "hrContact": "HR संपर्क",
+      "email": "कार्य ईमेल",
+      "hr": "HR रिकॉर्ड",
+      "hrOpen": "HR विवरण संपादित करें",
+      "employmentType": "रोज़गार प्रकार",
+      "exitDate": "निकासी तिथि",
+      "noHrRecord": "अभी कोई HR रिकॉर्ड नहीं।",
+      "probation": "परिवीक्षा",
+      "probationStatus": {
+        "ON_PROBATION": "परिवीक्षा में",
+        "COMPLETED": "पूर्ण",
+        "UNKNOWN": "दर्ज नहीं"
+      },
+      "probationDates": "{start} से {end} ({months} महीने)",
+      "probationLeft": "{n} दिन शेष",
+      "probationNone": "जुड़ने की तिथि दर्ज नहीं, इसलिए परिवीक्षा नहीं दिखाई जा सकती।",
+      "attendance": "उपस्थिति",
+      "attendanceMonth": "{month} की उपस्थिति गणना",
+      "attendanceRecent": "हाल के दिन",
+      "attendanceNone": "अभी कोई उपस्थिति दर्ज नहीं।",
+      "leave": "छुट्टी शेष",
+      "leaveUsed": "उपयोग {used} · लंबित {pending}",
+      "leaveNone": "अभी कोई छुट्टी गतिविधि नहीं।",
+      "performance": "प्रदर्शन",
+      "goals": "लक्ष्य",
+      "goalProgress": "{title} की प्रगति: {pct} प्रतिशत",
+      "goalsNone": "अभी कोई लक्ष्य नहीं।",
+      "goalsHidden": "लक्ष्य आपको दिखाई नहीं देते।",
+      "tasksAssigned": "सौंपे गए कार्य",
+      "tasksDone": "पूर्ण",
+      "tasksOverdue": "विलंबित",
+      "tasksRate": "पूर्णता दर",
+      "tasksNone": "अभी कोई कार्य नहीं सौंपा गया।",
+      "tasksHidden": "कार्य आपको दिखाई नहीं देते।",
+      "activity": "हाल की गतिविधि",
+      "activityNone": "कोई हाल की गतिविधि नहीं।"
+    },
+    "org": {
+      "eyebrow": "लोग",
+      "title": "संगठन चार्ट",
+      "description": "कौन किसे रिपोर्ट करता है, हर व्यक्ति के प्रबंधक से बना।",
+      "view": "दृश्य",
+      "views": {
+        "organisation": "पूरा संगठन",
+        "department": "विभाग",
+        "team": "टीम"
+      },
+      "department": "विभाग",
+      "chooseDepartment": "विभाग चुनें",
+      "pickDepartment": "चार्ट देखने के लिए विभाग चुनें",
+      "team": "टीम",
+      "myTeam": "मेरी रिपोर्टिंग लाइन",
+      "empty": "इस दृश्य में दिखाने के लिए कोई नहीं",
+      "initialsNote": "फ़ोटो संग्रहीत नहीं हैं, इसलिए आद्याक्षर दिखाए गए हैं।",
+      "count": "{n} लोग दिखाए गए",
+      "truncated": "चार्ट {max} लोगों पर कटा है। शेष देखने के लिए विभाग या टीम दृश्य उपयोग करें।",
+      "reports": "{n} अधीनस्थ",
+      "loop": "डेटा में रिपोर्टिंग लूप: यह व्यक्ति शीर्ष स्तर पर दिखाया गया है।",
+      "expand": "{name} खोलें",
+      "collapse": "{name} बंद करें"
+    }
+  }
+}

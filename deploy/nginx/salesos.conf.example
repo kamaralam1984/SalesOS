@@ -1,0 +1,105 @@
+# SalesOS reverse proxy EXAMPLE. Add as ONE new file (e.g. /etc/nginx/conf.d/salesos.conf); never edit other sites' files.
+# Validate with `nginx -t` BEFORE `nginx -s reload` (reload, not restart). Replace app.example.com, cert paths and upstream ports.
+# http-level directives (limit_req_zone, map, upstream) must live in the http{} context, which conf.d files are included in.
+
+upstream salesos_web { server 127.0.0.1:3100; keepalive 16; }
+upstream salesos_api { server 127.0.0.1:4100; keepalive 32; }
+
+limit_req_zone $binary_remote_addr zone=salesos_api:10m rate=20r/s;
+limit_req_zone $binary_remote_addr zone=salesos_login:10m rate=10r/m;
+limit_conn_zone $binary_remote_addr zone=salesos_conn:10m;
+
+map $http_upgrade $salesos_connection_upgrade { default upgrade; '' ''; }
+
+server {
+    listen 80;
+    server_name app.example.com;
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name app.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/app.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/app.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SALESOS_SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+    server_tokens off;
+    client_max_body_size 26m;          # >= the largest allowed upload (docs/file-storage-policy.md) + multipart overhead
+    client_body_timeout 30s;
+    limit_conn salesos_conn 40;
+
+    # Security headers (the apps also set CSP/nosniff/frame headers; these are the edge belt-and-braces).
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_types text/plain text/css application/json application/javascript text/javascript image/svg+xml application/manifest+json;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Request-Id $request_id;
+    proxy_set_header Connection "";
+
+    # Login: strict per-IP limit on top of the API's own throttling and lockout.
+    location = /api/v1/auth/login {
+        limit_req zone=salesos_login burst=5 nodelay;
+        limit_req_status 429;
+        proxy_pass http://salesos_api;
+    }
+
+    # Server-sent events: NO buffering, long read timeout, no gzip, no cache.
+    location ~ ^/api/v1/(notifications/stream|stream)$ {
+        proxy_pass http://salesos_api;
+        proxy_buffering off;
+        proxy_cache off;
+        gzip off;
+        chunked_transfer_encoding off;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+        add_header X-Accel-Buffering no always;
+    }
+
+    location /api/ {
+        limit_req zone=salesos_api burst=40 nodelay;
+        limit_req_status 429;
+        proxy_pass http://salesos_api;
+        proxy_read_timeout 60s;
+    }
+
+    # Operational endpoints are NOT public: /metrics is internal-only (scrape from localhost / private network).
+    # (The API serves Prometheus metrics at ROOT /metrics, not under /api/v1. Scrape http://127.0.0.1:4100/metrics locally.)
+    location = /metrics { return 404; }
+
+    # Service worker must never be cached by the edge.
+    location = /sw.js {
+        proxy_pass http://salesos_web;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    }
+    location /_next/static/ {
+        proxy_pass http://salesos_web;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+    location / {
+        proxy_pass http://salesos_web;
+        proxy_read_timeout 60s;
+    }
+}

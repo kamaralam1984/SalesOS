@@ -1,0 +1,123 @@
+// Analytics domain (Phase 5): report exports, KPI snapshots, reconciliation runs, saved filters.
+// organization_id and user ids are real foreign keys (onDelete Restrict, added by the integration pass; originally plain UUID columns);
+// services validate org/user pairs. Nothing here duplicates business data: KPI values are always computed from the source tables.
+
+enum ExportFormat {
+  CSV
+  XLSX
+}
+
+enum ExportStatus {
+  QUEUED
+  RUNNING
+  READY
+  FAILED
+  EXPIRED
+}
+
+/// One requested export. The generated file lives in `content` (private: never listed, only streamed after an authorisation check,
+/// purged at `expires_at`). `filters` is the server-resolved filter set that was actually applied (after intersection with scope).
+model ReportExport {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
+  requestedById    String       @map("requested_by_id") @db.Uuid
+  report           String
+  format           ExportFormat
+  status           ExportStatus @default(QUEUED)
+  /// request parameters as sent (window, filters, period)
+  params           Json         @default("{}")
+  /// scope + filters actually applied server-side
+  appliedFilters   Json         @default("{}") @map("applied_filters")
+  scopeLevel       String       @map("scope_level")
+  rowCap           Int          @map("row_cap")
+  rowCount         Int?         @map("row_count")
+  truncated        Boolean      @default(false)
+  fileName         String?      @map("file_name")
+  contentType      String?      @map("content_type")
+  sizeBytes        Int?         @map("size_bytes")
+  contentSha256    String?      @map("content_sha256")
+  content          Bytes?
+  error            String?
+  attempts         Int          @default(0)
+  lockedUntil      DateTime?    @map("locked_until") @db.Timestamptz(6)
+  requestedAt      DateTime     @default(now()) @map("requested_at") @db.Timestamptz(6)
+  startedAt        DateTime?    @map("started_at") @db.Timestamptz(6)
+  completedAt      DateTime?    @map("completed_at") @db.Timestamptz(6)
+  expiresAt        DateTime     @map("expires_at") @db.Timestamptz(6)
+  downloadCount    Int          @default(0) @map("download_count")
+  lastDownloadedAt DateTime?    @map("last_downloaded_at") @db.Timestamptz(6)
+
+  organization Organization @relation("ReportExport_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  requestedBy  User         @relation("ReportExport_requestedById", fields: [requestedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, requestedById, requestedAt(sort: Desc)])
+  @@index([status, lockedUntil])
+  @@index([expiresAt])
+  @@map("report_exports")
+}
+
+/// Stored KPI values for trends and for the "timeliness" evidence. Organisation-wide scope only (`scope_key = 'ORG'`);
+/// narrower scopes are always computed live so a snapshot can never leak data across roles.
+model KpiSnapshot {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  kpiId          String   @map("kpi_id")
+  scopeKey       String   @default("ORG") @map("scope_key")
+  periodStart    DateTime @map("period_start") @db.Date
+  periodEnd      DateTime @map("period_end") @db.Date
+  value          Decimal? @db.Decimal(20, 4)
+  numerator      Decimal? @db.Decimal(20, 4)
+  denominator    Decimal? @db.Decimal(20, 4)
+  unit           String
+  payload        Json     @default("{}")
+  computedAt     DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+
+  organization Organization @relation("KpiSnapshot_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, kpiId, scopeKey, periodStart, periodEnd])
+  @@index([organizationId, kpiId, periodStart(sort: Desc)])
+  @@map("kpi_snapshots")
+}
+
+/// KPI-PRO-002 evidence: each run recomputes dashboard totals through the KPI layer AND through independent SQL on the base tables.
+model KpiReconciliationRun {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  trigger        String   @default("SCHEDULED")
+  triggeredById  String?  @map("triggered_by_id") @db.Uuid
+  periodStart    DateTime @map("period_start") @db.Date
+  periodEnd      DateTime @map("period_end") @db.Date
+  totalChecks    Int      @map("total_checks")
+  passed         Int
+  failed         Int
+  skipped        Int      @default(0)
+  checks         Json
+  durationMs     Int      @map("duration_ms")
+  ranAt          DateTime @default(now()) @map("ran_at") @db.Timestamptz(6)
+
+  organization Organization @relation("KpiReconciliationRun_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, ranAt(sort: Desc)])
+  @@map("kpi_reconciliation_runs")
+}
+
+/// Per-user saved dashboard / report filter sets. Saved filters are only a convenience: they are re-intersected with the caller's scope on every use.
+model SavedFilter {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  name           String
+  /// dashboard key (e.g. 'founder') or report key (e.g. 'follow-ups')
+  target         String
+  filters        Json
+  isDefault      Boolean  @default(false) @map("is_default")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("SavedFilter_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("SavedFilter_userId", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId, target, name])
+  @@index([organizationId, userId, target])
+  @@map("saved_filters")
+}

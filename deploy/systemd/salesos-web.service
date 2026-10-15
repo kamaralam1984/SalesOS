@@ -1,0 +1,23 @@
+# /etc/systemd/system/salesos-web.service  (run the Next.js standalone output: apps/web/.next/standalone)
+[Unit]
+Description=SalesOS web
+After=network-online.target salesos-api.service
+
+[Service]
+Type=simple
+User=salesos
+Group=salesos
+WorkingDirectory=/srv/salesos/current/web-standalone
+Environment=NODE_ENV=production PORT=3100 HOSTNAME=127.0.0.1
+EnvironmentFile=/etc/salesos/web.env
+ExecStart=/usr/bin/node apps/web/server.js
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

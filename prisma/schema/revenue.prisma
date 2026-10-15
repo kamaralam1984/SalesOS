@@ -1,0 +1,920 @@
+// revenue domain models (Phase 4). Owned by the revenue agent.
+// Conventions: UUID PKs, organization_id scope, TIMESTAMPTZ, Decimal money + explicit currency, @@map to snake_case.
+//
+// DEVIATION (same as crm.prisma, documented in docs/revenue-report.md): organization_id / user ids / team ids are plain
+// indexed UUID columns WITHOUT @relation to identity models (parallel-agent collision avoidance). Services validate every
+// org/user pair. Relations to Lead and Program (CRM) and inside this domain are real FKs.
+//
+// Immutability (enforced by DB triggers in modules/revenue/revenue-guards.ts, applied at boot): sales_records,
+// sales_credits, deal_status_history, payment_events, refund_events, forecast_snapshots, program_prices,
+// pricing_proposal_events; sale_adjustments (only the approval columns may change once, PENDING -> APPROVED/REJECTED).
+
+enum TargetPeriodType {
+  MONTH
+  QUARTER
+  YEAR
+}
+
+enum TargetMetric {
+  REVENUE
+  COLLECTION
+  ENROLMENT
+}
+
+enum TargetLevel {
+  FOUNDER
+  TEAM_LEAD
+  MANAGER
+  EXECUTIVE
+}
+
+enum RevisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DealStage {
+  OPEN
+  NEGOTIATION
+  PAYMENT_PENDING
+  WON
+  LOST
+  CANCELLED
+}
+
+enum DealType {
+  NEW
+  UPSELL
+  CROSS_SELL
+}
+
+enum BlockerKind {
+  BLOCKER
+  HIGH_VALUE
+}
+
+enum AdjustmentKind {
+  CORRECTION
+  DISCOUNT
+  CANCELLATION
+}
+
+enum SaleAdjustmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentStatus {
+  EXPECTED
+  RECORDED
+  VERIFIED
+  REJECTED
+  RECONCILED
+  REVERSED
+}
+
+enum PaymentMethod {
+  UPI
+  BANK_TRANSFER
+  CARD
+  CASH
+  CHEQUE
+  GATEWAY
+  OTHER
+}
+
+enum RefundStatus {
+  REQUESTED
+  REVIEWED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  PROCESSED
+  RECONCILED
+  CANCELLED
+}
+
+enum RefundReasonCategory {
+  LEARNER_REQUEST
+  DUPLICATE_PAYMENT
+  PROGRAM_CANCELLED
+  MISSELLING
+  TECHNICAL
+  OTHER
+}
+
+enum RefundRecommendation {
+  APPROVE
+  REJECT
+  PARTIAL
+}
+
+enum ForecastPeriodType {
+  WEEK
+  MONTH
+}
+
+enum SnapshotKind {
+  PERIOD_START
+  ADHOC
+}
+
+enum ProposalType {
+  PRICE_CHANGE
+  OFFER
+  DISCOUNT
+  BUNDLE
+}
+
+enum ProposalStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum FeedbackKind {
+  MARKET
+  COMPETITOR
+  LEARNER
+}
+
+enum FeedbackStatus {
+  NEW
+  REVIEWED
+  ACTIONED
+  DISMISSED
+}
+
+enum OpportunityType {
+  CHANNEL
+  SEGMENT
+  OTHER
+}
+
+enum OpportunityStatus {
+  IDEA
+  EVALUATING
+  PILOT
+  ADOPTED
+  DROPPED
+}
+
+enum PlanStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum InitiativeStatus {
+  PLANNED
+  IN_PROGRESS
+  DONE
+  DROPPED
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Settings and pricing
+// ---------------------------------------------------------------------------------------------------------------
+
+/// One row per organization. Everything here is a documented default (decision-log DEC-001/027/030/019) made configurable.
+model RevenueSettings {
+  id                        String   @id @default(uuid()) @db.Uuid
+  organizationId            String   @unique @map("organization_id") @db.Uuid
+  /// DEC-001: month the fiscal year starts (4 = April)
+  fiscalYearStartMonth      Int      @default(4) @map("fiscal_year_start_month")
+  /// DEC-030: stage key -> probability (0..1). null = documented defaults in calc/forecast.ts
+  stageProbabilities        Json?    @map("stage_probabilities")
+  /// DEC-027: org-wide fallback when a program has no threshold; null = top-10%-of-open-deals-in-90-days rule
+  defaultHighValueThreshold Decimal? @map("default_high_value_threshold") @db.Decimal(14, 2)
+  /// DEC-019: refunds with amount > this need Founder approval specifically (null = Founder or Finance for all)
+  refundFounderThreshold    Decimal? @map("refund_founder_threshold") @db.Decimal(14, 2)
+  /// verification tolerance between recorded and confirmed amount
+  paymentTolerance          Decimal  @default(0) @map("payment_tolerance") @db.Decimal(14, 2)
+  /// default days from close to first payment due when no payment plan is supplied
+  defaultPaymentDueDays     Int      @default(7) @map("default_payment_due_days")
+  updatedById               String?  @map("updated_by_id") @db.Uuid
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("RevenueSettings_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  updatedBy    User?        @relation("RevenueSettings_updatedById", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@map("revenue_settings")
+}
+
+/// DEC-027: per-program high-value threshold.
+model ProgramRevenueConfig {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  programId          String   @unique @map("program_id") @db.Uuid
+  highValueThreshold Decimal? @map("high_value_threshold") @db.Decimal(14, 2)
+  updatedById        String?  @map("updated_by_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("ProgramRevenueConfig_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  updatedBy    User?        @relation("ProgramRevenueConfig_updatedById", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId])
+  @@map("program_revenue_config")
+}
+
+/// Versioned program price. Append-only: a price change is a new row with a later effective_from. Historic sales never
+/// reference or change with these rows (sale_value is copied into sales_records at close).
+model ProgramPrice {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  programId      String   @map("program_id") @db.Uuid
+  amount         Decimal  @db.Decimal(14, 2)
+  currency       String   @default("INR") @db.Char(3)
+  taxInclusive   Boolean  @default(true) @map("tax_inclusive")
+  effectiveFrom  DateTime @map("effective_from") @db.Timestamptz(6)
+  note           String?
+  /// approved proposal that produced this version (null = Founder-seeded)
+  proposalId     String?  @map("proposal_id") @db.Uuid
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  program  Program          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  proposal PricingProposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  organization Organization @relation("ProgramPrice_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("ProgramPrice_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([programId, effectiveFrom])
+  @@index([organizationId, programId, effectiveFrom(sort: Desc)])
+  @@map("program_prices")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Targets
+// ---------------------------------------------------------------------------------------------------------------
+
+model TargetPeriod {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  type           TargetPeriodType
+  label          String
+  startsOn       DateTime         @map("starts_on") @db.Date
+  endsOn         DateTime         @map("ends_on") @db.Date
+  createdById    String?          @map("created_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  targets Target[]
+  plans   StrategyPlan[]
+
+  organization Organization @relation("TargetPeriod_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("TargetPeriod_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, type, startsOn])
+  @@index([organizationId, startsOn])
+  @@map("target_periods")
+}
+
+/// One node of the Founder -> Team Lead -> Manager -> Executive breakdown for (period, metric). `amount` is the current
+/// approved value; it changes ONLY through an approved TargetRevision. `originalAmount` never changes.
+/// ENROLMENT targets are counts (stored as whole numbers in the same Decimal column).
+model Target {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  periodId       String       @map("period_id") @db.Uuid
+  metric         TargetMetric
+  level          TargetLevel
+  ownerUserId    String       @map("owner_user_id") @db.Uuid
+  teamId         String?      @map("team_id") @db.Uuid
+  parentId       String?      @map("parent_id") @db.Uuid
+  amount         Decimal      @db.Decimal(14, 2)
+  originalAmount Decimal      @map("original_amount") @db.Decimal(14, 2)
+  currency       String       @default("INR") @db.Char(3)
+  /// DEC-001: explicit proration {baseAmount, workingDaysPeriod, workingDaysActive, factor, joinOn, leaveOn}; never recomputed
+  prorationBasis Json?        @map("proration_basis")
+  note           String?
+  version        Int          @default(1)
+  createdById    String?      @map("created_by_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  period    TargetPeriod     @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  parent    Target?          @relation("TargetTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Target[]         @relation("TargetTree")
+  revisions TargetRevision[]
+
+  organization Organization @relation("Target_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  ownerUser    User         @relation("Target_ownerUserId", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("Target_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("Target_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([periodId, metric, ownerUserId])
+  @@index([organizationId, periodId, metric])
+  @@index([organizationId, ownerUserId])
+  @@index([parentId])
+  @@map("targets")
+}
+
+/// Append-only revision history (DEC-002). The initial value is revision #0 (old_amount null, status APPROVED).
+model TargetRevision {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  targetId       String         @map("target_id") @db.Uuid
+  seq            Int
+  oldAmount      Decimal?       @map("old_amount") @db.Decimal(14, 2)
+  newAmount      Decimal        @map("new_amount") @db.Decimal(14, 2)
+  reason         String
+  status         RevisionStatus @default(PENDING)
+  /// the revision applies from this date on (target-as-of-date for KPIs)
+  effectiveFrom  DateTime       @map("effective_from") @db.Date
+  proposedById   String         @map("proposed_by_id") @db.Uuid
+  proposedAt     DateTime       @default(now()) @map("proposed_at") @db.Timestamptz(6)
+  decidedById    String?        @map("decided_by_id") @db.Uuid
+  decidedAt      DateTime?      @map("decided_at") @db.Timestamptz(6)
+  decisionNote   String?        @map("decision_note")
+
+  target Target @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("TargetRevision_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  proposedBy   User         @relation("TargetRevision_proposedById", fields: [proposedById], references: [id], onDelete: Restrict)
+  decidedBy    User?        @relation("TargetRevision_decidedById", fields: [decidedById], references: [id], onDelete: Restrict)
+
+  @@unique([targetId, seq])
+  @@index([organizationId, status])
+  @@map("target_revisions")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Deals and sales
+// ---------------------------------------------------------------------------------------------------------------
+
+model Deal {
+  id                 String    @id @default(uuid()) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  leadId             String    @map("lead_id") @db.Uuid
+  programId          String    @map("program_id") @db.Uuid
+  /// upsell: the program the learner is moving from
+  fromProgramId      String?   @map("from_program_id") @db.Uuid
+  ownerId            String    @map("owner_id") @db.Uuid
+  teamId             String?   @map("team_id") @db.Uuid
+  stage              DealStage @default(OPEN)
+  dealType           DealType  @default(NEW) @map("deal_type")
+  /// expected / negotiated amount while open. The booked sale value lives in sales_records and is immutable.
+  amount             Decimal   @db.Decimal(14, 2)
+  currency           String    @default("INR") @db.Char(3)
+  enrolments         Int       @default(1)
+  expectedCloseOn    DateTime? @map("expected_close_on") @db.Date
+  isHighValue        Boolean   @default(false) @map("is_high_value")
+  highValueFlaggedAt DateTime? @map("high_value_flagged_at") @db.Timestamptz(6)
+  /// threshold in force when the flag was raised (audit of the rule)
+  highValueThreshold Decimal?  @map("high_value_threshold") @db.Decimal(14, 2)
+  /// 0 none, 1 Team Lead notified, 2 Founder notified (> 2x threshold or explicit)
+  escalationLevel    Int       @default(0) @map("escalation_level")
+  closedAt           DateTime? @map("closed_at") @db.Timestamptz(6)
+  lostReason         String?   @map("lost_reason")
+  lostNote           String?   @map("lost_note")
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason       String?   @map("cancel_reason")
+  note               String?
+  createKey          String?   @map("create_key")
+  closeKey           String?   @map("close_key")
+  version            Int       @default(1)
+  createdById        String    @map("created_by_id") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lead        Lead                @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  program     Program             @relation("DealProgram", fields: [programId], references: [id], onDelete: Restrict)
+  fromProgram Program?            @relation("DealFromProgram", fields: [fromProgramId], references: [id], onDelete: SetNull)
+  history     DealStatusHistory[]
+  blockers    DealBlocker[]
+  salesRecord SalesRecord?
+  payments    Payment[]
+  refunds     Refund[]
+
+  organization Organization @relation("Deal_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("Deal_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("Deal_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("Deal_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, createKey])
+  @@index([organizationId, ownerId, stage])
+  @@index([organizationId, teamId, stage])
+  @@index([organizationId, stage, expectedCloseOn])
+  @@index([leadId])
+  @@index([organizationId, closedAt])
+  @@map("deals")
+}
+
+model DealStatusHistory {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  dealId         String     @map("deal_id") @db.Uuid
+  oldStage       DealStage? @map("old_stage")
+  newStage       DealStage  @map("new_stage")
+  changedById    String?    @map("changed_by_id") @db.Uuid
+  reason         String?
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("DealStatusHistory_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  changedBy    User?        @relation("DealStatusHistory_changedById", fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([dealId, createdAt(sort: Desc)])
+  @@map("deal_status_history")
+}
+
+/// Blocker notes / escalations (JD-SALES-009). Resolvable; never deleted.
+model DealBlocker {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  dealId         String      @map("deal_id") @db.Uuid
+  kind           BlockerKind @default(BLOCKER)
+  note           String
+  requestedHelp  String?     @map("requested_help")
+  raisedById     String?     @map("raised_by_id") @db.Uuid
+  /// who was notified (Team Lead and/or Founder user ids)
+  escalatedToIds String[]    @default([]) @map("escalated_to_ids")
+  resolvedAt     DateTime?   @map("resolved_at") @db.Timestamptz(6)
+  resolvedById   String?     @map("resolved_by_id") @db.Uuid
+  resolution     String?
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("DealBlocker_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  raisedBy     User?        @relation("DealBlocker_raisedById", fields: [raisedById], references: [id], onDelete: Restrict)
+  resolvedBy   User?        @relation("DealBlocker_resolvedById", fields: [resolvedById], references: [id], onDelete: Restrict)
+
+  @@index([dealId, createdAt(sort: Desc)])
+  @@index([organizationId, resolvedAt])
+  @@map("deal_blockers")
+}
+
+/// The booked sale. IMMUTABLE (DB trigger). Corrections are sale_adjustments.
+model SalesRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  dealId         String   @unique @map("deal_id") @db.Uuid
+  leadId         String   @map("lead_id") @db.Uuid
+  programId      String   @map("program_id") @db.Uuid
+  dealType       DealType @map("deal_type")
+  saleValue      Decimal  @map("sale_value") @db.Decimal(14, 2)
+  currency       String   @default("INR") @db.Char(3)
+  enrolments     Int      @default(1)
+  closedAt       DateTime @map("closed_at") @db.Timestamptz(6)
+  createdById    String   @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  deal        Deal             @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  credits     SalesCredit[]
+  adjustments SaleAdjustment[]
+
+  organization Organization @relation("SalesRecord_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("SalesRecord_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, closedAt])
+  @@index([organizationId, programId, closedAt])
+  @@map("sales_records")
+}
+
+/// DEC-005 credit split (default single owner 100%). amount = largest-remainder share of sale_value (sums exactly).
+model SalesCredit {
+  id             String  @id @default(uuid()) @db.Uuid
+  salesRecordId  String  @map("sales_record_id") @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  userId         String  @map("user_id") @db.Uuid
+  sharePct       Decimal @map("share_pct") @db.Decimal(5, 2)
+  amount         Decimal @db.Decimal(14, 2)
+
+  salesRecord SalesRecord @relation(fields: [salesRecordId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("SalesCredit_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation("SalesCredit_userId", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([salesRecordId, userId])
+  @@index([organizationId, userId])
+  @@map("sales_credits")
+}
+
+model SaleAdjustment {
+  id                String               @id @default(uuid()) @db.Uuid
+  organizationId    String               @map("organization_id") @db.Uuid
+  salesRecordId     String               @map("sales_record_id") @db.Uuid
+  dealId            String               @map("deal_id") @db.Uuid
+  kind              AdjustmentKind       @default(CORRECTION)
+  /// signed, never zero; effective net sale value = sale_value + sum(APPROVED deltas)
+  delta             Decimal              @db.Decimal(14, 2)
+  currency          String               @default("INR") @db.Char(3)
+  reason            String
+  status            SaleAdjustmentStatus @default(PENDING)
+  /// per-credited-user delta split: [{userId, amount}] summing exactly to delta
+  creditAllocations Json                 @map("credit_allocations")
+  createdById       String               @map("created_by_id") @db.Uuid
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  approvedById      String?              @map("approved_by_id") @db.Uuid
+  approvedAt        DateTime?            @map("approved_at") @db.Timestamptz(6)
+  decisionNote      String?              @map("decision_note")
+
+  salesRecord SalesRecord @relation(fields: [salesRecordId], references: [id], onDelete: Restrict)
+
+  organization Organization @relation("SaleAdjustment_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("SaleAdjustment_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy   User?        @relation("SaleAdjustment_approvedById", fields: [approvedById], references: [id], onDelete: Restrict)
+
+  @@index([dealId, createdAt])
+  @@index([organizationId, status, createdAt])
+  @@map("sale_adjustments")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Payments / collections
+// ---------------------------------------------------------------------------------------------------------------
+
+model Payment {
+  id                     String         @id @default(uuid()) @db.Uuid
+  organizationId         String         @map("organization_id") @db.Uuid
+  dealId                 String         @map("deal_id") @db.Uuid
+  /// denormalised from the deal for scoped reads
+  ownerId                String         @map("owner_id") @db.Uuid
+  teamId                 String?        @map("team_id") @db.Uuid
+  status                 PaymentStatus  @default(EXPECTED)
+  amount                 Decimal        @db.Decimal(14, 2)
+  currency               String         @default("INR") @db.Char(3)
+  /// installment planned at close (EXPECTED rows) before an actual payment is recorded against it
+  expectedAmount         Decimal?       @map("expected_amount") @db.Decimal(14, 2)
+  dueDate                DateTime?      @map("due_date") @db.Date
+  method                 PaymentMethod?
+  provider               String         @default("MANUAL")
+  /// UNIQUE per (org, provider): the same external payment can never be credited twice
+  externalTransactionRef String?        @map("external_transaction_ref")
+  idempotencyKey         String?        @map("idempotency_key")
+  paidAt                 DateTime?      @map("paid_at") @db.Timestamptz(6)
+  proofFileId            String?        @map("proof_file_id") @db.Uuid
+  note                   String?
+  recordedById           String?        @map("recorded_by_id") @db.Uuid
+  recordedAt             DateTime?      @map("recorded_at") @db.Timestamptz(6)
+  verifiedById           String?        @map("verified_by_id") @db.Uuid
+  verifiedAt             DateTime?      @map("verified_at") @db.Timestamptz(6)
+  rejectedById           String?        @map("rejected_by_id") @db.Uuid
+  rejectedAt             DateTime?      @map("rejected_at") @db.Timestamptz(6)
+  rejectReason           String?        @map("reject_reason")
+  reconciledById         String?        @map("reconciled_by_id") @db.Uuid
+  reconciledAt           DateTime?      @map("reconciled_at") @db.Timestamptz(6)
+  statementRef           String?        @map("statement_ref")
+  reversedById           String?        @map("reversed_by_id") @db.Uuid
+  reversedAt             DateTime?      @map("reversed_at") @db.Timestamptz(6)
+  reverseReason          String?        @map("reverse_reason")
+  version                Int            @default(1)
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  deal    Deal           @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  events  PaymentEvent[]
+  refunds Refund[]
+
+  organization Organization @relation("Payment_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("Payment_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("Payment_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  recordedBy   User?        @relation("Payment_recordedById", fields: [recordedById], references: [id], onDelete: Restrict)
+  verifiedBy   User?        @relation("Payment_verifiedById", fields: [verifiedById], references: [id], onDelete: Restrict)
+  rejectedBy   User?        @relation("Payment_rejectedById", fields: [rejectedById], references: [id], onDelete: Restrict)
+  reconciledBy User?        @relation("Payment_reconciledById", fields: [reconciledById], references: [id], onDelete: Restrict)
+  reversedBy   User?        @relation("Payment_reversedById", fields: [reversedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, provider, externalTransactionRef])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, status, verifiedAt])
+  @@index([organizationId, ownerId, status])
+  @@index([organizationId, teamId, status])
+  @@index([dealId, status])
+  @@index([organizationId, status, dueDate])
+  @@map("payments")
+}
+
+model PaymentEvent {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  paymentId      String         @map("payment_id") @db.Uuid
+  fromStatus     PaymentStatus? @map("from_status")
+  toStatus       PaymentStatus  @map("to_status")
+  actorId        String?        @map("actor_id") @db.Uuid
+  actorRole      String?        @map("actor_role")
+  reason         String?
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("PaymentEvent_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  actor        User?        @relation("PaymentEvent_actorId", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId, createdAt])
+  @@map("payment_events")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Refunds (DEC-019). Never an automatic payout: PROCESSED is a Finance statement that it was paid out externally.
+// ---------------------------------------------------------------------------------------------------------------
+
+model Refund {
+  id               String                @id @default(uuid()) @db.Uuid
+  organizationId   String                @map("organization_id") @db.Uuid
+  dealId           String                @map("deal_id") @db.Uuid
+  paymentId        String?               @map("payment_id") @db.Uuid
+  ownerId          String                @map("owner_id") @db.Uuid
+  teamId           String?               @map("team_id") @db.Uuid
+  status           RefundStatus          @default(REQUESTED)
+  amount           Decimal               @db.Decimal(14, 2)
+  approvedAmount   Decimal?              @map("approved_amount") @db.Decimal(14, 2)
+  processedAmount  Decimal?              @map("processed_amount") @db.Decimal(14, 2)
+  currency         String                @default("INR") @db.Char(3)
+  reasonCategory   RefundReasonCategory  @map("reason_category")
+  reason           String
+  idempotencyKey   String?               @map("idempotency_key")
+  requestedById    String                @map("requested_by_id") @db.Uuid
+  requestedByRole  String?               @map("requested_by_role")
+  requestedAt      DateTime              @default(now()) @map("requested_at") @db.Timestamptz(6)
+  reviewedById     String?               @map("reviewed_by_id") @db.Uuid
+  reviewedByRole   String?               @map("reviewed_by_role")
+  reviewedAt       DateTime?             @map("reviewed_at") @db.Timestamptz(6)
+  reviewNote       String?               @map("review_note")
+  recommendation   RefundRecommendation?
+  approvedById     String?               @map("approved_by_id") @db.Uuid
+  approvedByRole   String?               @map("approved_by_role")
+  approvedAt       DateTime?             @map("approved_at") @db.Timestamptz(6)
+  approvalReason   String?               @map("approval_reason")
+  rejectedById     String?               @map("rejected_by_id") @db.Uuid
+  rejectedByRole   String?               @map("rejected_by_role")
+  rejectedAt       DateTime?             @map("rejected_at") @db.Timestamptz(6)
+  rejectionReason  String?               @map("rejection_reason")
+  processedById    String?               @map("processed_by_id") @db.Uuid
+  processedByRole  String?               @map("processed_by_role")
+  processedAt      DateTime?             @map("processed_at") @db.Timestamptz(6)
+  processMethod    PaymentMethod?        @map("process_method")
+  externalRef      String?               @map("external_ref")
+  reconciledById   String?               @map("reconciled_by_id") @db.Uuid
+  reconciledByRole String?               @map("reconciled_by_role")
+  reconciledAt     DateTime?             @map("reconciled_at") @db.Timestamptz(6)
+  statementRef     String?               @map("statement_ref")
+  closedReason     String?               @map("closed_reason")
+  version          Int                   @default(1)
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  deal    Deal          @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  payment Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  events  RefundEvent[]
+
+  organization Organization @relation("Refund_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("Refund_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("Refund_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  requestedBy  User         @relation("Refund_requestedById", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy   User?        @relation("Refund_reviewedById", fields: [reviewedById], references: [id], onDelete: Restrict)
+  approvedBy   User?        @relation("Refund_approvedById", fields: [approvedById], references: [id], onDelete: Restrict)
+  rejectedBy   User?        @relation("Refund_rejectedById", fields: [rejectedById], references: [id], onDelete: Restrict)
+  processedBy  User?        @relation("Refund_processedById", fields: [processedById], references: [id], onDelete: Restrict)
+  reconciledBy User?        @relation("Refund_reconciledById", fields: [reconciledById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, externalRef])
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, status, requestedAt])
+  @@index([organizationId, ownerId, status])
+  @@index([organizationId, teamId, status])
+  @@index([dealId, status])
+  @@map("refunds")
+}
+
+model RefundEvent {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  refundId       String        @map("refund_id") @db.Uuid
+  fromStatus     RefundStatus? @map("from_status")
+  toStatus       RefundStatus  @map("to_status")
+  actorId        String        @map("actor_id") @db.Uuid
+  actorRole      String?       @map("actor_role")
+  reason         String?
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  refund Refund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("RefundEvent_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  actor        User         @relation("RefundEvent_actorId", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([refundId, createdAt])
+  @@map("refund_events")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Forecasts (DEC-030). Snapshots are immutable and always an ESTIMATE.
+// ---------------------------------------------------------------------------------------------------------------
+
+model Forecast {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  periodType     ForecastPeriodType @map("period_type")
+  periodStart    DateTime           @map("period_start") @db.Date
+  periodEnd      DateTime           @map("period_end") @db.Date
+  /// 'ORG' or the user id whose visible hierarchy the forecast covers
+  scopeKey       String             @map("scope_key")
+  scopeUserId    String?            @map("scope_user_id") @db.Uuid
+  method         String
+  params         Json
+  createdById    String             @map("created_by_id") @db.Uuid
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  snapshots ForecastSnapshot[]
+
+  organization Organization @relation("Forecast_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  scopeUser    User?        @relation("Forecast_scopeUserId", fields: [scopeUserId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("Forecast_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, periodType, periodStart, scopeKey])
+  @@index([organizationId, periodStart])
+  @@map("forecasts")
+}
+
+model ForecastSnapshot {
+  id                 String       @id @default(uuid()) @db.Uuid
+  organizationId     String       @map("organization_id") @db.Uuid
+  forecastId         String       @map("forecast_id") @db.Uuid
+  kind               SnapshotKind @default(ADHOC)
+  takenAt            DateTime     @default(now()) @map("taken_at") @db.Timestamptz(6)
+  takenById          String       @map("taken_by_id") @db.Uuid
+  /// forecast total = booked_to_date + weighted_pipeline (an ESTIMATE, never a fact)
+  total              Decimal      @db.Decimal(14, 2)
+  bookedToDate       Decimal      @map("booked_to_date") @db.Decimal(14, 2)
+  weightedPipeline   Decimal      @map("weighted_pipeline") @db.Decimal(14, 2)
+  unweightedPipeline Decimal      @map("unweighted_pipeline") @db.Decimal(14, 2)
+  currency           String       @default("INR") @db.Char(3)
+  breakdown          Json
+  inputs             Json
+  isEstimate         Boolean      @default(true) @map("is_estimate")
+
+  forecast Forecast @relation(fields: [forecastId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("ForecastSnapshot_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  takenBy      User         @relation("ForecastSnapshot_takenById", fields: [takenById], references: [id], onDelete: Restrict)
+
+  @@index([forecastId, takenAt(sort: Desc)])
+  @@index([organizationId, takenAt])
+  @@map("forecast_snapshots")
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Pricing proposals, market intelligence, growth, strategy
+// ---------------------------------------------------------------------------------------------------------------
+
+model PricingProposal {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  type           ProposalType
+  programId      String?        @map("program_id") @db.Uuid
+  title          String
+  rationale      String
+  details        Json?
+  currentAmount  Decimal?       @map("current_amount") @db.Decimal(14, 2)
+  proposedAmount Decimal?       @map("proposed_amount") @db.Decimal(14, 2)
+  currency       String         @default("INR") @db.Char(3)
+  effectiveFrom  DateTime?      @map("effective_from") @db.Timestamptz(6)
+  status         ProposalStatus @default(DRAFT)
+  createdById    String         @map("created_by_id") @db.Uuid
+  submittedAt    DateTime?      @map("submitted_at") @db.Timestamptz(6)
+  decidedById    String?        @map("decided_by_id") @db.Uuid
+  decidedAt      DateTime?      @map("decided_at") @db.Timestamptz(6)
+  decisionNote   String?        @map("decision_note")
+  version        Int            @default(1)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  events   PricingProposalEvent[]
+  prices   ProgramPrice[]
+  feedback FeedbackEntry[]
+
+  organization Organization @relation("PricingProposal_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("PricingProposal_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  decidedBy    User?        @relation("PricingProposal_decidedById", fields: [decidedById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, createdAt(sort: Desc)])
+  @@map("pricing_proposals")
+}
+
+model PricingProposalEvent {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  proposalId     String          @map("proposal_id") @db.Uuid
+  fromStatus     ProposalStatus? @map("from_status")
+  toStatus       ProposalStatus  @map("to_status")
+  actorId        String          @map("actor_id") @db.Uuid
+  actorRole      String?         @map("actor_role")
+  note           String?
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  proposal PricingProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("PricingProposalEvent_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  actor        User         @relation("PricingProposalEvent_actorId", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([proposalId, createdAt])
+  @@map("pricing_proposal_events")
+}
+
+/// market / competitor / learner feedback log (one table, discriminated by kind).
+model FeedbackEntry {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  kind           FeedbackKind
+  category       String
+  source         String?
+  title          String
+  notes          String
+  competitor     String?
+  evidenceUrl    String?        @map("evidence_url")
+  programId      String?        @map("program_id") @db.Uuid
+  leadId         String?        @map("lead_id") @db.Uuid
+  proposalId     String?        @map("proposal_id") @db.Uuid
+  status         FeedbackStatus @default(NEW)
+  createdById    String         @map("created_by_id") @db.Uuid
+  teamId         String?        @map("team_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  proposal PricingProposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+
+  organization Organization @relation("FeedbackEntry_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("FeedbackEntry_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  team         Team?        @relation("FeedbackEntry_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, kind, status, createdAt(sort: Desc)])
+  @@index([organizationId, createdById])
+  @@map("feedback_entries")
+}
+
+model GrowthOpportunity {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  type           OpportunityType
+  title          String
+  description    String
+  estimatedValue Decimal?          @map("estimated_value") @db.Decimal(14, 2)
+  currency       String            @default("INR") @db.Char(3)
+  ownerId        String            @map("owner_id") @db.Uuid
+  teamId         String?           @map("team_id") @db.Uuid
+  status         OpportunityStatus @default(IDEA)
+  createdById    String            @map("created_by_id") @db.Uuid
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation("GrowthOpportunity_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("GrowthOpportunity_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+  team         Team?        @relation("GrowthOpportunity_teamId", fields: [teamId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation("GrowthOpportunity_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status, createdAt(sort: Desc)])
+  @@index([organizationId, ownerId])
+  @@map("growth_opportunities")
+}
+
+model StrategyPlan {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  periodId       String?    @map("period_id") @db.Uuid
+  title          String
+  summary        String
+  status         PlanStatus @default(DRAFT)
+  ownerId        String     @map("owner_id") @db.Uuid
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  period      TargetPeriod?        @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  initiatives StrategyInitiative[]
+
+  organization Organization @relation("StrategyPlan_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("StrategyPlan_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, status])
+  @@map("strategy_plans")
+}
+
+model StrategyInitiative {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  planId         String           @map("plan_id") @db.Uuid
+  title          String
+  notes          String?
+  ownerId        String           @map("owner_id") @db.Uuid
+  status         InitiativeStatus @default(PLANNED)
+  dueOn          DateTime?        @map("due_on") @db.Date
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  plan StrategyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  organization Organization @relation("StrategyInitiative_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  owner        User         @relation("StrategyInitiative_ownerId", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@index([planId])
+  @@map("strategy_initiatives")
+}

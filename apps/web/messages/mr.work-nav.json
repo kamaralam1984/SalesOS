@@ -1,0 +1,27 @@
+{
+  "nav": {
+    "work": "माझे काम",
+    "workAttendance": "उपस्थिती",
+    "workLeave": "रजा",
+    "workGoals": "उद्दिष्टे",
+    "workTasks": "कामे",
+    "workHolidays": "सुट्ट्या",
+    "workPayslips": "पगार पावती",
+    "workApprovals": "रजा मंजुरी",
+    "workGoalCycle": "45-दिवसांची उद्दिष्टे",
+    "workDirectory": "निर्देशिका",
+    "workOrgChart": "संस्था तक्ता",
+    "workHr": "एचआर",
+    "workHrPolicy": "धोरण",
+    "workHrBalances": "रजा शिल्लक",
+    "workHrBirthdays": "वाढदिवस",
+    "workHrProbation": "परिविक्षा",
+    "workHrAnnouncements": "घोषणा",
+    "workPayroll": "पेरोल",
+    "workPayrollStructures": "पगार रचना",
+    "workReports": "वर्कफोर्स अहवाल",
+    "sections": {
+      "work": "काम"
+    }
+  }
+}

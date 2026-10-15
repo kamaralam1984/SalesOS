@@ -1,0 +1,86 @@
+# SalesOS PRODUCTION stack. Postgres/Redis/object storage are EXTERNAL or managed (recommended); see profile "bundled-infra" for a
+# single-host fallback. No demo seed here, ever. Shared-VPS rules: docs/deployment-runbook.md (inventory first, isolated names/ports).
+#   cp .env.production.example .env.production && chmod 600 .env.production   # fill real values on the server only
+#   docker compose -p salesos -f docker-compose.prod.yml --env-file .env.production build
+#   docker compose -p salesos -f docker-compose.prod.yml --env-file .env.production run --rm migrate    # AFTER a verified backup
+#   docker compose -p salesos -f docker-compose.prod.yml --env-file .env.production up -d
+# Host ports bind to loopback; the TLS reverse proxy (deploy/nginx/salesos.conf.example) is the only public entry.
+name: ${COMPOSE_PROJECT_NAME:-salesos}
+
+x-common: &common
+  restart: unless-stopped
+  env_file: [.env.production]
+  read_only: true
+  tmpfs: ["/tmp"]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  logging: { driver: json-file, options: { max-size: "20m", max-file: "5" } }
+
+services:
+  api:
+    <<: *common
+    image: salesos-api:${RELEASE:-1.0.0}
+    build: { context: ., dockerfile: deploy/docker/api.Dockerfile }
+    container_name: salesos-api
+    environment: { NODE_ENV: production, PORT: "4100", RELEASE: "${RELEASE:-1.0.0}" }
+    ports: ["127.0.0.1:${HOST_API_PORT:-4100}:4100"]
+    networks: [app]
+    stop_grace_period: 30s
+    deploy: { resources: { limits: { cpus: "2.0", memory: 1G }, reservations: { memory: 256M } } }
+  worker:
+    <<: *common
+    image: salesos-worker:${RELEASE:-1.0.0}
+    build: { context: ., dockerfile: deploy/docker/worker.Dockerfile }
+    container_name: salesos-worker
+    environment: { NODE_ENV: production, RELEASE: "${RELEASE:-1.0.0}" }
+    networks: [app]
+    stop_grace_period: 40s
+    deploy: { resources: { limits: { cpus: "1.0", memory: 768M }, reservations: { memory: 192M } } }
+  web:
+    <<: *common
+    image: salesos-web:${RELEASE:-1.0.0}
+    build:
+      context: .
+      dockerfile: deploy/docker/web.Dockerfile
+      args: { NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}" }
+    container_name: salesos-web
+    environment: { NODE_ENV: production, PORT: "3100" }
+    ports: ["127.0.0.1:${HOST_WEB_PORT:-3100}:3100"]
+    tmpfs: ["/tmp", "/app/apps/web/.next/cache"]
+    networks: [app]
+    deploy: { resources: { limits: { cpus: "1.0", memory: 512M }, reservations: { memory: 128M } } }
+
+  # one-off, uses the higher-privilege migrator role. Run manually, after a backup.
+  migrate:
+    image: salesos-tools:${RELEASE:-1.0.0}
+    build: { context: ., dockerfile: deploy/docker/tools.Dockerfile }
+    profiles: ["ops"]
+    command: ["migrate"]
+    env_file: [.env.production]
+    environment: { DATABASE_URL: "${MIGRATE_DATABASE_URL}" }
+    networks: [app]
+
+  # OPTIONAL single-host fallback (data on local volumes; you own backups): --profile bundled-infra
+  postgres:
+    profiles: ["bundled-infra"]
+    image: postgres:16-alpine
+    container_name: salesos-prod-postgres
+    restart: unless-stopped
+    env_file: [.env.production]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    networks: [app]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready"], interval: 10s, retries: 10 }
+  redis:
+    profiles: ["bundled-infra"]
+    image: redis:7-alpine
+    container_name: salesos-prod-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes: ["redisdata:/data"]
+    networks: [app]
+
+networks:
+  app: {}
+volumes:
+  pgdata: {}
+  redisdata: {}

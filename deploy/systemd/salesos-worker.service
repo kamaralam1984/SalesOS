@@ -1,0 +1,25 @@
+# /etc/systemd/system/salesos-worker.service  (non-Docker alternative; copy the units, do not edit other units)
+[Unit]
+Description=SalesOS worker
+After=network-online.target postgresql.service redis.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=salesos
+Group=salesos
+WorkingDirectory=/srv/salesos/current/apps/worker
+EnvironmentFile=/etc/salesos/worker.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=40
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=768M
+
+[Install]
+WantedBy=multi-user.target

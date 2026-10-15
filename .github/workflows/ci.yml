@@ -1,0 +1,168 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: "5533"
+  PGUSER: salesos
+  PGPASSWORD: salesos_dev_only
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: salesos
+          POSTGRES_PASSWORD: salesos_dev_only
+          POSTGRES_DB: salesos_ci
+        ports: ["5533:5432"]
+        options: >-
+          --health-cmd "pg_isready -U salesos" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6391:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+      minio:
+        # object storage for the files/recordings tests (private bucket is created on boot)
+        image: bitnami/minio:2024
+        env:
+          MINIO_ROOT_USER: salesos_minio
+          MINIO_ROOT_PASSWORD: salesos_minio_dev_only
+        ports: ["9100:9000"]
+    env:
+      DATABASE_URL: postgresql://salesos:salesos_dev_only@127.0.0.1:5533/salesos_ci?schema=public
+      TEST_DATABASE_URL: postgresql://salesos:salesos_dev_only@127.0.0.1:5533/salesos_ci_test?schema=public
+      TEST_WORKER_DATABASE_URL: postgresql://salesos:salesos_dev_only@127.0.0.1:5533/salesos_ci_wtest?schema=public
+      REDIS_URL: redis://127.0.0.1:6391
+      # api + worker suites build their databases ONLY with the committed migrations (no db push)
+      TEST_DB_MODE: migrate
+      S3_ENDPOINT: http://127.0.0.1:9100
+      S3_REGION: us-east-1
+      S3_BUCKET: salesos-ci
+      S3_ACCESS_KEY: salesos_minio
+      S3_SECRET_KEY: salesos_minio_dev_only
+      SESSION_SECRET: ci-session-secret-ci-session-secret-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Create test databases
+        run: |
+          psql -d salesos_ci -c 'CREATE DATABASE salesos_ci_test'
+          psql -d salesos_ci -c 'CREATE DATABASE salesos_ci_wtest'
+      - run: pnpm db:validate
+      - run: pnpm db:generate
+      # shared-types, validation, platform-core, crm-core, cx-core (see root package.json "build:packages")
+      - run: pnpm build:packages
+      - name: Generated files are current (permissions matrix, guard SQL, consolidated migration)
+        run: |
+          pnpm --filter @salesos/api exec tsx scripts/gen-permissions-matrix.ts --check
+          pnpm db:guards:export -- --check
+      - name: Migrations - deploy on an empty database, re-run is a no-op, no drift, guards enforced
+        run: pnpm migration-check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      # api (whole suite), worker, web, packages: every workspace's `test` script
+      - run: pnpm test
+      - run: pnpm build
+      - name: Dependency audit (high+)
+        run: pnpm audit --audit-level high
+        continue-on-error: false
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # End-to-end smoke of the critical journeys against the BUILT api + worker + web, with a database created ONLY by `migrate deploy`.
+  e2e:
+    runs-on: ubuntu-latest
+    needs: verify
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: salesos
+          POSTGRES_PASSWORD: salesos_dev_only
+          POSTGRES_DB: salesos_e2e
+        ports: ["5533:5432"]
+        options: >-
+          --health-cmd "pg_isready -U salesos" --health-interval 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6391:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-retries 10
+      minio:
+        image: bitnami/minio:2024
+        env:
+          MINIO_ROOT_USER: salesos_minio
+          MINIO_ROOT_PASSWORD: salesos_minio_dev_only
+        ports: ["9100:9000"]
+    env:
+      DATABASE_URL: postgresql://salesos:salesos_dev_only@127.0.0.1:5533/salesos_e2e?schema=public
+      REDIS_URL: redis://127.0.0.1:6391
+      S3_ENDPOINT: http://127.0.0.1:9100
+      S3_REGION: us-east-1
+      S3_BUCKET: salesos-e2e
+      S3_ACCESS_KEY: salesos_minio
+      S3_SECRET_KEY: salesos_minio_dev_only
+      SESSION_SECRET: e2e-session-secret-e2e-session-secret-0123456789
+      PORT: "4110"
+      CORS_ORIGINS: http://localhost:3110
+      APP_BASE_URL: http://localhost:3110
+      NEXT_PUBLIC_API_URL: http://localhost:4110/api/v1
+      THROTTLE_LIMIT: "100000"
+      THROTTLE_LOGIN_LIMIT: "100000"
+      E2E_WEB_PORT: "3110"
+      E2E_API_PORT: "4110"
+      E2E_DB: salesos_e2e
+      # fast retries so the delivery outage journey finishes in seconds
+      DELIVERY_BACKOFF_BASE_MS: "1000"
+      DELIVERY_TICK_MS: "1000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm build
+      - name: Create the schema ONLY with migrate deploy, then seed demo data (CI throw-away DB only)
+        run: |
+          pnpm db:migrate
+          pnpm db:seed:demo
+      - name: Start api, worker, web
+        run: |
+          (cd apps/api && node dist/main.js > "$RUNNER_TEMP/api.log" 2>&1 &)
+          (cd apps/worker && node dist/main.js > "$RUNNER_TEMP/worker.log" 2>&1 &)
+          (cd apps/web && PORT=3110 pnpm start > "$RUNNER_TEMP/web.log" 2>&1 &)
+          for i in $(seq 1 60); do curl -fs http://localhost:4110/api/v1/health >/dev/null && curl -fs http://localhost:3110/login >/dev/null && break; sleep 2; done
+      - run: pnpm --filter @salesos/web exec playwright install --with-deps chromium
+      - name: Playwright smoke (auth, CRM, revenue, people, CX, platform, integration journeys)
+        run: >-
+          pnpm --filter @salesos/web exec playwright test
+          e2e/auth.spec.ts e2e/crm-journeys.spec.ts e2e/revenue-journeys.spec.ts e2e/people.spec.ts e2e/cx-journeys.spec.ts e2e/platform-journeys.spec.ts e2e/integration-journeys.spec.ts
+          --output "$RUNNER_TEMP/pw-results"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-logs
+          path: ${{ runner.temp }}/*.log

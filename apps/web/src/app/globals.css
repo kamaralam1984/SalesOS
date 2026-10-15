@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+@import '@salesos/ui/styles.css';
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource-variable/fraunces/index.css';
+
+/* Tailwind must also scan the shared UI package for class names. */
+@source '../../../../packages/ui/src';
+
+/* Theme switch: flip every colour at once instead of letting transitions smear across a second. */
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none !important;
+}
+
+/* App-level surface texture used by auth screens: fine ruled lines, deliberately quiet. */
+@utility bg-ruled {
+  background-image: repeating-linear-gradient(
+    0deg,
+    var(--ruled-line, rgb(183 146 58 / 0.07)) 0 1px,
+    transparent 1px 28px
+  );
+}

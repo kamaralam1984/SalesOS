@@ -1,0 +1,42 @@
+import { definePermissions } from './define';
+
+/**
+ * people permissions. Seeded from docs/permissions-matrix.md (canonical). Owned by the people agent: edit this file only.
+ */
+export const peoplePermissions = definePermissions('people', {
+  'coaching:view': { description: 'View coaching sessions/1:1s', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', HR: 'org' } },
+  'coaching:create': { description: 'Record coaching session/1:1', grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team' } },
+  'coaching:update': { description: 'Update coaching records and actions', grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team' } },
+  'kpi-assignments:view': { description: 'View KPI/KRA assignments', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', HR: 'org' } },
+  'kpi-assignments:manage': { description: 'Assign weekly KPI/KRA', grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team' } },
+  'scorecards:view': { description: 'View scorecards', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', HR: 'org' } },
+  'reviews:view': { description: 'View performance reviews', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', HR: 'org' } },
+  'reviews:create': { description: 'Conduct review', sensitive: true, grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
+  'reviews:approve': { description: 'Finalise/approve review', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', HR: 'org' } },
+  'pip:view': { description: 'View improvement plans', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', HR: 'org' } },
+  'pip:create': { description: 'Create PIP', sensitive: true, grants: { SALES_TEAM_LEAD: 'org', HR: 'org' } },
+  'pip:propose': { description: 'Propose a PIP for an employee in own team (creates a DRAFT for Team Lead / HR to take forward)', sensitive: true, grants: { SALES_MANAGER: 'team' } },
+  'pip:update': { description: 'Update PIP progress', sensitive: true, grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
+  'pip:approve': { description: 'Approve PIP start/close', sensitive: true, grants: { FOUNDER_CEO: 'org', HR: 'org' } },
+  'recognition:view': { description: 'View recognitions', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', HR: 'org' } },
+  'recognition:create': { description: 'Grant recognition', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team' } },
+  'incentives:policy:view': { description: 'View incentive policy', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', FINANCE: 'org', HR: 'org' } },
+  'incentives:policy:manage': { description: 'Create/version incentive policy (draft)', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org' } },
+  'incentives:policy:approve': { description: 'Approve incentive policy', sensitive: true, grants: { FOUNDER_CEO: 'org' } },
+  'incentives:recommendation:view': { description: 'View recommendations', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', FINANCE: 'org', HR: 'org' } },
+  'incentives:recommendation:create': { description: 'Create/submit recommendation', sensitive: true, grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team' } },
+  'incentives:recommendation:approve': { description: 'Approve recommendation', sensitive: true, grants: { FOUNDER_CEO: 'org' } },
+  'incentives:recommendation:mark-paid': { description: 'Mark paid', sensitive: true, grants: { FINANCE: 'org' } },
+  'hiring:view': { description: 'View hiring pipeline', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
+  'hiring:manage': { description: 'Manage requisitions/candidates', sensitive: true, grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
+  'onboarding:view': { description: 'View onboarding/training/probation', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', HR: 'org' } },
+  'onboarding:manage': { description: 'Manage onboarding/probation', sensitive: true, grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
+  'succession:view': { description: 'View succession bench', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', HR: 'org' } },
+  'succession:manage': { description: 'Manage succession bench', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', HR: 'org' } },
+  'hr:records:view': { description: 'View sensitive HR records (employee profiles)', sensitive: true, grants: { HR: 'org' } },
+  'hr:records:manage': { description: 'Edit sensitive HR records', sensitive: true, grants: { HR: 'org' } },
+  'resources:view': { description: 'View coaching resource library', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'org', SALES_EXECUTIVE: 'org', ADMIN: 'org', FINANCE: 'org', HR: 'org', MARKETING: 'org', COMMUNITY: 'org', OPERATIONS: 'org', STUDENT_SUCCESS: 'org' } },
+  'resources:manage': { description: 'Manage resource library', grants: { SALES_TEAM_LEAD: 'org', HR: 'org' } },
+  'engagement:respond': { description: 'Submit pulse survey response', grants: { FOUNDER_CEO: 'own', SALES_TEAM_LEAD: 'own', SALES_MANAGER: 'own', SALES_EXECUTIVE: 'own', ADMIN: 'own', FINANCE: 'own', HR: 'own', MARKETING: 'own', COMMUNITY: 'own', OPERATIONS: 'own', STUDENT_SUCCESS: 'own' } },
+  'engagement:view': { description: 'View aggregated engagement results', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
+});

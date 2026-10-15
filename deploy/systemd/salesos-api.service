@@ -1,0 +1,25 @@
+# /etc/systemd/system/salesos-api.service  (non-Docker alternative; copy the units, do not edit other units)
+[Unit]
+Description=SalesOS API
+After=network-online.target postgresql.service redis.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=salesos
+Group=salesos
+WorkingDirectory=/srv/salesos/current/apps/api
+EnvironmentFile=/etc/salesos/api.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

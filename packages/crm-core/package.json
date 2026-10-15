@@ -1,0 +1,20 @@
+{
+  "name": "@salesos/crm-core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "echo \"covered by api + worker tests\""
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "@salesos/shared-types": "workspace:*",
+    "libphonenumber-js": "1.13.14",
+    "zod": "3.25.76"
+  },
+  "devDependencies": { "@types/node": "24.19.2", "typescript": "5.9.3" }
+}
