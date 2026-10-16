@@ -26,6 +26,16 @@ const createSchema = z
   .refine((v) => !v.startDate || !v.targetDate || v.targetDate >= v.startDate, { message: 'dateOrder', path: ['targetDate'] });
 type CreateValues = z.infer<typeof createSchema>;
 
+/** Default goal cycle: 45 days counting the start day, like the server default (start + 44). */
+const DEFAULT_CYCLE_DAYS = 45;
+export function defaultTargetDay(start: string, cycleDays = DEFAULT_CYCLE_DAYS): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return '';
+  const d = new Date(`${start}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setUTCDate(d.getUTCDate() + cycleDays - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 export function CreateGoalDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: (id: string) => void }) {
   const t = useTranslations('workGoals');
   const tc = useTranslations('common');
@@ -35,7 +45,7 @@ export function CreateGoalDialog({ open, onOpenChange, onCreated }: { open: bool
   const assign = can('goals:create', 'team');
   const people = useTeamMemberOptions(assign);
   const create = useCreateGoal();
-  const { register, handleSubmit, formState } = useForm<CreateValues>({
+  const { register, handleSubmit, formState, setValue, getFieldState } = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
     defaultValues: { title: '', description: '', ownerId: '', startDate: '', targetDate: '', targetValue: '', unit: '' },
   });
@@ -83,7 +93,7 @@ export function CreateGoalDialog({ open, onOpenChange, onCreated }: { open: bool
             </FormField>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label={t('create.startDate')} error={fe(formState.errors.startDate)}><Input type="date" {...register('startDate')} /></FormField>
+            <FormField label={t('create.startDate')} error={fe(formState.errors.startDate)}><Input type="date" {...register('startDate', { onChange: (e: React.ChangeEvent<HTMLInputElement>) => { if (!getFieldState('targetDate', formState).isDirty) setValue('targetDate', defaultTargetDay(e.target.value)); } })} /></FormField>
             <FormField label={t('create.targetDate')} hint={t('create.targetHint')} error={fe(formState.errors.targetDate)}><Input type="date" {...register('targetDate')} /></FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

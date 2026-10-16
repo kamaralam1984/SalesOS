@@ -56,7 +56,7 @@
       "ownerSelf": "Myself",
       "startDate": "Start date",
       "targetDate": "Target date",
-      "targetHint": "Leave empty to use the default cycle length.",
+      "targetHint": "Filled automatically as start date + 45 days. You can change it.",
       "targetValue": "Measurable target",
       "targetValueHint": "Optional, for example 30. Progress is then calculated from the value you post.",
       "unit": "Unit",

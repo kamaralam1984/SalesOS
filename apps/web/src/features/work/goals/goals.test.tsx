@@ -129,6 +129,22 @@ describe('GoalsPage states', () => {
     await waitFor(() => expect(h.push).toHaveBeenCalledWith('/work/goals/new1'));
   });
 
+  it('picking a start date fills the target date 45 days later, and the user can still change it', async () => {
+    routeGets([]);
+    renderWork(<GoalsPage />);
+    await userEvent.click(await screen.findByRole('button', { name: /new goal/i }));
+    const dialog = await screen.findByRole('dialog');
+    const start = within(dialog).getByLabelText(/^start date/i) as HTMLInputElement;
+    const target = within(dialog).getByLabelText(/^target date/i) as HTMLInputElement;
+    await userEvent.type(start, '2026-10-16');
+    expect(target.value).toBe('2026-11-29');
+    await userEvent.clear(target);
+    await userEvent.type(target, '2026-12-31');
+    await userEvent.clear(start);
+    await userEvent.type(start, '2026-10-20');
+    expect(target.value).toBe('2026-12-31');
+  });
+
   it('a failed create shows the server message and never claims success', async () => {
     routeGets([]);
     h.post.mockRejectedValue(new ApiError({ status: 422, code: 'INVALID_REVIEWER', message: 'The reviewer cannot be the goal owner' }));
