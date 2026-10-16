@@ -3,7 +3,12 @@
     "eyebrow": "My Work",
     "title": "Attendance",
     "description": "Check in and out, see your month, and review corrections made by your manager or HR.",
-    "tabs": { "label": "Attendance views", "mine": "My month", "people": "My team", "corrections": "Corrections" },
+    "tabs": {
+      "label": "Attendance views",
+      "mine": "My month",
+      "people": "My team",
+      "corrections": "Corrections"
+    },
     "today": {
       "title": "Today",
       "holiday": "Today is a holiday: {name}.",
@@ -24,7 +29,11 @@
       "checkInClosed": "Check-in closed at {time} IST. Ask HR or your manager to record your attendance.",
       "checkInClosedTitle": "Check-in is closed for today",
       "joinMeeting": "Join Zoom meeting",
-      "meetingHost": "Opens {host} in a new tab"
+      "meetingHost": "Opens {host} in a new tab",
+      "lateNow": "You are {duration} late. Office time started at {time}.",
+      "lateAt": "You checked in {duration} late.",
+      "overtime": "Overtime: {duration} after {time}.",
+      "meetingJoinedAt": "You pressed the meeting button at {time}."
     },
     "month": {
       "previous": "Previous month",
@@ -35,10 +44,26 @@
       "leaveDays": "Leave days",
       "empty": "No days to show",
       "days": "Days of the month",
-      "noRecord": { "future": "Not yet", "pending": "Not recorded yet today", "none": "No attendance recorded" },
-      "leaveBadge": "Leave: {status}"
+      "noRecord": {
+        "future": "Not yet",
+        "pending": "Not recorded yet today",
+        "none": "No attendance recorded"
+      },
+      "leaveBadge": "Leave: {status}",
+      "lateBadge": "{duration} late",
+      "overtimeBadge": "Overtime {duration}",
+      "meetingBadge": "Meeting {time}",
+      "timeSummary": "Time summary",
+      "lateDays": "Days late",
+      "lateTotal": "Total time late",
+      "overtimeTotal": "Total overtime",
+      "meetingDays": "Meeting days"
     },
-    "dayKind": { "WORKING": "Working day", "WEEKLY_OFF": "Weekly off", "HOLIDAY": "Holiday" },
+    "dayKind": {
+      "WORKING": "Working day",
+      "WEEKLY_OFF": "Weekly off",
+      "HOLIDAY": "Holiday"
+    },
     "status": {
       "PRESENT": "Present",
       "ABSENT": "Absent",
@@ -50,8 +75,19 @@
       "ON_LEAVE": "On leave",
       "UNPAID_LEAVE": "Unpaid leave"
     },
-    "source": { "SELF": "self check-in", "MANAGER": "set by manager", "HR": "set by HR", "SYSTEM": "closed by system" },
-    "leaveStatus": { "PENDING_MANAGER": "awaiting manager", "PENDING_HR": "awaiting HR", "APPROVED": "approved", "REJECTED": "rejected", "CANCELLED": "cancelled" },
+    "source": {
+      "SELF": "self check-in",
+      "MANAGER": "set by manager",
+      "HR": "set by HR",
+      "SYSTEM": "closed by system"
+    },
+    "leaveStatus": {
+      "PENDING_MANAGER": "awaiting manager",
+      "PENDING_HR": "awaiting HR",
+      "APPROVED": "approved",
+      "REJECTED": "rejected",
+      "CANCELLED": "cancelled"
+    },
     "people": {
       "summaryTitle": "Team attendance",
       "date": "Date",
@@ -85,7 +121,30 @@
       "submit": "Save correction",
       "done": "Attendance corrected"
     },
-    "errors": { "reasonShort": "Give a reason (at least 5 characters)", "timeOrder": "Check-out must be after check-in" }
+    "errors": {
+      "reasonShort": "Give a reason (at least 5 characters)",
+      "timeOrder": "Check-out must be after check-in"
+    },
+    "daySheet": {
+      "title": "Day sheet",
+      "description": "Check-in after {late} counts as late. Work after {end} is recorded as overtime.",
+      "empty": "Nobody to show for this day.",
+      "totals": "Totals",
+      "lateCount": "Came late",
+      "lateTotalHint": "{duration} in total",
+      "meetingCount": "Pressed the meeting button",
+      "noMeeting": "No meeting link is set",
+      "overtimeTotal": "Overtime",
+      "list": "People on this day",
+      "checkIn": "Check-in",
+      "meeting": "Meeting",
+      "checkOut": "Check-out",
+      "late": "{duration} late",
+      "onTime": "On time",
+      "joined": "Joined {time}",
+      "notJoined": "Not joined",
+      "overtime": "+{duration} overtime"
+    }
   },
   "workHolidays": {
     "eyebrow": "My Work",
@@ -100,7 +159,13 @@
     "list": "Holidays",
     "empty": "No holidays for {year}",
     "emptyBody": "HR adds the company calendar here. Until then every working day counts.",
-    "kind": { "NATIONAL": "National", "REGIONAL": "Regional", "COMPANY": "Company", "OPTIONAL": "Optional", "RESTRICTED": "Restricted" },
+    "kind": {
+      "NATIONAL": "National",
+      "REGIONAL": "Regional",
+      "COMPANY": "Company",
+      "OPTIONAL": "Optional",
+      "RESTRICTED": "Restricted"
+    },
     "approvedBadge": "Approved",
     "suggestedBadge": "Suggested",
     "approve": "Approve",
@@ -123,6 +188,8 @@
       "locationHint": "Leave empty for the whole organisation.",
       "submit": "Save holiday"
     },
-    "errors": { "nameShort": "Enter a name (at least 2 characters)" }
+    "errors": {
+      "nameShort": "Enter a name (at least 2 characters)"
+    }
   }
 }

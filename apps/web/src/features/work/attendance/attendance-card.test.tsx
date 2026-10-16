@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, TooltipProvider } from '@salesos/ui';
@@ -83,5 +83,37 @@ describe('AttendanceCard', () => {
     const { container } = renderCard();
     expect(container.querySelector('section')).toBeNull();
     expect(h.get).not.toHaveBeenCalled();
+  });
+
+  it('says how late it already is before check-in, and again when the check-in window has closed', async () => {
+    h.get.mockResolvedValue(one(today({ lateByMinutes: 269 })));
+    const first = renderCard();
+    expect(await screen.findByText('You are 4h 29m late. Office time started at 10:15.')).toBeTruthy();
+    first.unmount();
+    h.get.mockResolvedValue(one(today({ lateByMinutes: 269, checkInClosed: true, can: { checkIn: false, checkOut: false } })));
+    renderCard();
+    expect(await screen.findByText('You are 4h 29m late. Office time started at 10:15.')).toBeTruthy();
+    expect(screen.getByText(/Check-in closed at/)).toBeTruthy();
+  });
+
+  it('after check-in shows the minutes late, the meeting button time, and overtime after check-out', async () => {
+    h.get.mockResolvedValue(one(today({
+      record: { ...present, status: 'LATE', lateMinutes: 23, meetingJoinedAt: '2026-10-15T05:12:00Z', checkOutAt: '2026-10-15T14:10:00Z', overtimeMinutes: 70, workMinutes: 630 },
+      can: { checkIn: false, checkOut: false }, policy: { lateAfter: '10:15', fullDayMinutes: 480, selfCheckIn: true, checkInCutoff: '11:00', workdayEnd: '19:00' },
+    })));
+    renderCard();
+    expect(await screen.findByText('You checked in 23m late.')).toBeTruthy();
+    expect(screen.getByText('Overtime: 1h 10m after 19:00.')).toBeTruthy();
+    expect(screen.getByText(/You pressed the meeting button at/)).toBeTruthy();
+  });
+
+  it('pressing the meeting button records it, and the link still opens in a new tab', async () => {
+    h.post.mockResolvedValue({ data: { joinedAt: '2026-10-15T05:12:00Z', first: true }, meta: {} });
+    h.get.mockResolvedValue(one(today({ record: present, can: { checkIn: false, checkOut: true }, meeting: { url: 'https://zoom.us/j/123' } })));
+    renderCard();
+    const a = await screen.findByRole('link', { name: /Join Zoom meeting/ });
+    fireEvent.click(a);
+    await waitFor(() => expect(h.post).toHaveBeenCalledWith('/workforce/attendance/meeting-join', {}));
+    expect(a.getAttribute('target')).toBe('_blank');
   });
 });

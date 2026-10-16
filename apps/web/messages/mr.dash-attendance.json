@@ -26,6 +26,10 @@
       "ON_LEAVE": "रजेवर",
       "ABSENT": "अनुपस्थित",
       "UNPAID_LEAVE": "बिनपगारी रजा"
-    }
+    },
+    "lateNow": "तुम्ही {duration} उशिरा आहात. ऑफिसची वेळ {time} ला सुरू झाली आहे.",
+    "lateAt": "तुम्ही {duration} उशिरा चेक-इन केले.",
+    "overtime": "ओव्हरटाइम: {time} नंतर {duration}.",
+    "meetingJoinedAt": "तुम्ही {time} ला मीटिंग बटण दाबले."
   }
 }

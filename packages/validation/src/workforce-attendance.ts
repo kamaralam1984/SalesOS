@@ -14,6 +14,7 @@ export const checkOutSchema = z.object({}).strict();
 
 export const attendanceMonthQuerySchema = z.object({ userId: uuidSchema.optional(), month: workMonthSchema.optional() });
 export const teamSummaryQuerySchema = z.object({ date: workDaySchema.optional() });
+export const daySheetQuerySchema = z.object({ date: workDaySchema.optional() });
 
 export const attendanceCorrectionSchema = z
   .object({

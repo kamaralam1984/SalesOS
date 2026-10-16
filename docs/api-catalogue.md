@@ -512,6 +512,8 @@ Cross-cutting: `Idempotency-Key` header on POST /leads/import, POST /collections
 | POST | `/api/v1/workforce/attendance/check-out` |
 | GET | `/api/v1/workforce/attendance/today` |
 | GET | `/api/v1/workforce/attendance/month` |
+| POST | `/api/v1/workforce/attendance/meeting-join` |
+| GET | `/api/v1/workforce/attendance/day` |
 | GET | `/api/v1/workforce/attendance/team-summary` |
 | PUT | `/api/v1/workforce/attendance/records` |
 | GET | `/api/v1/workforce/attendance/corrections` |

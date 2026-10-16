@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type AttendanceRecord } from '@prisma/client';
 import { PLATFORM_EVENTS, WORKFORCE_EVENTS } from '@salesos/shared-types';
-import type { attendanceCorrectionSchema, attendanceMonthQuerySchema, checkInSchema, correctionsQuerySchema, teamSummaryQuerySchema } from '@salesos/validation';
+import type { attendanceCorrectionSchema, attendanceMonthQuerySchema, checkInSchema, correctionsQuerySchema, daySheetQuerySchema, teamSummaryQuerySchema, WorkforceConfig } from '@salesos/validation';
 import {
-  addDays, canSeeMeeting, classifyCheckIn, classifyCheckOut, eachDay, isCheckInOpen, localDay, minutesBetween, monthEnd, monthOf, monthStart, summarise,
+  addDays, canSeeMeeting, classifyCheckIn, classifyCheckOut, eachDay, isCheckInOpen, lateMinutesOf, lateSoFarMinutes, localDay, minutesBetween, monthEnd, monthOf, monthStart, overtimeMinutesOf, summarise,
   type AttendanceSummary,
 } from '@salesos/workforce-core';
 import type { z } from 'zod';
@@ -22,8 +22,15 @@ type Dto<T extends z.ZodTypeAny> = z.infer<T>;
 /** Roles whose attendance corrections are not limited by `managerCorrectionWindowDays` (HR and the Boss). */
 const UNLIMITED_CORRECTORS = ['HR', 'FOUNDER_CEO'];
 
-const recordView = (r: AttendanceRecord) => ({
+/**
+ * What clients see of one record. `lateMinutes` / `overtimeMinutes` are stored at check-in / check-out; rows from before those columns
+ * existed are derived from the times when the policy is passed (WFH has no lateness).
+ */
+const recordView = (r: AttendanceRecord, config?: Pick<WorkforceConfig, 'timezone' | 'attendance'>) => ({
   id: r.id, userId: r.userId, date: isoDay(r.date)!, status: r.status, checkInAt: r.checkInAt, checkOutAt: r.checkOutAt, workMinutes: r.workMinutes,
+  lateMinutes: r.lateMinutes ?? (config && r.checkInAt && r.status !== 'WFH' ? lateMinutesOf(config, r.checkInAt) : null),
+  overtimeMinutes: r.overtimeMinutes ?? (config && r.checkOutAt ? overtimeMinutesOf(config, isoDay(r.date)!, r.checkOutAt) : null),
+  meetingJoinedAt: r.meetingJoinedAt,
   source: r.source, note: r.note, version: r.version,
 });
 
@@ -52,14 +59,14 @@ export class AttendanceService {
     const status = classifyCheckIn(config, now, body.mode);
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const rec = await tx.attendanceRecord.create({ data: { organizationId: user.organizationId, userId: user.userId, date: toDate(today), status, checkInAt: now, source: 'SELF' } });
+        const rec = await tx.attendanceRecord.create({ data: { organizationId: user.organizationId, userId: user.userId, date: toDate(today), status, checkInAt: now, lateMinutes: lateMinutesOf(config, now, body.mode), source: 'SELF' } });
         await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'attendance.checked_in', entityType: 'attendance_record', entityId: rec.id, metadata: { date: today, status, mode: body.mode } });
-        return recordView(rec);
+        return recordView(rec, config);
       });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         const existing = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId: user.userId, date: toDate(today) } } });
-        throw new AppError('ALREADY_CHECKED_IN', 'Attendance for today is already recorded', 409, existing ? recordView(existing) : undefined);
+        throw new AppError('ALREADY_CHECKED_IN', 'Attendance for today is already recorded', 409, existing ? recordView(existing, config) : undefined);
       }
       throw e;
     }
@@ -76,16 +83,16 @@ export class AttendanceService {
     });
     if (!rec || !rec.checkInAt) {
       const done = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId: user.userId, date: toDate(today) } } });
-      if (done?.checkOutAt) throw new AppError('ALREADY_CHECKED_OUT', 'You have already checked out today', 409, recordView(done));
+      if (done?.checkOutAt) throw new AppError('ALREADY_CHECKED_OUT', 'You have already checked out today', 409, recordView(done, config));
       throw new AppError('NOT_CHECKED_IN', 'Check in first', 409);
     }
     const res = classifyCheckOut(config, rec.status, rec.checkInAt, now);
     return this.prisma.$transaction(async (tx) => {
-      const upd = await tx.attendanceRecord.updateMany({ where: { id: rec.id, checkOutAt: null, version: rec.version }, data: { checkOutAt: now, workMinutes: res.workMinutes, status: res.status, version: { increment: 1 } } });
+      const upd = await tx.attendanceRecord.updateMany({ where: { id: rec.id, checkOutAt: null, version: rec.version }, data: { checkOutAt: now, workMinutes: res.workMinutes, overtimeMinutes: overtimeMinutesOf(config, isoDay(rec.date)!, now), status: res.status, version: { increment: 1 } } });
       if (upd.count !== 1) throw conflict('ALREADY_CHECKED_OUT', 'You have already checked out');
       const out = await tx.attendanceRecord.findUniqueOrThrow({ where: { id: rec.id } });
       await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'attendance.checked_out', entityType: 'attendance_record', entityId: rec.id, metadata: { date: isoDay(rec.date), workMinutes: res.workMinutes, status: res.status, needsReview: res.needsReview } });
-      return { ...recordView(out), needsReview: res.needsReview };
+      return { ...recordView(out, config), needsReview: res.needsReview };
     });
   }
 
@@ -108,11 +115,13 @@ export class AttendanceService {
     const meeting = meetingUrl && todays && canSeeMeeting(todays.status) ? { url: meetingUrl } : null;
     return {
       date: today, timezone: config.timezone, dayKind: kind, holiday: holiday ? { name: holiday.name, kind: holiday.kind } : null,
-      record: todays ? recordView(todays) : open ? recordView(open) : null,
+      record: todays ? recordView(todays, config) : open ? recordView(open, config) : null,
       can: { checkIn: config.attendance.selfCheckIn && kind === 'WORKING' && !todays && !cutoffPassed, checkOut: !!open },
       checkInClosed: cutoffPassed && !todays && kind === 'WORKING' && config.attendance.selfCheckIn,
+      /** minutes past the late time right now, for someone who has not checked in on a working day (null otherwise) */
+      lateByMinutes: !todays && kind === 'WORKING' ? lateSoFarMinutes(config, now) : null,
       meeting,
-      policy: { lateAfter: config.attendance.lateAfter, checkInCutoff: config.attendance.checkInCutoff, fullDayMinutes: config.attendance.fullDayMinutes, selfCheckIn: config.attendance.selfCheckIn },
+      policy: { lateAfter: config.attendance.lateAfter, checkInCutoff: config.attendance.checkInCutoff, workdayEnd: config.attendance.workdayEnd, fullDayMinutes: config.attendance.fullDayMinutes, selfCheckIn: config.attendance.selfCheckIn },
     };
   }
 
@@ -137,12 +146,19 @@ export class AttendanceService {
       const holiday = calendar.holidayOn(date);
       const leave = leaves.find((l) => isoDay(l.startDate)! <= date && isoDay(l.endDate)! >= date);
       return {
-        date, dayKind: calendar.kindOf(date), holiday: holiday?.name ?? null, record: rec ? recordView(rec) : null,
+        date, dayKind: calendar.kindOf(date), holiday: holiday?.name ?? null, record: rec ? recordView(rec, config) : null,
         leave: leave ? { typeKey: leave.typeKey, status: leave.status, halfDay: leave.halfDay } : null,
       };
     });
     const summary: AttendanceSummary = summarise(records.map((r) => ({ status: r.status, workMinutes: r.workMinutes })));
-    return { userId: targetId, userName: target.name, month, from, to, summary, workingDays: calendar.workingDaysBetween(from, to), days };
+    const views = records.map((r) => recordView(r, config));
+    const extras = {
+      lateDays: views.filter((v) => (v.lateMinutes ?? 0) > 0).length,
+      lateMinutes: views.reduce((n, v) => n + (v.lateMinutes ?? 0), 0),
+      overtimeMinutes: views.reduce((n, v) => n + (v.overtimeMinutes ?? 0), 0),
+      meetingJoinedDays: views.filter((v) => v.meetingJoinedAt).length,
+    };
+    return { userId: targetId, userName: target.name, month, from, to, summary: { ...summary, ...extras }, workingDays: calendar.workingDaysBetween(from, to), days };
   }
 
   async teamSummary(user: Principal, q: Dto<typeof teamSummaryQuerySchema>) {
@@ -197,7 +213,10 @@ export class AttendanceService {
       const checkInAt = dto.checkInAt === undefined ? old?.checkInAt ?? null : dto.checkInAt;
       const checkOutAt = dto.checkOutAt === undefined ? old?.checkOutAt ?? null : dto.checkOutAt;
       const workMinutes = checkInAt && checkOutAt ? minutesBetween(checkInAt, checkOutAt) : null;
-      const data = { status: dto.status, checkInAt, checkOutAt, workMinutes, source: source as 'HR' | 'MANAGER', note: dto.reason };
+      // lateness and overtime follow the corrected times (WFH has no lateness)
+      const lateMinutes = checkInAt && dto.status !== 'WFH' ? lateMinutesOf(config, checkInAt) : null;
+      const overtimeMinutes = checkOutAt ? overtimeMinutesOf(config, dto.date, checkOutAt) : null;
+      const data = { status: dto.status, checkInAt, checkOutAt, workMinutes, lateMinutes, overtimeMinutes, source: source as 'HR' | 'MANAGER', note: dto.reason };
       const rec = old
         ? await tx.attendanceRecord.update({ where: { id: old.id }, data: { ...data, version: { increment: 1 } } })
         : await tx.attendanceRecord.create({ data: { organizationId: user.organizationId, userId: dto.userId, date, ...data } });
@@ -219,6 +238,61 @@ export class AttendanceService {
       });
       return rec;
     });
-    return recordView(result);
+    return recordView(result, config);
+  }
+
+  // ------------------------------------------------------------------ meeting button
+  /** The person pressed the meeting button. Recorded once per day (the first press); only for someone marked present with a meeting link configured. */
+  async meetingJoin(user: Principal) {
+    const now = new Date();
+    const { config } = await this.cfg.getConfig(user.organizationId);
+    const today = localDay(now, config.timezone);
+    if (!config.attendance.meetingUrl) throw new AppError('NO_MEETING', 'No meeting link is set', 409);
+    const rec = await this.prisma.attendanceRecord.findUnique({ where: { userId_date: { userId: user.userId, date: toDate(today) } } });
+    if (!rec || rec.organizationId !== user.organizationId || !canSeeMeeting(rec.status)) throw new AppError('NOT_CHECKED_IN', 'Check in first to join the meeting', 409);
+    if (rec.meetingJoinedAt) return { joinedAt: rec.meetingJoinedAt, first: false };
+    const upd = await this.prisma.attendanceRecord.updateMany({ where: { id: rec.id, meetingJoinedAt: null }, data: { meetingJoinedAt: now } });
+    if (upd.count === 1) {
+      await this.audit.record({ organizationId: user.organizationId, actorId: user.userId, action: 'attendance.meeting_joined', entityType: 'attendance_record', entityId: rec.id, metadata: { date: today } });
+    }
+    const fresh = await this.prisma.attendanceRecord.findUniqueOrThrow({ where: { id: rec.id } });
+    return { joinedAt: fresh.meetingJoinedAt, first: upd.count === 1 };
+  }
+
+  // ------------------------------------------------------------------ day sheet (HR / managers)
+  /** Everyone in the caller's scope for one day: status, check-in time, how late, meeting button, check-out and overtime. People with no record are listed as not marked. */
+  async daySheet(user: Principal, q: Dto<typeof daySheetQuerySchema>) {
+    const ids = await scopeUserIds(this.access, user, 'attendance:view');
+    const { config } = await this.cfg.getConfig(user.organizationId);
+    const date = q.date ?? localDay(new Date(), config.timezone);
+    const { calendar } = await this.cfg.getCalendar(user.organizationId, date, date);
+    const people = await this.prisma.user.findMany({
+      where: { organizationId: user.organizationId, isActive: true, ...(ids ? { id: { in: ids } } : {}) },
+      select: { id: true, name: true }, orderBy: { name: 'asc' }, take: 500,
+    });
+    const records = await this.prisma.attendanceRecord.findMany({ where: { organizationId: user.organizationId, date: toDate(date), userId: { in: people.map((p) => p.id) } } });
+    const byUser = new Map(records.map((r) => [r.userId, r]));
+    const items = people.map((p) => {
+      const rec = byUser.get(p.id);
+      const v = rec ? recordView(rec, config) : null;
+      return {
+        userId: p.id, name: p.name, status: v?.status ?? null, checkInAt: v?.checkInAt ?? null, lateMinutes: v?.lateMinutes ?? null,
+        meetingJoinedAt: v?.meetingJoinedAt ?? null, checkOutAt: v?.checkOutAt ?? null, workMinutes: v?.workMinutes ?? null, overtimeMinutes: v?.overtimeMinutes ?? null, source: v?.source ?? null,
+      };
+    });
+    // marked people first by check-in time, then the not-marked
+    items.sort((a, b) => (a.checkInAt && b.checkInAt ? a.checkInAt.getTime() - b.checkInAt.getTime() : a.checkInAt ? -1 : b.checkInAt ? 1 : a.name.localeCompare(b.name)));
+    const marked = items.filter((i) => i.status);
+    const kind = calendar.kindOf(date);
+    return {
+      date, dayKind: kind, timezone: config.timezone,
+      policy: { lateAfter: config.attendance.lateAfter, workdayEnd: config.attendance.workdayEnd, meetingConfigured: Boolean(config.attendance.meetingUrl) },
+      totals: {
+        people: items.length, marked: marked.length, notMarked: kind === 'WORKING' ? items.length - marked.length : 0,
+        late: marked.filter((i) => (i.lateMinutes ?? 0) > 0).length, lateMinutes: marked.reduce((n, i) => n + (i.lateMinutes ?? 0), 0),
+        meetingJoined: marked.filter((i) => i.meetingJoinedAt).length, overtimeMinutes: marked.reduce((n, i) => n + (i.overtimeMinutes ?? 0), 0),
+      },
+      items,
+    };
   }
 }

@@ -26,6 +26,10 @@
       "ON_LEAVE": "On leave",
       "ABSENT": "Absent",
       "UNPAID_LEAVE": "Unpaid leave"
-    }
+    },
+    "lateNow": "You are {duration} late. Office time started at {time}.",
+    "lateAt": "You checked in {duration} late.",
+    "overtime": "Overtime: {duration} after {time}.",
+    "meetingJoinedAt": "You pressed the meeting button at {time}."
   }
 }

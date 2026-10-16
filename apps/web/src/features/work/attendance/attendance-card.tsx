@@ -2,12 +2,13 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { AlertCircle, CalendarOff, CheckCircle2, CircleDashed, Clock, Home, LogIn, LogOut, Palmtree, Plane, Video, XCircle } from 'lucide-react';
+import { AlertCircle, CalendarOff, CheckCircle2, CircleDashed, Clock, Home, LogIn, LogOut, Palmtree, Plane, XCircle } from 'lucide-react';
 import { Badge, Button, Skeleton } from '@salesos/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { ApiError } from '@/lib/api/client';
 import { useAttendanceToday, useCheckIn, useCheckOut, type AttendanceStatus } from '@/lib/api/hooks/work-attendance';
-import { istTimeToIso, safeMeetingLink, statusTone } from './attendance-logic';
+import { formatMinutes, istTimeToIso, safeMeetingLink, statusTone } from './attendance-logic';
+import { MeetingButton } from './meeting-button';
 import { useWhen } from './format';
 
 type ChipKey = AttendanceStatus | 'NOT_CHECKED_IN';
@@ -85,6 +86,12 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
           {rec.checkOutAt ? ` · ${t('checkedOutAt', { time: w.time(rec.checkOutAt) })}` : ''}
         </p>
       )}
+      {!rec && (d.lateByMinutes ?? 0) > 0 && d.dayKind === 'WORKING' && (
+        <p role="status" className="mt-3 text-sm font-medium text-red-700">{t('lateNow', { duration: formatMinutes(d.lateByMinutes), time: d.policy.lateAfter })}</p>
+      )}
+      {rec && (rec.lateMinutes ?? 0) > 0 && <p className="mt-1 text-sm font-medium text-red-700">{t('lateAt', { duration: formatMinutes(rec.lateMinutes) })}</p>}
+      {rec && rec.checkOutAt && (rec.overtimeMinutes ?? 0) > 0 && <p className="mt-1 text-sm font-medium text-green-700">{t('overtime', { duration: formatMinutes(rec.overtimeMinutes), time: d.policy.workdayEnd ?? '19:00' })}</p>}
+      {rec?.meetingJoinedAt && <p className="mt-1 text-sm text-muted">{t('meetingJoinedAt', { time: w.time(rec.meetingJoinedAt) })}</p>}
       {!d.policy.selfCheckIn && !rec && <p className="mt-3 text-sm text-muted">{t('selfDisabled')}</p>}
       {showCheckIn && cutoffTime && <p className="mt-3 text-sm text-muted">{t('checkInCloses', { time: cutoffTime })}</p>}
       {closed && !rec && (
@@ -96,15 +103,11 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
 
       {meeting && (
         <div className="enter-up mt-3">
-          <a
+          <MeetingButton
             href={meeting.href}
-            target="_blank"
-            rel="noopener noreferrer"
+            label={t('joinMeeting')}
             className="sheen glow-green hover-lift inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-green-700 bg-(image:--green-gradient) px-5 py-2.5 text-sm font-semibold text-white shadow-green hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-          >
-            <Video aria-hidden="true" className="size-4" />
-            {t('joinMeeting')}
-          </a>
+          />
           <p className="mt-1 text-xs text-muted">{t('meetingHost', { host: meeting.host })}</p>
         </div>
       )}

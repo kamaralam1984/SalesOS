@@ -9,11 +9,19 @@ export type DayKind = 'WORKING' | 'WEEKLY_OFF' | 'HOLIDAY';
 
 export interface AttendanceRecord {
   id: string; userId: string; date: string; status: AttendanceStatus; checkInAt: string | null; checkOutAt: string | null; workMinutes: number | null;
+  /** minutes after the late time at check-in (0 = on time, null = WFH / unknown) */
+  lateMinutes?: number | null;
+  /** minutes worked after the end of the working day (null until check-out) */
+  overtimeMinutes?: number | null;
+  /** first press of the meeting button that day */
+  meetingJoinedAt?: string | null;
   source: 'SELF' | 'MANAGER' | 'HR' | 'SYSTEM'; note: string | null; version: number; needsReview?: boolean;
 }
 export interface AttendanceToday {
   date: string; timezone: string; dayKind: DayKind; holiday: { name: string; kind: string } | null; record: AttendanceRecord | null;
-  can: { checkIn: boolean; checkOut: boolean }; policy: { lateAfter: string; fullDayMinutes: number; selfCheckIn: boolean; checkInCutoff?: string };
+  can: { checkIn: boolean; checkOut: boolean }; policy: { lateAfter: string; fullDayMinutes: number; selfCheckIn: boolean; checkInCutoff?: string; workdayEnd?: string };
+  /** Minutes past the late time right now when the user has not checked in on a working day (null otherwise). */
+  lateByMinutes?: number | null;
   /** Cutoff passed and no record today. */
   checkInClosed?: boolean;
   /** Non-null only when the user is marked present today and HR configured a link. */
@@ -22,9 +30,19 @@ export interface AttendanceToday {
 export interface AttendanceDay {
   date: string; dayKind: DayKind; holiday: string | null; record: AttendanceRecord | null; leave: { typeKey: string; status: string; halfDay: string } | null;
 }
-export type AttendanceSummary = Record<AttendanceStatus, number> & { workMinutes: number };
+export type AttendanceSummary = Record<AttendanceStatus, number> & { workMinutes: number; lateDays?: number; lateMinutes?: number; overtimeMinutes?: number; meetingJoinedDays?: number };
 export interface AttendanceMonth { userId: string; userName: string; month: string; from: string; to: string; summary: AttendanceSummary; workingDays: number; days: AttendanceDay[] }
 export interface TeamSummary { date: string; dayKind: DayKind; total: number; recorded: number; notMarked: number; byStatus: Partial<Record<AttendanceStatus, number>> }
+export interface DaySheetItem {
+  userId: string; name: string; status: AttendanceStatus | null; checkInAt: string | null; lateMinutes: number | null; meetingJoinedAt: string | null;
+  checkOutAt: string | null; workMinutes: number | null; overtimeMinutes: number | null; source: 'SELF' | 'MANAGER' | 'HR' | 'SYSTEM' | null;
+}
+export interface DaySheet {
+  date: string; dayKind: DayKind; timezone: string;
+  policy: { lateAfter: string; workdayEnd: string; meetingConfigured: boolean };
+  totals: { people: number; marked: number; notMarked: number; late: number; lateMinutes: number; meetingJoined: number; overtimeMinutes: number };
+  items: DaySheetItem[];
+}
 export interface AttendanceCorrection {
   id: string; userId: string; userName: string | null; date: string; oldValue: { status: string | null }; newValue: { status: string }; reason: string; correctedById: string; correctedByName: string | null; createdAt: string;
 }
@@ -33,6 +51,7 @@ export const attKeys = {
   all: ['work', 'attendance'] as const,
   today: ['work', 'attendance', 'today'] as const,
   month: (userId: string | undefined, month: string | undefined) => ['work', 'attendance', 'month', userId ?? 'me', month ?? 'current'] as const,
+  day: (date: string | undefined) => ['work', 'attendance', 'day', date ?? 'today'] as const,
   team: (date: string | undefined) => ['work', 'attendance', 'team', date ?? 'today'] as const,
   corrections: (q: object) => ['work', 'attendance', 'corrections', q] as const,
 };
@@ -45,6 +64,8 @@ export const useAttendanceMonth = (userId: string | undefined, month: string | u
   });
 export const useTeamAttendanceSummary = (date: string | undefined, enabled = true) =>
   useQuery({ queryKey: attKeys.team(date), enabled, queryFn: async () => (await api.get<TeamSummary>('/workforce/attendance/team-summary', { date })).data });
+export const useDaySheet = (date: string | undefined, enabled = true) =>
+  useQuery({ queryKey: attKeys.day(date), enabled, queryFn: async () => (await api.get<DaySheet>('/workforce/attendance/day', { date })).data });
 export function useAttendanceCorrections(q: { userId?: string; page: number; limit: number }, enabled = true) {
   return useQuery({
     queryKey: attKeys.corrections(q), enabled, placeholderData: keepPreviousData,
@@ -61,6 +82,8 @@ function useAttMutation<V, R>(fn: (v: V) => Promise<R>) {
 }
 export const useCheckIn = () => useAttMutation((b: { mode: 'OFFICE' | 'WFH' }) => api.post<AttendanceRecord>('/workforce/attendance/check-in', b).then((r) => r.data));
 export const useCheckOut = () => useAttMutation(() => api.post<AttendanceRecord>('/workforce/attendance/check-out', {}).then((r) => r.data));
+/** The person pressed the meeting button; recorded once a day. Failures are ignored by the caller (the link still opens). */
+export const useMeetingJoin = () => useAttMutation(() => api.post<{ joinedAt: string; first: boolean }>('/workforce/attendance/meeting-join', {}).then((r) => r.data));
 export interface CorrectionInput { userId: string; date: string; status: AttendanceStatus; reason: string; checkInAt?: string | null; checkOutAt?: string | null; version?: number }
 export const useCorrectAttendance = () => useAttMutation((b: CorrectionInput) => api.put<AttendanceRecord>('/workforce/attendance/records', b).then((r) => r.data));
 

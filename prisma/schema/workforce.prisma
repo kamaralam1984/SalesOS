@@ -170,6 +170,12 @@ model AttendanceRecord {
   checkInAt      DateTime?            @map("check_in_at") @db.Timestamptz(6)
   checkOutAt     DateTime?            @map("check_out_at") @db.Timestamptz(6)
   workMinutes    Int?                 @map("work_minutes")
+  /// minutes after the policy `lateAfter` time at check-in (office); null = WFH / not measured (old rows are derived on read)
+  lateMinutes     Int?                @map("late_minutes")
+  /// minutes worked beyond the policy `workdayEnd` (e.g. 19:00); null until check-out
+  overtimeMinutes Int?                @map("overtime_minutes")
+  /// first time the person pressed the meeting button that day
+  meetingJoinedAt DateTime?           @map("meeting_joined_at") @db.Timestamptz(6)
   source         WorkAttendanceSource @default(SELF)
   note           String?
   /// optimistic concurrency for corrections

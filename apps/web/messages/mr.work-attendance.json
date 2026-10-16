@@ -3,7 +3,12 @@
     "eyebrow": "माझे काम",
     "title": "उपस्थिती",
     "description": "चेक-इन आणि चेक-आउट करा, तुमचा महिना पहा आणि मॅनेजर किंवा HR ने केलेल्या दुरुस्त्या तपासा.",
-    "tabs": { "label": "उपस्थिती दृश्ये", "mine": "माझा महिना", "people": "माझी टीम", "corrections": "दुरुस्त्या" },
+    "tabs": {
+      "label": "उपस्थिती दृश्ये",
+      "mine": "माझा महिना",
+      "people": "माझी टीम",
+      "corrections": "दुरुस्त्या"
+    },
     "today": {
       "title": "आज",
       "holiday": "आज सुट्टी आहे: {name}.",
@@ -24,7 +29,11 @@
       "checkInClosed": "चेक-इन {time} IST वाजता बंद झाले. तुमची उपस्थिती नोंदवण्यासाठी HR किंवा तुमच्या मॅनेजरला सांगा.",
       "checkInClosedTitle": "आजसाठी चेक-इन बंद आहे",
       "joinMeeting": "Zoom मीटिंगमध्ये सामील व्हा",
-      "meetingHost": "{host} नवीन टॅबमध्ये उघडेल"
+      "meetingHost": "{host} नवीन टॅबमध्ये उघडेल",
+      "lateNow": "तुम्ही {duration} उशिरा आहात. ऑफिसची वेळ {time} ला सुरू झाली आहे.",
+      "lateAt": "तुम्ही {duration} उशिरा चेक-इन केले.",
+      "overtime": "ओव्हरटाइम: {time} नंतर {duration}.",
+      "meetingJoinedAt": "तुम्ही {time} ला मीटिंग बटण दाबले."
     },
     "month": {
       "previous": "मागील महिना",
@@ -35,10 +44,26 @@
       "leaveDays": "रजेचे दिवस",
       "empty": "दाखवण्यासाठी दिवस नाहीत",
       "days": "महिन्याचे दिवस",
-      "noRecord": { "future": "अजून नाही", "pending": "आज अजून नोंद नाही", "none": "उपस्थिती नोंदवलेली नाही" },
-      "leaveBadge": "रजा: {status}"
+      "noRecord": {
+        "future": "अजून नाही",
+        "pending": "आज अजून नोंद नाही",
+        "none": "उपस्थिती नोंदवलेली नाही"
+      },
+      "leaveBadge": "रजा: {status}",
+      "lateBadge": "{duration} उशीर",
+      "overtimeBadge": "ओव्हरटाइम {duration}",
+      "meetingBadge": "मीटिंग {time}",
+      "timeSummary": "वेळेचा सारांश",
+      "lateDays": "उशिराचे दिवस",
+      "lateTotal": "एकूण उशीर",
+      "overtimeTotal": "एकूण ओव्हरटाइम",
+      "meetingDays": "मीटिंगचे दिवस"
     },
-    "dayKind": { "WORKING": "कामाचा दिवस", "WEEKLY_OFF": "साप्ताहिक सुट्टी", "HOLIDAY": "सुट्टी" },
+    "dayKind": {
+      "WORKING": "कामाचा दिवस",
+      "WEEKLY_OFF": "साप्ताहिक सुट्टी",
+      "HOLIDAY": "सुट्टी"
+    },
     "status": {
       "PRESENT": "उपस्थित",
       "ABSENT": "गैरहजर",
@@ -50,8 +75,19 @@
       "ON_LEAVE": "रजेवर",
       "UNPAID_LEAVE": "बिनपगारी रजा"
     },
-    "source": { "SELF": "स्वतः चेक-इन", "MANAGER": "मॅनेजरने नोंदवले", "HR": "HR ने नोंदवले", "SYSTEM": "सिस्टमने बंद केले" },
-    "leaveStatus": { "PENDING_MANAGER": "मॅनेजरची प्रतीक्षा", "PENDING_HR": "HR ची प्रतीक्षा", "APPROVED": "मंजूर", "REJECTED": "नाकारले", "CANCELLED": "रद्द" },
+    "source": {
+      "SELF": "स्वतः चेक-इन",
+      "MANAGER": "मॅनेजरने नोंदवले",
+      "HR": "HR ने नोंदवले",
+      "SYSTEM": "सिस्टमने बंद केले"
+    },
+    "leaveStatus": {
+      "PENDING_MANAGER": "मॅनेजरची प्रतीक्षा",
+      "PENDING_HR": "HR ची प्रतीक्षा",
+      "APPROVED": "मंजूर",
+      "REJECTED": "नाकारले",
+      "CANCELLED": "रद्द"
+    },
     "people": {
       "summaryTitle": "टीमची उपस्थिती",
       "date": "तारीख",
@@ -85,7 +121,30 @@
       "submit": "दुरुस्ती जतन करा",
       "done": "उपस्थिती दुरुस्त केली"
     },
-    "errors": { "reasonShort": "कारण द्या (किमान 5 अक्षरे)", "timeOrder": "चेक-आउट चेक-इन नंतर असावे" }
+    "errors": {
+      "reasonShort": "कारण द्या (किमान 5 अक्षरे)",
+      "timeOrder": "चेक-आउट चेक-इन नंतर असावे"
+    },
+    "daySheet": {
+      "title": "दिवसाची शीट",
+      "description": "{late} नंतरचे चेक-इन उशिरा मानले जाते. {end} नंतरचे काम ओव्हरटाइम म्हणून नोंदवले जाते.",
+      "empty": "या दिवसासाठी दाखवण्यासारखे कोणी नाही.",
+      "totals": "एकूण",
+      "lateCount": "उशिरा आले",
+      "lateTotalHint": "एकूण {duration}",
+      "meetingCount": "मीटिंग बटण दाबले",
+      "noMeeting": "मीटिंग लिंक सेट नाही",
+      "overtimeTotal": "ओव्हरटाइम",
+      "list": "या दिवशीचे लोक",
+      "checkIn": "चेक-इन",
+      "meeting": "मीटिंग",
+      "checkOut": "चेक-आउट",
+      "late": "{duration} उशीर",
+      "onTime": "वेळेवर",
+      "joined": "{time} ला जोडले",
+      "notJoined": "जोडले नाही",
+      "overtime": "+{duration} ओव्हरटाइम"
+    }
   },
   "workHolidays": {
     "eyebrow": "माझे काम",
@@ -100,7 +159,13 @@
     "list": "सुट्ट्या",
     "empty": "{year} साठी सुट्ट्या नाहीत",
     "emptyBody": "HR येथे कंपनीचे कॅलेंडर जोडते. तोपर्यंत प्रत्येक कामाचा दिवस मोजला जातो.",
-    "kind": { "NATIONAL": "राष्ट्रीय", "REGIONAL": "प्रादेशिक", "COMPANY": "कंपनी", "OPTIONAL": "ऐच्छिक", "RESTRICTED": "मर्यादित" },
+    "kind": {
+      "NATIONAL": "राष्ट्रीय",
+      "REGIONAL": "प्रादेशिक",
+      "COMPANY": "कंपनी",
+      "OPTIONAL": "ऐच्छिक",
+      "RESTRICTED": "मर्यादित"
+    },
     "approvedBadge": "मंजूर",
     "suggestedBadge": "सुचवलेली",
     "approve": "मंजूर करा",
@@ -123,6 +188,8 @@
       "locationHint": "संपूर्ण संस्थेसाठी रिकामे सोडा.",
       "submit": "सुट्टी जतन करा"
     },
-    "errors": { "nameShort": "नाव लिहा (किमान 2 अक्षरे)" }
+    "errors": {
+      "nameShort": "नाव लिहा (किमान 2 अक्षरे)"
+    }
   }
 }

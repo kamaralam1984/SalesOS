@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, Clock, LogIn, LogOut, Video } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, LogIn, LogOut } from 'lucide-react';
 import { Alert, Badge, Button, FormField, Input, PageHeader, Pagination, Panel, Select, Stat, Tabs, TabsContent, TabsList, TabsTrigger, useToast } from '@salesos/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/require-permission';
@@ -14,6 +14,8 @@ import {
 import { ApiError } from '@/lib/api/client';
 import { currentMonth, emptyDayReason, formatMinutes, istTimeToIso, safeMeetingLink, shiftMonth, statusTone, today } from './attendance-logic';
 import { CorrectAttendanceDialog } from './correct-dialog';
+import { DaySheetPanel } from './day-sheet';
+import { MeetingButton } from './meeting-button';
 import { useWhen } from './format';
 
 export function AttendancePage() {
@@ -83,6 +85,14 @@ function TodayCard() {
               ) : (
                 d.dayKind === 'WORKING' && <p className="text-sm text-muted">{t('today.notCheckedIn', { time: d.policy.lateAfter })}</p>
               )}
+              {!rec && d.dayKind === 'WORKING' && (d.lateByMinutes ?? 0) > 0 && (
+                <p role="status" className="text-sm font-medium text-red-700">{t('today.lateNow', { duration: formatMinutes(d.lateByMinutes), time: d.policy.lateAfter })}</p>
+              )}
+              {rec && (rec.lateMinutes ?? 0) > 0 && <p className="text-sm font-medium text-red-700">{t('today.lateAt', { duration: formatMinutes(rec.lateMinutes) })}</p>}
+              {rec && rec.checkOutAt && (rec.overtimeMinutes ?? 0) > 0 && (
+                <p className="text-sm font-medium text-green-700">{t('today.overtime', { duration: formatMinutes(rec.overtimeMinutes), time: d.policy.workdayEnd ?? '19:00' })}</p>
+              )}
+              {rec?.meetingJoinedAt && <p className="text-sm text-muted">{t('today.meetingJoinedAt', { time: w.time(rec.meetingJoinedAt) })}</p>}
               {needsReview && <Alert tone="warning">{t('today.needsReview')}</Alert>}
               {!closed && d.can.checkIn && cutoffTime && <p className="text-sm text-muted">{t('today.checkInCloses', { time: cutoffTime })}</p>}
               {closed && !rec && (
@@ -96,15 +106,11 @@ function TodayCard() {
               )}
               {meeting && (
                 <div className="enter-up flex flex-wrap items-center gap-3">
-                  <a
+                  <MeetingButton
                     href={meeting.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    label={t('today.joinMeeting')}
                     className="sheen glow-green hover-lift inline-flex min-h-11 items-center gap-2 rounded-md border border-green-700 bg-(image:--green-gradient) px-5 py-2.5 text-sm font-semibold text-white shadow-green hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                  >
-                    <Video aria-hidden="true" className="size-4" />
-                    {t('today.joinMeeting')}
-                  </a>
+                  />
                   <span className="text-xs text-muted">{t('today.meetingHost', { host: meeting.host })}</span>
                 </div>
               )}
@@ -166,6 +172,14 @@ function MonthView({ userId, canCorrect }: { userId?: string; canCorrect?: boole
         <Stat label={t('status.ABSENT')} value={s?.ABSENT ?? '—'} loading={q.isLoading} accent="red" />
         <Stat label={t('month.leaveDays')} value={s ? s.ON_LEAVE + s.UNPAID_LEAVE : '—'} loading={q.isLoading} accent="none" />
       </section>
+      {s && ((s.lateDays ?? 0) > 0 || (s.overtimeMinutes ?? 0) > 0 || (s.meetingJoinedDays ?? 0) > 0) && (
+        <section aria-label={t('month.timeSummary')} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Stat label={t('month.lateDays')} value={s.lateDays ?? 0} accent="red" />
+          <Stat label={t('month.lateTotal')} value={formatMinutes(s.lateMinutes ?? 0)} accent="red" />
+          <Stat label={t('month.overtimeTotal')} value={formatMinutes(s.overtimeMinutes ?? 0)} accent="green" />
+          <Stat label={t('month.meetingDays')} value={s.meetingJoinedDays ?? 0} accent="blue" />
+        </section>
+      )}
       <QueryState query={q} isEmpty={(q.data?.days.length ?? 0) === 0} emptyTitle={t('month.empty')}>
         <ul className="divide-y divide-line rounded-lg border border-line bg-surface" aria-label={t('month.days')}>
           {(q.data?.days ?? []).map((d) => {
@@ -186,6 +200,9 @@ function MonthView({ userId, canCorrect }: { userId?: string; canCorrect?: boole
                         {rec.workMinutes != null ? ` · ${formatMinutes(rec.workMinutes)}` : ''}
                         {` · ${t(`source.${rec.source}` as never)}`}
                       </span>
+                      {(rec.lateMinutes ?? 0) > 0 && <Badge tone="red">{t('month.lateBadge', { duration: formatMinutes(rec.lateMinutes) })}</Badge>}
+                      {(rec.overtimeMinutes ?? 0) > 0 && <Badge tone="green">{t('month.overtimeBadge', { duration: formatMinutes(rec.overtimeMinutes) })}</Badge>}
+                      {rec.meetingJoinedAt && <Badge tone="blue">{t('month.meetingBadge', { time: w.time(rec.meetingJoinedAt) })}</Badge>}
                     </>
                   ) : (
                     d.dayKind === 'WORKING' && <span className="text-sm text-muted">{t(`month.noRecord.${reason}` as never)}</span>
@@ -234,6 +251,7 @@ function PeopleView() {
           )}
         </QueryState>
       </Panel>
+      <DaySheetPanel date={date} />
       <FormField label={t('people.select')} className="max-w-sm">
         <Select value={userId} onChange={(e) => setUserId(e.target.value)}>
           <option value="">{t('people.selectPrompt')}</option>

@@ -19,6 +19,22 @@ export function isCheckInOpen(config: Pick<WorkforceConfig, 'timezone' | 'attend
   return localMinutes(at, config.timezone) <= hhmmToMinutes(config.attendance.checkInCutoff);
 }
 
+/** Minutes after `lateAfter` (local time) at which the person checked in; 0 when on time. Null for WFH (no commute window to measure). */
+export function lateMinutesOf(config: Pick<WorkforceConfig, 'timezone' | 'attendance'>, checkInAt: Date, mode: 'OFFICE' | 'WFH' = 'OFFICE'): number | null {
+  if (mode === 'WFH') return null;
+  return Math.max(0, localMinutes(checkInAt, config.timezone) - hhmmToMinutes(config.attendance.lateAfter));
+}
+
+/** How late it is right now (minutes since `lateAfter`, local time) for someone who has not checked in yet; 0 before then. */
+export const lateSoFarMinutes = (config: Pick<WorkforceConfig, 'timezone' | 'attendance'>, now: Date): number =>
+  Math.max(0, localMinutes(now, config.timezone) - hhmmToMinutes(config.attendance.lateAfter));
+
+/** Minutes worked beyond `workdayEnd` on the record's day (check-out after e.g. 19:00); 0 when out on or before it. */
+export function overtimeMinutesOf(config: Pick<WorkforceConfig, 'timezone' | 'attendance'>, day: Day, checkOutAt: Date): number {
+  const end = new Date(startOfLocalDay(day, config.timezone).getTime() + hhmmToMinutes(config.attendance.workdayEnd) * 60_000);
+  return minutesBetween(end, checkOutAt);
+}
+
 /** Statuses that count as "marked present" for showing the meeting link. */
 export const MEETING_STATUSES: readonly AttendanceStatusKey[] = ['PRESENT', 'LATE', 'WFH', 'HALF_DAY'];
 export const canSeeMeeting = (status: AttendanceStatusKey): boolean => MEETING_STATUSES.includes(status);

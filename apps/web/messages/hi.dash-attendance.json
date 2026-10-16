@@ -26,6 +26,10 @@
       "ON_LEAVE": "अवकाश पर",
       "ABSENT": "अनुपस्थित",
       "UNPAID_LEAVE": "बिना वेतन अवकाश"
-    }
+    },
+    "lateNow": "आप {duration} लेट हैं। ऑफिस का समय {time} से शुरू हो चुका है।",
+    "lateAt": "आपने {duration} लेट चेक-इन किया।",
+    "overtime": "ओवरटाइम: {time} के बाद {duration}।",
+    "meetingJoinedAt": "आपने {time} पर मीटिंग बटन दबाया।"
   }
 }

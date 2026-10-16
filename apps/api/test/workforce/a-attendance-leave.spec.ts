@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { addDays, localDay } from '@salesos/workforce-core';
+import { addDays, localDay, startOfLocalDay } from '@salesos/workforce-core';
 import { buildOrgFixture, createOrg, createTestApp, createUser, loginAgent, type AuthedAgent, type OrgFixture, type TestApp } from '../helpers';
 
 /** Area A integration: attendance (self + corrections) and leave (apply, chain, balances, cancel). Real Postgres, real HTTP pipeline. */
@@ -483,5 +483,93 @@ describe('cross-organisation isolation', () => {
     expect((await a2.put('/workforce/attendance/records').send({ userId: fx.execA1.id, date: addDays(today(), -1), status: 'PRESENT', reason: 'cross-org attempt' })).status).toBe(404);
     expect((await a2.post('/workforce/leave/balances/adjust').send({ userId: fx.execA1.id, typeKey: 'CASUAL', amount: '1', reason: 'cross-org attempt' })).status).toBe(404);
     expect((await a2.get('/workforce/leave/requests?view=all')).body.data).toEqual([]);
+  });
+});
+
+describe('attendance: lateness, meeting button, overtime and the day sheet', () => {
+  const minutesSinceMidnight = (d: Date | string) => Math.floor((new Date(d).getTime() - startOfLocalDay(today(), TZ).getTime()) / 60_000);
+  let late: Awaited<ReturnType<typeof createUser>>, wfh: Awaited<ReturnType<typeof createUser>>, absent: Awaited<ReturnType<typeof createUser>>;
+  let aLate: AuthedAgent, aWfh: AuthedAgent, aAbsent: AuthedAgent;
+  beforeAll(async () => {
+    late = await createUser(t.prisma, fx.org, { roles: ['SALES_EXECUTIVE'], managerId: fx.managerB.id });
+    wfh = await createUser(t.prisma, fx.org, { roles: ['SALES_EXECUTIVE'], managerId: fx.managerB.id });
+    absent = await createUser(t.prisma, fx.org, { roles: ['SALES_EXECUTIVE'], managerId: fx.managerB.id });
+    [aLate, aWfh, aAbsent] = [await loginAgent(t.app, late), await loginAgent(t.app, wfh), await loginAgent(t.app, absent)];
+    // lateAfter 00:00 makes every check-in "late by the minutes since midnight", whatever time of day the test runs
+    await setConfig({ weeklyOffDays: [], attendance: { lateAfter: '00:00', workdayEnd: '00:00', meetingUrl: 'https://zoom.example.test/j/123' } });
+  });
+
+  it('before check-in today() says how late it already is; after check-in the record stores the minutes late (WFH has none)', async () => {
+    const before = await aAbsent.get('/workforce/attendance/today');
+    expect(before.body.data.lateByMinutes).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(before.body.data.lateByMinutes - minutesSinceMidnight(new Date()))).toBeLessThanOrEqual(1);
+    const res = await aLate.post('/workforce/attendance/check-in').send({ mode: 'OFFICE' });
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(res.body.data.lateMinutes).toBe(minutesSinceMidnight(res.body.data.checkInAt));
+    const today1 = await aLate.get('/workforce/attendance/today');
+    expect(today1.body.data.lateByMinutes).toBeNull();
+    expect(today1.body.data.record.lateMinutes).toBe(res.body.data.lateMinutes);
+    expect(today1.body.data.policy.workdayEnd).toBe('00:00');
+    const w = await aWfh.post('/workforce/attendance/check-in').send({ mode: 'WFH' });
+    expect(w.body.data.lateMinutes).toBeNull();
+  });
+
+  it('the meeting button is recorded once, only after check-in and only when a link exists', async () => {
+    expect((await aAbsent.post('/workforce/attendance/meeting-join').send({})).body.error.code).toBe('NOT_CHECKED_IN');
+    const first = await aLate.post('/workforce/attendance/meeting-join').send({});
+    expect(first.status).toBe(200);
+    expect(first.body.data.first).toBe(true);
+    const again = await aLate.post('/workforce/attendance/meeting-join').send({});
+    expect(again.body.data.first).toBe(false);
+    expect(again.body.data.joinedAt).toBe(first.body.data.joinedAt);
+    expect((await aLate.get('/workforce/attendance/today')).body.data.record.meetingJoinedAt).toBe(first.body.data.joinedAt);
+    expect((await audit('attendance.meeting_joined')).length).toBeGreaterThanOrEqual(1);
+    await setConfig({ weeklyOffDays: [], attendance: { lateAfter: '00:00', workdayEnd: '00:00', meetingUrl: null } });
+    expect((await aWfh.post('/workforce/attendance/meeting-join').send({})).body.error.code).toBe('NO_MEETING');
+    await setConfig({ weeklyOffDays: [], attendance: { lateAfter: '00:00', workdayEnd: '00:00', meetingUrl: 'https://zoom.example.test/j/123' } });
+  });
+
+  it('check-out records the minutes worked after the end of the working day as overtime', async () => {
+    const out = await aLate.post('/workforce/attendance/check-out').send({});
+    expect(out.status, JSON.stringify(out.body)).toBe(200);
+    expect(out.body.data.overtimeMinutes).toBe(minutesSinceMidnight(out.body.data.checkOutAt));
+    const stored = await t.prisma.attendanceRecord.findUniqueOrThrow({ where: { id: out.body.data.id } });
+    expect(stored.overtimeMinutes).toBe(out.body.data.overtimeMinutes);
+  });
+
+  it('an HR correction recomputes lateness and overtime from the corrected times (office hours 10:15 - 19:00)', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { lateAfter: '10:15', workdayEnd: '19:00', meetingUrl: 'https://zoom.example.test/j/123' } });
+    const res = await A.hr.put('/workforce/attendance/records').send({ userId: wfh.id, date: today(), status: 'PRESENT', checkInAt: `${today()}T10:45:00+05:30`, checkOutAt: `${today()}T20:30:00+05:30`, reason: 'forgot to check in on time (test)' });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(res.body.data).toMatchObject({ lateMinutes: 30, overtimeMinutes: 90, workMinutes: 585 });
+    const early = await A.hr.put('/workforce/attendance/records').send({ userId: wfh.id, date: today(), status: 'PRESENT', checkInAt: `${today()}T10:00:00+05:30`, checkOutAt: `${today()}T18:00:00+05:30`, reason: 'left early, on time (test)' });
+    expect(early.body.data).toMatchObject({ lateMinutes: 0, overtimeMinutes: 0 });
+    await A.hr.put('/workforce/attendance/records').send({ userId: wfh.id, date: today(), status: 'PRESENT', checkInAt: `${today()}T10:45:00+05:30`, checkOutAt: `${today()}T20:30:00+05:30`, reason: 'restore the late + overtime day (test)' });
+  });
+
+  it('the day sheet lists who came when, how late, who pressed the meeting button, check-out and overtime, scoped by role', async () => {
+    const hr = await A.hr.get('/workforce/attendance/day');
+    expect(hr.status, JSON.stringify(hr.body)).toBe(200);
+    const row = (userId: string) => hr.body.data.items.find((i: { userId: string }) => i.userId === userId);
+    expect(row(wfh.id)).toMatchObject({ status: 'PRESENT', lateMinutes: 30, overtimeMinutes: 90 });
+    expect(row(late.id).meetingJoinedAt).not.toBeNull();
+    expect(row(absent.id)).toMatchObject({ status: null, checkInAt: null });
+    expect(hr.body.data.totals.late).toBeGreaterThanOrEqual(1);
+    expect(hr.body.data.totals.meetingJoined).toBeGreaterThanOrEqual(1);
+    expect(hr.body.data.totals.notMarked).toBeGreaterThanOrEqual(1);
+    expect(hr.body.data.policy).toMatchObject({ lateAfter: '10:15', workdayEnd: '19:00', meetingConfigured: true });
+    // the team lead of those people sees them; the other team's manager does not; an executive sees only herself
+    const mine = await A.managerB.get('/workforce/attendance/day');
+    expect(mine.body.data.items.some((i: { userId: string }) => i.userId === late.id)).toBe(true);
+    const other = await A.managerA.get('/workforce/attendance/day');
+    expect(other.body.data.items.some((i: { userId: string }) => i.userId === late.id)).toBe(false);
+    const self = await aLate.get('/workforce/attendance/day');
+    expect(self.body.data.items.map((i: { userId: string }) => i.userId)).toEqual([late.id]);
+    expect((await A.hr.get('/workforce/attendance/day?date=2020-13-01')).status).toBe(400);
+  });
+
+  it('the month view totals late days, minutes late, overtime and meeting days', async () => {
+    const m = await A.hr.get(`/workforce/attendance/month?userId=${wfh.id}`);
+    expect(m.body.data.summary).toMatchObject({ lateDays: 1, lateMinutes: 30, overtimeMinutes: 90 });
   });
 });

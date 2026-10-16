@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Post, Put, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { attendanceCorrectionSchema, attendanceMonthQuerySchema, checkInSchema, checkOutSchema, correctionsQuerySchema, teamSummaryQuerySchema } from '@salesos/validation';
+import { attendanceCorrectionSchema, attendanceMonthQuerySchema, checkInSchema, checkOutSchema, correctionsQuerySchema, daySheetQuerySchema, teamSummaryQuerySchema } from '@salesos/validation';
 import type { z } from 'zod';
 import { CurrentUser, RequirePermission, type Principal } from '../../../common/authz';
 import { ZodPipe } from '../../../common/http/zod.pipe';
@@ -28,6 +28,20 @@ export class AttendanceController {
   @RequirePermission('attendance:self')
   today(@CurrentUser() u: Principal) {
     return this.svc.today(u);
+  }
+
+  /** The person pressed the meeting button (recorded once a day). */
+  @Post('meeting-join')
+  @HttpCode(200)
+  @RequirePermission('attendance:self')
+  meetingJoin(@CurrentUser() u: Principal) {
+    return this.svc.meetingJoin(u);
+  }
+
+  @Get('day')
+  @RequirePermission('attendance:view')
+  day(@CurrentUser() u: Principal, @Query(new ZodPipe(daySheetQuerySchema)) q: z.infer<typeof daySheetQuerySchema>) {
+    return this.svc.daySheet(u, q);
   }
 
   @Get('month')

@@ -97,12 +97,22 @@ export class WorkforceReportsService {
     const columns: ReportColumn[] = [
       { key: 'date', label: 'Date', type: 'date' }, { key: 'employee', label: 'Employee', type: 'text' }, { key: 'department', label: 'Department', type: 'text' },
       { key: 'status', label: 'Status', type: 'text' }, { key: 'checkIn', label: 'Check-in', type: 'text' }, { key: 'checkOut', label: 'Check-out', type: 'text' },
-      { key: 'workMinutes', label: 'Worked minutes', type: 'int' }, { key: 'source', label: 'Source', type: 'text' },
+      { key: 'lateMinutes', label: 'Minutes late', type: 'int' }, { key: 'meetingJoined', label: 'Meeting button', type: 'text' },
+      { key: 'workMinutes', label: 'Worked minutes', type: 'int' }, { key: 'overtimeMinutes', label: 'Overtime minutes', type: 'int' }, { key: 'source', label: 'Source', type: 'text' },
     ];
-    const out: ReportRow[] = rows.map((r) => ({ date: isoDay(r.date), ...this.who(c, r.userId), status: r.status, checkIn: hhmm(r.checkInAt), checkOut: hhmm(r.checkOutAt), workMinutes: r.workMinutes, source: r.source }));
+    const out: ReportRow[] = rows.map((r) => ({
+      date: isoDay(r.date), ...this.who(c, r.userId), status: r.status, checkIn: hhmm(r.checkInAt), checkOut: hhmm(r.checkOutAt),
+      lateMinutes: r.lateMinutes, meetingJoined: hhmm(r.meetingJoinedAt), workMinutes: r.workMinutes, overtimeMinutes: r.overtimeMinutes, source: r.source,
+    }));
     const marked = rows.filter((r) => MARKED.includes(r.status)).length;
     const present = rows.filter((r) => PRESENT_LIKE.includes(r.status)).length + rows.filter((r) => r.status === 'HALF_DAY').length * 0.5;
-    return { columns, rows: out, summary: { records: Math.min(rows.length, c.cap), byStatus: countBy(rows, (r) => r.status), attendancePct: pct(present, marked) } };
+    return {
+      columns, rows: out,
+      summary: {
+        records: Math.min(rows.length, c.cap), byStatus: countBy(rows, (r) => r.status), attendancePct: pct(present, marked),
+        lateMinutes: rows.reduce((n, r) => n + (r.lateMinutes ?? 0), 0), overtimeMinutes: rows.reduce((n, r) => n + (r.overtimeMinutes ?? 0), 0),
+      },
+    };
   }
 
   // ------------------------------------------------------------------ leave

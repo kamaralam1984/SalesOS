@@ -210,7 +210,8 @@
           "fullDayMinutes": "Full day (minutes)",
           "halfDayMinutes": "Half day (minutes)",
           "autoMarkAbsent": "Mark absent automatically at day end",
-          "managerCorrectionWindowDays": "Manager correction window (days)"
+          "managerCorrectionWindowDays": "Manager correction window (days)",
+          "workdayEnd": "Working day ends at (HH:MM)"
         },
         "leave": {
           "approvalChain": "Approval chain",
@@ -272,7 +273,8 @@
       "hints": {
         "attendance": {
           "checkInCutoff": "After this time employees cannot check in themselves. HR or a manager can still record attendance.",
-          "meetingUrl": "Employees see the Join button only after they are marked present. Leave empty to hide it."
+          "meetingUrl": "Employees see the Join button only after they are marked present. Leave empty to hide it.",
+          "workdayEnd": "A check-out after this time is recorded as overtime (the extra minutes are shown to HR and managers)."
         }
       },
       "meetingUrlPlaceholder": "https://zoom.us/j/...",

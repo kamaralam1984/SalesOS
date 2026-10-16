@@ -13,6 +13,8 @@ export const A_CASES: NegativeCase[] = [
   { route: 'GET /workforce/attendance/today' },
   { route: 'GET /workforce/attendance/month' },
   { route: 'GET /workforce/attendance/team-summary' },
+  { route: 'POST /workforce/attendance/meeting-join', body: {} },
+  { route: 'GET /workforce/attendance/day' },
   { route: 'PUT /workforce/attendance/records', deniedUser: 'execA1', body: { userId: U, date: '2026-10-01', status: 'PRESENT', reason: 'negative test' } },
   { route: 'GET /workforce/attendance/corrections' },
   { route: 'GET /workforce/holidays' },
