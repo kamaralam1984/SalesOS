@@ -1,0 +1,31 @@
+{
+  "dashAttendance": {
+    "title": "Today's attendance",
+    "open": "Open attendance",
+    "retry": "Try again",
+    "loadError": "Could not load today's attendance.",
+    "actionError": "That did not go through. Please try again.",
+    "checkInOffice": "Check in (office)",
+    "checkInWfh": "Check in (WFH)",
+    "checkOut": "Check out",
+    "checkedInAt": "Checked in at {time}",
+    "checkedOutAt": "Checked out at {time}",
+    "checkInCloses": "Check-in closes at {time} IST",
+    "checkInClosed": "Check-in closed at {time} IST. Ask HR or your manager.",
+    "joinMeeting": "Join Zoom meeting",
+    "meetingHost": "Opens {host} in a new tab",
+    "selfDisabled": "Self check-in is off. Ask HR or your manager.",
+    "status": {
+      "NOT_CHECKED_IN": "Not checked in",
+      "PRESENT": "Present",
+      "LATE": "Late",
+      "WFH": "WFH",
+      "HALF_DAY": "Half day",
+      "HOLIDAY": "Holiday",
+      "WEEKLY_OFF": "Weekly off",
+      "ON_LEAVE": "On leave",
+      "ABSENT": "Absent",
+      "UNPAID_LEAVE": "Unpaid leave"
+    }
+  }
+}

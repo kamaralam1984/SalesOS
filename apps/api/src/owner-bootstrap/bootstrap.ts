@@ -29,6 +29,30 @@ export function readBootstrapEnv(env: NodeJS.ProcessEnv = process.env): Bootstra
   };
 }
 
+export function readDeveloperEnv(env: NodeJS.ProcessEnv = process.env): { email: string; name: string; password: string } | null {
+  if (!env.DEV_ADMIN_EMAIL) return null;
+  const email = env.DEV_ADMIN_EMAIL.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('DEV_ADMIN_EMAIL is not a valid email');
+  if (!env.DEV_ADMIN_NAME || !env.DEV_ADMIN_PASSWORD) throw new Error('DEV_ADMIN_NAME and DEV_ADMIN_PASSWORD are required with DEV_ADMIN_EMAIL');
+  if (env.DEV_ADMIN_PASSWORD.length < 12) throw new Error('DEV_ADMIN_PASSWORD must be at least 12 characters');
+  return { email, name: env.DEV_ADMIN_NAME.trim(), password: env.DEV_ADMIN_PASSWORD };
+}
+
+async function ensureDeveloper(prisma: PrismaClient, organizationId: string, dev: { email: string; name: string; password: string }, reset: boolean) {
+  const role = await prisma.role.findFirstOrThrow({ where: { key: 'DEVELOPER' } });
+  const hash = () => argon2.hash(dev.password, { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 });
+  const existing = await prisma.user.findUnique({ where: { email: dev.email } });
+  if (existing && existing.organizationId !== organizationId) throw new Error('DEV_ADMIN_EMAIL belongs to a different organisation');
+  const userId = existing
+    ? (await prisma.user.update({ where: { id: existing.id }, data: { isActive: true, ...(reset ? { passwordHash: await hash() } : {}) } })).id
+    : (await prisma.user.create({ data: { organizationId, email: dev.email, name: dev.name, passwordHash: await hash() } })).id;
+  await prisma.userRoleAssignment.upsert({
+    where: { userId_roleId: { userId, roleId: role.id } },
+    update: {},
+    create: { organizationId, userId, roleId: role.id },
+  });
+}
+
 export async function bootstrap(prisma: PrismaClient, input: BootstrapInput) {
   await ensureDbGuards(prisma);
   await syncCatalogue(prisma);
@@ -53,6 +77,9 @@ export async function bootstrap(prisma: PrismaClient, input: BootstrapInput) {
     update: {},
     create: { organizationId: org.id, userId, roleId: founderRole.id },
   });
+  // Optional super-admin: DEV_ADMIN_EMAIL / DEV_ADMIN_NAME / DEV_ADMIN_PASSWORD create the first DEVELOPER (Developer Panel).
+  const dev = readDeveloperEnv();
+  if (dev) await ensureDeveloper(prisma, org.id, dev, input.resetPassword);
   return { organizationId: org.id, userId, created: !existing };
 }
 

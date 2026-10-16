@@ -1,5 +1,6 @@
 /** Primary hierarchy roles + secondary permission groups (ADR / PHASE_PROMPTS section B.3). */
 export const ROLE_KEYS = [
+  'DEVELOPER',
   'FOUNDER_CEO',
   'SALES_TEAM_LEAD',
   'SALES_MANAGER',
@@ -15,6 +16,7 @@ export const ROLE_KEYS = [
 export type RoleKey = (typeof ROLE_KEYS)[number];
 
 export const PRIMARY_ROLE_KEYS = [
+  'DEVELOPER',
   'FOUNDER_CEO',
   'SALES_TEAM_LEAD',
   'SALES_MANAGER',

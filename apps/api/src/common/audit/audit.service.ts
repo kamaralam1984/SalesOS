@@ -36,6 +36,9 @@ export const AUDIT_ACTIONS = {
   DELEGATION_REVOKED: 'delegation.revoked',
   OWNERSHIP_CHANGED: 'ownership.changed',
   EXPORT_CREATED: 'export.created',
+  DEVPANEL_ROLES_CHANGED: 'devpanel.roles_changed',
+  DEVPANEL_SESSIONS_REVOKED: 'devpanel.sessions_revoked',
+  DEVPANEL_FORCE_LOGOUT_ALL: 'devpanel.force_logout_all',
 } as const;
 
 /**

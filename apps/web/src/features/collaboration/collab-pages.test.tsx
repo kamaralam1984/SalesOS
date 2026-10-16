@@ -109,6 +109,33 @@ describe('plans and insights', () => {
     expect(screen.getByText('REGISTERED: 30')).toBeInTheDocument();
   });
 
+  it('a plan can be edited and moved to completed, and a closed plan is read-only', async () => {
+    perms.set = new Set(['xf-tasks:view', 'xf-tasks:update']);
+    const plan = (o: Record<string, unknown>) => ({ id: 'p1', kind: 'LEAD_GEN', title: 'Diwali lead push', programId: null, campaignId: 'c1', sourceId: null, programName: null, event: null, windowStart: iso(-24), windowEnd: iso(240), plannedLeads: 200, actualLeads: 42, salesPlanNote: null, status: 'ACTIVE', attendance: {}, ownerName: 'Maya', createdByName: 'Maya', ...o });
+    apiMock.get.mockImplementation(routeApi({ '/collaboration/plan-links': envelope([plan({})], page), '/events': envelope([]), '/programs': envelope([]), '/campaigns': envelope([{ id: 'c1', name: 'Diwali' }]), '/lead-sources': envelope([]) }));
+    apiMock.patch.mockResolvedValue(envelope(plan({ status: 'COMPLETED' })));
+    renderWithProviders(<PlansPage />);
+    expect(await screen.findByText('Diwali lead push')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^Edit/ }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.selectOptions(within(dialog).getByLabelText('Status'), 'COMPLETED');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(apiMock.patch).toHaveBeenCalledWith('/collaboration/plan-links/p1', expect.objectContaining({ status: 'COMPLETED', plannedLeads: 200, campaignId: 'c1' })));
+  });
+
+  it('a closed plan cannot be saved', async () => {
+    perms.set = new Set(['xf-tasks:view', 'xf-tasks:update']);
+    apiMock.get.mockImplementation(routeApi({ '/collaboration/plan-links': envelope([{ id: 'p2', kind: 'LEAD_GEN', title: 'Old push', programId: null, campaignId: null, sourceId: null, programName: null, event: null, windowStart: iso(-240), windowEnd: iso(-24), plannedLeads: null, actualLeads: null, salesPlanNote: null, status: 'CANCELLED', attendance: {}, ownerName: null, createdByName: null }], page), '/events': envelope([]), '/programs': envelope([]), '/campaigns': envelope([]), '/lead-sources': envelope([]) }));
+    renderWithProviders(<PlansPage />);
+    expect(await screen.findByText('Old push')).toBeInTheDocument();
+    expect(screen.getByText(/No program, campaign or source linked/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^Edit/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText(/closed and can no longer be changed/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeDisabled();
+  });
+
   it('insights explain the minimum-data rule and require a title and body to share', async () => {
     perms.set = new Set(['insights:share']);
     apiMock.get.mockResolvedValue(envelope([], page));

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { landingPathFor, safeNextPath } from './roles';
 
 describe('landingPathFor', () => {
+  it('sends Developer Panel users to their panel', () => {
+    expect(landingPathFor(['DEVELOPER'])).toBe('/admin/developer');
+    expect(landingPathFor(['DEVELOPER'], [{ key: 'devpanel:access', scope: 'org' }])).toBe('/admin/developer');
+    expect(landingPathFor(['FINANCE'], [])).toBe('/dashboard');
+  });
   it('maps each primary role to its dashboard', () => {
     expect(landingPathFor(['FOUNDER_CEO'])).toBe('/dashboard/founder');
     expect(landingPathFor(['SALES_TEAM_LEAD'])).toBe('/dashboard/team-lead');

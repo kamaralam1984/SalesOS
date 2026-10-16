@@ -1,0 +1,87 @@
+{
+  "developer": {
+    "security": {
+      "title": "Security",
+      "sub": {
+        "sessions": "Live sessions",
+        "history": "Login history",
+        "locked": "Locked accounts",
+        "reset": "Reset link",
+        "audit": "Developer audit"
+      },
+      "empty": "Nothing to show.",
+      "loading": "Loading",
+      "loadMore": "Load more",
+      "anyUser": "Any user",
+      "filterUser": "User",
+      "from": "From",
+      "to": "To",
+      "unknownActor": "Unknown actor",
+      "sessions": {
+        "title": "Live sessions",
+        "description": "Every signed-in session in this organisation. Killing a session signs that device out immediately.",
+        "seen": "Last seen {time}",
+        "expires": "expires {time}",
+        "noIp": "IP unknown",
+        "noAgent": "Device unknown",
+        "current": "Your session",
+        "kill": "Kill session",
+        "killed": "Session of {name} ended.",
+        "confirmTitle": "Kill this session?",
+        "confirmBody": "{name} will be signed out on that device straight away and must log in again."
+      },
+      "history": {
+        "title": "Login history",
+        "description": "Recent sign-in events from the audit log, newest first.",
+        "action": "Event",
+        "anyAction": "All events",
+        "actions": {
+          "login_success": "Signed in",
+          "login_failed": "Failed sign-in",
+          "account_locked": "Account locked",
+          "logout": "Signed out",
+          "password_reset_requested": "Reset requested",
+          "password_reset_completed": "Password reset",
+          "invite_accepted": "Invite accepted",
+          "sessions_revoked": "Sessions revoked"
+        },
+        "limitation": "Failed sign-ins are recorded per attempt only when the email matches an account; attempts with unknown emails are not recorded.",
+        "reason": "reason: {reason}",
+        "noIp": "IP unknown"
+      },
+      "locked": {
+        "title": "Locked accounts",
+        "description": "Active accounts that are locked now or have recent failed sign-ins.",
+        "lockedUntil": "Locked until {time}",
+        "watch": "Failed attempts, not locked",
+        "failures": "{count, plural, one {# failed attempt} other {# failed attempts}}",
+        "unlock": "Unlock",
+        "done": "{name} unlocked.",
+        "confirmTitle": "Unlock this account?",
+        "confirmBody": "The failed-attempt counter and lock for {name} will be cleared."
+      },
+      "reset": {
+        "title": "Password-reset link",
+        "description": "Create a single-use reset link for a user. No email is sent: you hand the link over yourself.",
+        "user": "User",
+        "issue": "Create link",
+        "once": "The link is shown once and cannot be retrieved later. Creating a new link cancels the older one.",
+        "dialogTitle": "Password-reset link",
+        "confirmBody": "Create a single-use reset link for this user?",
+        "shownOnce": "Copy it now. It will not be shown again.",
+        "warn": "Valid until {time}. Anyone with this link can set the password.",
+        "linkLabel": "Reset link",
+        "copy": "Copy link",
+        "copied": "Copied",
+        "copyFailed": "Could not copy. Select the link and copy it manually."
+      },
+      "audit": {
+        "title": "Developer audit trail",
+        "description": "Actions taken in the Developer Panel, newest first.",
+        "action": "Action",
+        "anyAction": "All actions",
+        "actor": "Performed by"
+      }
+    }
+  }
+}

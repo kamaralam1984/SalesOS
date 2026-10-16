@@ -9,32 +9,6 @@ import { HintsProvider } from '@/features/hints/hints-provider';
 import { RouteHintProvider } from '@/features/hints/hint-views';
 import { MobileBottomNav } from './mobile-bottom-nav';
 
-/**
- * Forces the dark tokens while the mobile preview is mounted. The ThemeProvider (a parent) re-applies the user's theme in
- * an effect that runs after this child effect on mount, so a one-off setAttribute is overwritten; an observer puts dark
- * back for as long as the frame is mounted. Nothing is written to storage/cookies; the previous theme is restored on exit.
- */
-function useForcedDarkTheme() {
-  React.useEffect(() => {
-    const root = document.documentElement;
-    const prevTheme = root.getAttribute('data-theme');
-    const prevScheme = root.style.colorScheme;
-    const force = () => {
-      if (root.getAttribute('data-theme') !== 'dark') root.setAttribute('data-theme', 'dark');
-      if (root.style.colorScheme !== 'dark') root.style.colorScheme = 'dark';
-    };
-    force();
-    const observer = new MutationObserver(force);
-    observer.observe(root, { attributes: true, attributeFilter: ['data-theme', 'style'] });
-    return () => {
-      observer.disconnect();
-      if (prevTheme === null) root.removeAttribute('data-theme');
-      else root.setAttribute('data-theme', prevTheme);
-      root.style.colorScheme = prevScheme;
-    };
-  }, []);
-}
-
 function FullScreenLoading() {
   const t = useTranslations('common');
   return (
@@ -95,7 +69,6 @@ function Gate({ children }: { children: React.ReactNode }) {
 }
 
 export function MobileFrame({ children }: { children: React.ReactNode }) {
-  useForcedDarkTheme();
   return (
     <AuthProvider>
       <Gate>{children}</Gate>

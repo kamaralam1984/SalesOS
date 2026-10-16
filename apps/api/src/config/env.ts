@@ -44,6 +44,9 @@ export const envSchema = z
     SENTRY_DSN: z.string().url().optional().or(z.literal('').transform(() => undefined)),
     SENTRY_ENVIRONMENT: z.string().optional(),
     RELEASE: z.string().optional(),
+    /** Optional build metadata shown in the Developer Panel diagnostics (set by CI/deploy; nothing shells out to git). */
+    GIT_COMMIT: z.string().max(80).optional(),
+    BUILD_TIME: z.string().max(40).optional(),
 
     S3_ENDPOINT: z.string().url().optional(),
     S3_REGION: z.string().optional(),
@@ -54,6 +57,10 @@ export const envSchema = z
     PLATFORM_ENCRYPTION_KEY: z.string().optional(),
     /** Boot-time DDL (guard triggers, analytics indexes). Default: on in dev/test, OFF in production (migrations own the schema; the app role has no DDL). */
     DB_AUTO_DDL: bool.optional(),
+    /** Directory scripts/backup.sh writes to (readable by the API). Unset = backup status reports UNKNOWN. */
+    BACKUP_DIR: z.string().optional(),
+    /** A backup older than this many hours is reported as STALE (default 26 = daily + slack). */
+    BACKUP_MAX_AGE_HOURS: z.coerce.number().int().min(1).max(24 * 60).default(26),
   })
   .superRefine((env, ctx) => {
     const origins = env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);

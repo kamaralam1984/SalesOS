@@ -26,6 +26,8 @@ const PUBLIC_ALLOWLIST = [
   'GET /ready',
   // Prometheus scrape: @Public only so the controller can do its own check (METRICS_TOKEN bearer, else 404 in prod / loopback-only in dev)
   'GET /metrics',
+  // maintenance banner/page must render before login; returns only {enabled, message, eta} (Developer Panel, maintenance module)
+  'GET /maintenance/status',
 
   'POST /auth/login',
   'POST /auth/password/forgot',

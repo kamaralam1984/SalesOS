@@ -19,7 +19,7 @@ import { CsrfGuard } from './common/security/csrf.guard';
 import { PermissionsGuard } from './common/authz/permissions.guard';
 import {
   IdentityModule, CrmModule, RevenueModule, PeopleModule, SopModule, CxModule, CollaborationModule,
-  ReportingModule, NotificationsModule, FilesModule, IntegrationsModule, AiModule, DevicesModule, WorkforceModule,
+  ReportingModule, NotificationsModule, FilesModule, IntegrationsModule, AiModule, DevicesModule, WorkforceModule, DevPanelModule,
 } from './modules';
 
 @Module({
@@ -41,7 +41,7 @@ import {
     }),
     // Domain slots: each agent fills only its own folder.
     IdentityModule, CrmModule, RevenueModule, PeopleModule, SopModule, CxModule, CollaborationModule,
-    ReportingModule, NotificationsModule, FilesModule, IntegrationsModule, AiModule, DevicesModule, WorkforceModule,
+    ReportingModule, NotificationsModule, FilesModule, IntegrationsModule, AiModule, DevicesModule, WorkforceModule, DevPanelModule,
   ],
   controllers: [HealthController],
   providers: [

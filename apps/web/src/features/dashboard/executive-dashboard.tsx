@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { TodayRow } from './today-row';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, PageHeader } from '@salesos/ui';
 import { useDashboard } from '@/lib/api/hooks/analytics';
@@ -21,6 +22,7 @@ export function ExecutiveDashboard() {
   return (
     <>
       <PageHeader eyebrow={t('eyebrow')} title={t('title')} description={t('description')} />
+      <TodayRow />
       <AnalyticsFilterBar filters={filters} target="executive" show={{ team: false, program: true, source: true, owner: false }} />
       <QueryBoundary q={q}>
         {(d, fetching) => {

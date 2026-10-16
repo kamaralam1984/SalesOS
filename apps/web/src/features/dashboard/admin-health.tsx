@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { TodayRow } from './today-row';
 import { useLocale, useTranslations } from 'next-intl';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { Alert, Card, PageHeader, Panel } from '@salesos/ui';
@@ -15,6 +16,7 @@ export function AdminHealth() {
   return (
     <>
       <PageHeader eyebrow={t('eyebrow')} title={t('title')} description={t('description')} />
+      <TodayRow />
       <Alert tone="info" className="mb-5">{t('noBusinessData')}</Alert>
       <QueryBoundary q={q}>
         {(h) => (

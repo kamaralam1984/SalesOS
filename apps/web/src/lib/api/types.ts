@@ -4,6 +4,7 @@
  * When the shared package is consumed directly, replace these with `import type {...} from '@salesos/shared-types'`.
  */
 export const ROLE_KEYS = [
+  'DEVELOPER',
   'FOUNDER_CEO',
   'SALES_TEAM_LEAD',
   'SALES_MANAGER',
@@ -18,6 +19,7 @@ export const ROLE_KEYS = [
 ] as const;
 export type RoleKey = (typeof ROLE_KEYS)[number];
 export const PRIMARY_ROLE_KEYS = [
+  'DEVELOPER',
   'FOUNDER_CEO',
   'SALES_TEAM_LEAD',
   'SALES_MANAGER',

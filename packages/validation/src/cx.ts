@@ -232,7 +232,21 @@ export const createPlanLinkSchema = z.object({
   salesPlanNote: optText(4000),
   ownerId: uuidSchema.optional(),
 });
-export const listPlanLinksQuerySchema = paginationQuerySchema.extend({ kind: z.enum(['CAMPAIGN', 'WEBINAR', 'EVENT', 'LEAD_GEN']).optional() });
+export const PLAN_LINK_STATUSES = ['PLANNED', 'ACTIVE', 'COMPLETED', 'CANCELLED'] as const;
+export const updatePlanLinkSchema = z
+  .object({
+    title: text(3, 200).optional(),
+    status: z.enum(PLAN_LINK_STATUSES).optional(),
+    windowStart: isoDateTime.optional(),
+    windowEnd: isoDateTime.optional(),
+    plannedLeads: z.number().int().min(0).max(10_000_000).nullable().optional(),
+    salesPlanNote: z.string().trim().max(4000).nullable().optional(),
+    programId: uuidSchema.nullable().optional(),
+    campaignId: uuidSchema.nullable().optional(),
+    sourceId: uuidSchema.nullable().optional(),
+  })
+  .refine((v) => Object.values(v).some((x) => x !== undefined), { message: 'Send at least one field to change' });
+export const listPlanLinksQuerySchema =paginationQuerySchema.extend({ kind: z.enum(['CAMPAIGN', 'WEBINAR', 'EVENT', 'LEAD_GEN']).optional() });
 export const createInsightSchema = z.object({
   kind: z.enum(['LEARNER', 'MARKET', 'OBJECTION', 'COMPETITOR']).default('LEARNER'),
   title: text(3, 200),

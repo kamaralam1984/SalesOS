@@ -6,8 +6,10 @@ import { AuthProvider, useAuth } from './auth-provider';
 import { IdleGuard } from './idle-guard';
 import { AppShell } from '@/components/shell/app-shell';
 import { BrandMark } from '@/components/brand';
+import { PhoneRedirect } from '@/features/mobile/phone-redirect';
 import { HintsProvider } from '@/features/hints/hints-provider';
 import { RouteHintProvider } from '@/features/hints/hint-views';
+import { MaintenanceGate } from '@/features/maintenance/maintenance-gate';
 
 function FullScreenLoading() {
   const t = useTranslations('common');
@@ -50,7 +52,8 @@ function Gate({ children }: { children: React.ReactNode }) {
     <HintsProvider userId={user?.id}>
       <RouteHintProvider>
         <AppShell>
-          {children}
+          <MaintenanceGate>{children}</MaintenanceGate>
+          <PhoneRedirect />
           <IdleGuard />
         </AppShell>
       </RouteHintProvider>

@@ -10,7 +10,8 @@
       "afternoon": "नमस्कार, <name>{who}</name>",
       "evening": "शुभ संध्या, <name>{who}</name>"
     },
-    "subline": "आइए आज का दिन सार्थक बनाएँ।"
+    "subline": "आइए आज का दिन सार्थक बनाएँ।",
+    "productGeneric": "वर्कस्पेस"
   },
   "mobileStats": {
     "title": "आज एक नज़र में",

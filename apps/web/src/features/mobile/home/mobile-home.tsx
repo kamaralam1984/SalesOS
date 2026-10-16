@@ -1,33 +1,28 @@
 'use client';
-import { useTranslations } from 'next-intl';
-import { PermissionDenied } from '@salesos/ui';
 import { useAuth } from '@/features/auth/auth-provider';
+import { useIsCallTeam } from '../call-team';
 import { HomeHeader } from './home-header';
 import { StatTiles } from './stat-tiles';
 import { GoalCard } from './goal-card';
 import { PriorityFollowUps } from './priority-followups';
 import { QuickActions } from './quick-actions';
+import { WorkspaceTiles } from './workspace-tiles';
+import { AttendanceCard } from '@/features/work/attendance/attendance-card';
 
-/** `/m`: Sales Executive home. Users without CRM access get a calm permission-denied state. */
+/** `/m`: phone home for every role. Each widget renders only when the role may use it (UI hiding; the API enforces). */
 export function MobileHome() {
-  const t = useTranslations('mobileShell');
   const { can } = useAuth();
-  if (!can(['leads:view', 'tasks:view'])) {
-    return (
-      <PermissionDenied
-        headingLevel={1}
-        title={t('denied.title')}
-        description={t('denied.description')}
-      />
-    );
-  }
+  const callTeam = useIsCallTeam();
+  const hasCrm = can(['leads:view', 'tasks:view', 'dashboard:salesperson:view']);
   return (
     <div className="stagger flex flex-col gap-5 pb-4">
       <HomeHeader />
       <StatTiles />
-      <GoalCard />
-      <PriorityFollowUps />
-      <QuickActions />
+      <AttendanceCard variant="mobile" />
+      {can('goals:view') && <GoalCard />}
+      {callTeam && can('tasks:view') && <PriorityFollowUps />}
+      {callTeam && can('tasks:view') && <QuickActions />}
+      <WorkspaceTiles variant={hasCrm ? 'more' : 'full'} />
     </div>
   );
 }

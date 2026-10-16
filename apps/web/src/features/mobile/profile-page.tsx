@@ -5,6 +5,7 @@ import { ExternalLink, LogOut, ShieldCheck } from 'lucide-react';
 import { Avatar, Button, Card } from '@salesos/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { LanguageSwitch } from '@/components/shell/top-bar';
+import { ThemeMenu } from '@/components/theme/theme-switcher';
 
 export function ProfilePage() {
   const t = useTranslations('mobileShell');
@@ -24,7 +25,7 @@ export function ProfilePage() {
           {user.roles.map((r) => (
             <li
               key={r}
-              className="inline-flex items-center gap-1 rounded-full border border-gold-300 bg-gold-50 px-2 py-0.5 text-[0.6875rem] font-medium text-gold-700"
+              className="inline-flex items-center gap-1 rounded-full border border-gold-400 bg-gold-50 px-2 py-0.5 text-[0.6875rem] font-medium text-gold-700"
             >
               <ShieldCheck aria-hidden="true" className="size-3" />
               {tr(r)}
@@ -36,9 +37,13 @@ export function ProfilePage() {
         <span className="text-sm font-medium text-ink">{t('profile.language')}</span>
         <LanguageSwitch />
       </Card>
+      <Card className="flex items-center justify-between gap-3 p-4">
+        <span className="text-sm font-medium text-ink">{t('profile.theme')}</span>
+        <ThemeMenu />
+      </Card>
       <div className="space-y-3">
         <Button asChild variant="secondary" className="min-h-11 w-full">
-          <Link href="/dashboard">
+          <Link href="/dashboard?classic=1">
             <ExternalLink aria-hidden="true" className="size-4" />
             {t('profile.openStandard')}
           </Link>

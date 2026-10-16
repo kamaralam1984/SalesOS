@@ -58,6 +58,10 @@ export class UsersService {
       target ? { organizationId: target.organizationId, ownerId: target.id } : null,
       'User',
     );
+    // Developer accounts are super-admin: only another Developer may modify them.
+    if (permission !== 'users:view' && target!.roleAssignments.some((a) => a.role.key === 'DEVELOPER') && !this.access.has(actor, 'devpanel:access')) {
+      throw forbidden('Developer accounts can only be changed from the Developer Panel');
+    }
     return target!;
   }
 
@@ -74,6 +78,7 @@ export class UsersService {
 
   private assertCanAssign(actor: Principal, roles: RoleKey[]) {
     if (!this.access.has(actor, 'users:role:assign')) throw forbidden();
+    if (roles.includes('DEVELOPER')) throw forbidden('The Developer role is managed only from the Developer Panel');
     if (roles.some((r) => SENSITIVE_ROLE_KEYS.includes(r)) && !this.access.has(actor, 'users:role:assign-sensitive')) {
       throw forbidden('Only the Founder can assign Founder, HR or Finance roles');
     }

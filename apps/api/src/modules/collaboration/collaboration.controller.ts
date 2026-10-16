@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { createInsightSchema, createPlanLinkSchema, listInsightsQuerySchema, listPlanLinksQuerySchema } from '@salesos/validation';
+import { createInsightSchema, createPlanLinkSchema, listInsightsQuerySchema, listPlanLinksQuerySchema, updatePlanLinkSchema } from '@salesos/validation';
 import type { z } from 'zod';
 import { CurrentUser, RequirePermission, type Principal } from '../../common/authz';
 import { ZodPipe } from '../../common/http/zod.pipe';
@@ -22,6 +22,12 @@ export class CollaborationController {
   @RequirePermission('xf-tasks:create')
   createPlan(@CurrentUser() u: Principal, @Body(new ZodPipe(createPlanLinkSchema)) b: z.infer<typeof createPlanLinkSchema>) {
     return this.plans.create(u, b);
+  }
+
+  @Patch('collaboration/plan-links/:id')
+  @RequirePermission('xf-tasks:update')
+  updatePlan(@CurrentUser() u: Principal, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(updatePlanLinkSchema)) b: z.infer<typeof updatePlanLinkSchema>) {
+    return this.plans.update(u, id, b);
   }
 
   @Get('cx/insights')

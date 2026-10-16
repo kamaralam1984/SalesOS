@@ -1,5 +1,6 @@
 'use client';
 import { useTranslations } from 'next-intl';
+import { TodayRow } from './today-row';
 import { EmptyState, PageHeader } from '@salesos/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { HubTile, accentAt } from '@/features/reporting/hub-tile';
@@ -19,6 +20,7 @@ export function WorkspaceHome() {
   return (
     <>
       <PageHeader eyebrow={t('eyebrow')} title={t('title', { name: user?.name ?? '' })} description={t('description')} />
+      <TodayRow />
       {items.length === 0 ? (
         <EmptyState title={t('noneTitle')} description={t('noneBody')} />
       ) : (

@@ -410,6 +410,7 @@ All implemented by Agent H (see docs/cx-report.md). Additions beyond the origina
 | POST | /api/v1/xf-tasks/:id/escalate | `xf-tasks:update` | P7 | IMPLEMENTED (verified: apps/api/test/cx). manual escalation (notifies manager + Team Lead) |
 | GET | /api/v1/collaboration/plan-links | `xf-tasks:view` | P7 | IMPLEMENTED (verified: apps/api/test/cx). campaign / webinar / event / lead-gen plans with planned vs actual intake |
 | POST | /api/v1/collaboration/plan-links | `xf-tasks:create` | P7 | IMPLEMENTED (verified: apps/api/test/cx). create plan link |
+| PATCH | /api/v1/collaboration/plan-links/:id | `xf-tasks:update` | P7 | IMPLEMENTED_UNTESTED. edit plan (title, window, planned leads, sales note, program/campaign/source) or move status PLANNED→ACTIVE→COMPLETED / CANCELLED; closed plans are final (409); audited |
 | GET | /api/v1/cx/insights | `insights:share` | P7 | IMPLEMENTED (verified: apps/api/test/cx). insights shared with my department |
 | POST | /api/v1/cx/insights | `insights:share` | P7 | IMPLEMENTED (verified: apps/api/test/cx). share an insight (minimum data) |
 | GET | /api/v1/cx/settings | `settings:view` | P7 | IMPLEMENTED (verified: apps/api/test/cx). effective CX configuration + defaults |
@@ -584,3 +585,14 @@ Cross-cutting: `Idempotency-Key` header on POST /leads/import, POST /collections
 | PATCH | `/api/v1/workforce/tasks/:id` |
 | POST | `/api/v1/workforce/tasks/:id/transition` |
 | POST | `/api/v1/workforce/tasks/:id/comment` |
+
+## Developer Panel / maintenance mode
+
+State lives in Redis (`<BULLMQ_PREFIX>:devpanel:maintenance`), cached ~2s in memory. It fails OPEN: if Redis is unreachable or the value is malformed, maintenance is treated as OFF and a warning is logged. While ON, a global interceptor answers `503 {code:'MAINTENANCE', message, details:{eta}}` plus `Retry-After` to authenticated callers without `devpanel:access`. Always allowed: `/health`, `/health/ready`, `/ready`, `/metrics`, `/auth/{login,logout,me,csrf,sessions/revoke,password/forgot,password/reset,invite/accept}`, `/maintenance/status`, and inbound provider webhooks (`/integrations/telephony/webhook`, `/integrations/webhooks/:provider`; blocking them would lose events). The list is in `apps/api/src/modules/devpanel/maintenance/maintenance.guard-logic.ts`.
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/api/v1/dev-panel/maintenance` | `devpanel:access` | `{enabled, message, eta, enabledAt, enabledBy:{id,name}}` |
+| POST | `/api/v1/dev-panel/maintenance/enable` | `devpanel:access` + `devpanel:maintenance:manage` | body `{message (3-300), eta? (future ISO)}`; idempotent (re-enable updates message); audit `devpanel.maintenance_enabled` |
+| POST | `/api/v1/dev-panel/maintenance/disable` | same | audit `devpanel.maintenance_disabled` |
+| GET | `/api/v1/maintenance/status` | public, rate limited | `{enabled, message, eta}` only, no actor info |

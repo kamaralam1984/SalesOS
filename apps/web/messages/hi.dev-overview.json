@@ -1,0 +1,82 @@
+{
+  "developer": {
+    "overview": {
+      "lastUpdated": "अंतिम अपडेट {time}",
+      "autoRefresh": "हर 20 सेकंड में अपने आप रीफ़्रेश होता है।",
+      "refresh": "अभी रीफ़्रेश करें",
+      "health": "सिस्टम की स्थिति",
+      "overall": {
+        "ok": "सभी सिस्टम सामान्य हैं",
+        "degraded": "प्रदर्शन घटा है: ध्यान देना ज़रूरी है",
+        "down": "एक मुख्य सेवा बंद है"
+      },
+      "probe": "{ms} मि.से. में जाँचा गया",
+      "outboxValue": "{pending} लंबित, {dead} विफल",
+      "lockedNow": "अभी लॉक खाते",
+      "perRole": "भूमिका के अनुसार सक्रिय उपयोगकर्ता",
+      "alerts": {
+        "title": "अलर्ट, पिछले 24 घंटे",
+        "description": "पिछले {hours} घंटों के ऑडिट लॉग और लाइव हेल्थ जाँच से।",
+        "none": "कोई अलर्ट नहीं। किसी चीज़ पर ध्यान देने की ज़रूरत नहीं।",
+        "severity": {
+          "critical": "गंभीर",
+          "warning": "चेतावनी",
+          "info": "सूचना"
+        },
+        "items": {
+          "databaseDown": "डेटाबेस जवाब नहीं दे रहा",
+          "redisDown": "Redis जवाब नहीं दे रहा",
+          "workerStale": "बैकग्राउंड वर्कर ने हार्टबीट भेजना बंद कर दिया है",
+          "workerUnknown": "बैकग्राउंड वर्कर का कोई हार्टबीट नहीं मिला",
+          "deadOutbox": "आउटबॉक्स में {count, plural, one {# इवेंट} other {# इवेंट}} स्थायी रूप से विफल हुए",
+          "outboxBacklog": "आउटबॉक्स में {count, plural, one {# इवेंट} other {# इवेंट}} बहुत देर से प्रतीक्षा में हैं",
+          "lockouts": "गलत लॉगिन के बाद {count, plural, one {# खाता} other {# खाते}} लॉक हुए",
+          "failedLogins": "{count} लॉगिन प्रयास विफल रहे",
+          "forceLogouts": "डेवलपर द्वारा {count, plural, one {# सेशन रद्द या फ़ोर्स-लॉगआउट} other {# सेशन रद्द या फ़ोर्स-लॉगआउट}}",
+          "roleChanges": "डेवलपर पैनल में {count, plural, one {# भूमिका बदलाव} other {# भूमिका बदलाव}}"
+        }
+      },
+      "counters": {
+        "failedLogins": "विफल लॉगिन",
+        "accountLockouts": "खाता लॉक",
+        "forceLogouts": "फ़ोर्स-लॉगआउट",
+        "roleChanges": "भूमिका बदलाव"
+      },
+      "integrations": {
+        "title": "इंटीग्रेशन",
+        "empty": "अभी कोई इंटीग्रेशन सेट नहीं किया गया है।",
+        "lastSuccess": "अंतिम सफलता {time}",
+        "noSuccess": "कोई सफलता दर्ज नहीं (7 दिन)",
+        "lastFailure": "अंतिम विफलता {time}",
+        "noFailure": "कोई विफलता नहीं (7 दिन)",
+        "state": {
+          "not_configured": "कॉन्फ़िगर नहीं",
+          "blocked": "अवरुद्ध",
+          "disabled": "बंद",
+          "healthy": "स्वस्थ",
+          "degraded": "प्रदर्शन घटा",
+          "unknown": "अभी हेल्थ जाँच नहीं हुई"
+        }
+      },
+      "backup": {
+        "title": "अंतिम बैकअप",
+        "status": {
+          "OK": "अद्यतन",
+          "STALE": "पुराना",
+          "MISSING": "कोई बैकअप नहीं मिला",
+          "UNKNOWN": "अज्ञात"
+        },
+        "last": "अंतिम बैकअप {time} ({hours} घंटे पहले)",
+        "checksumYes": "चेकसम फ़ाइल मौजूद है।",
+        "checksumNo": "बैकअप के साथ कोई चेकसम फ़ाइल नहीं है।",
+        "threshold": "{hours} घंटे से पुराना बैकअप पुराना (stale) माना जाता है।",
+        "reason": {
+          "BACKUP_DIR_NOT_SET": "जाँच संभव नहीं: सर्वर पर बैकअप फ़ोल्डर (BACKUP_DIR) सेट नहीं है।",
+          "BACKUP_DIR_UNREADABLE": "जाँच संभव नहीं: बैकअप फ़ोल्डर पढ़ा नहीं जा सका।",
+          "NO_BACKUP_FILES": "बैकअप फ़ोल्डर में कोई डंप फ़ाइल नहीं है।"
+        }
+      }
+    },
+    "workspaceLink": "वर्कस्पेस होम खोलें"
+  }
+}

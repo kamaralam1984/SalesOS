@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { anonymous, buildOrgFixture, createTestApp, loginAgent, type OrgFixture, type TestApp, type AuthedAgent } from './helpers';
 import { listRoutes } from './helpers/routes';
 import { WORKFORCE_CASES } from './workforce/cases';
+import { DEVPANEL_CASES } from './devpanel/cases';
 
 type Who = 'execA1' | 'managerA' | 'hr' | 'finance' | 'admin';
 interface Case {
@@ -30,6 +31,12 @@ const BASE_CASES: Case[] = [
   { route: 'POST /users/:id/invite-link', deniedUser: 'managerA', body: {} },
   { route: 'POST /users/:id/reactivate', deniedUser: 'managerA', body: {} },
   { route: 'POST /users/:id/roles', deniedUser: 'managerA', body: { roles: ['SALES_MANAGER'] } },
+  { route: 'GET /dev-panel/overview', deniedUser: 'admin' },
+  { route: 'GET /dev-panel/users', deniedUser: 'admin' },
+  { route: 'POST /dev-panel/users/:id/roles', deniedUser: 'admin', body: { roles: ['ADMIN'] } },
+  { route: 'POST /dev-panel/users/:id/revoke-sessions', deniedUser: 'admin', body: {} },
+  { route: 'POST /dev-panel/sessions/force-logout-all', deniedUser: 'admin', body: { reason: 'negative test' } },
+  { route: 'GET /dev-panel/server', deniedUser: 'admin' },
   { route: 'GET /teams', deniedUser: 'finance' },
   { route: 'POST /teams', deniedUser: 'execA1', body: { name: 'neg team' } },
   { route: 'GET /teams/:id', deniedUser: 'finance' },
@@ -339,6 +346,7 @@ const BASE_CASES: Case[] = [
   { route: 'POST /xf-tasks/:id/escalate', deniedUser: 'execA1', body: {"reason": "neg reason"} },
   { route: 'GET /collaboration/plan-links', deniedUser: 'finance' },
   { route: 'POST /collaboration/plan-links', deniedUser: 'execA1', body: {"kind": "LEAD_GEN", "title": "neg plan", "windowStart": "2099-01-01T00:00:00Z", "windowEnd": "2099-02-01T00:00:00Z"} },
+  { route: 'PATCH /collaboration/plan-links/:id', deniedUser: 'execA1', body: {"status": "ACTIVE"} },
   { route: 'GET /cx/insights', deniedUser: 'finance' },
   { route: 'POST /cx/insights', deniedUser: 'finance', body: {"title": "neg insight", "body": "neg body"} },
   // ---- revenue (Phase 4, Agent G) ----
@@ -441,7 +449,7 @@ const BASE_CASES: Case[] = [
   { route: 'POST /reports/saved-filters', deniedUser: 'finance', body: { name: 'neg', target: 'funnel', filters: {} } },
   { route: 'DELETE /reports/saved-filters/:id', deniedUser: 'finance' },
 ];
-const CASES: Case[] = [...BASE_CASES, ...WORKFORCE_CASES];
+const CASES: Case[] = [...BASE_CASES, ...WORKFORCE_CASES, ...DEVPANEL_CASES];
 
 let t: TestApp;
 let fx: OrgFixture;

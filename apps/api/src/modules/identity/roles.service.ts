@@ -4,6 +4,7 @@ import { PrismaService } from '../../common/prisma';
 import { PERMISSION_CATALOGUE, grantsForRole } from '../../common/authz/permissions.catalogue';
 
 const ROLE_NAMES: Record<RoleKey, string> = {
+  DEVELOPER: 'Developer (Super Admin)',
   FOUNDER_CEO: 'Founder / CEO',
   SALES_TEAM_LEAD: 'Sales Team Lead',
   SALES_MANAGER: 'Sales Manager',

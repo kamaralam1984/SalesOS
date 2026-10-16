@@ -2,6 +2,7 @@
   "mobileGoal": {
     "title": "45-दिन का लक्ष्य",
     "percentAria": "{pct} प्रतिशत",
+    "subtitle": "अधिक डील बंद करें। तेज़ी से आगे बढ़ें।",
     "dayOf": "दिन {day} / {total}",
     "daysToGo": "{count, plural, =0 {आख़िरी दिन} one {# दिन शेष} other {# दिन शेष}}",
     "empty": "अभी कोई सक्रिय लक्ष्य नहीं है।",

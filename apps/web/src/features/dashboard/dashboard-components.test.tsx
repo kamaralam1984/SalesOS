@@ -137,7 +137,8 @@ describe('FounderDashboard', () => {
     expect(screen.getByRole('status')).toBeInTheDocument(); // loading skeleton first
     expect(await screen.findByRole('heading', { name: 'Revenue vs target' })).toBeInTheDocument();
     expect(h.get).toHaveBeenCalledWith('/dashboard/ceo', expect.objectContaining({ period: 'MONTH' }), expect.anything());
-    expect(screen.getAllByText('70.7%').length).toBeGreaterThan(3);
+    // KPI numbers count up from 0 for ~0.9 s; the final text is always the exact value, so wait for it to settle
+    await waitFor(() => expect(screen.getAllByText('70.7%').length).toBeGreaterThan(3), { timeout: 3000 });
     expect(screen.getByTestId('dashboard-meta').textContent).toMatch(/1 Jul 2026 to 31 Jul 2026 \(IST\)/);
     expect(screen.getAllByText('Open pipeline by stage').length).toBeGreaterThan(0);
     expect(screen.getByText(/2 open deals worth ₹1,40,000/)).toBeInTheDocument();

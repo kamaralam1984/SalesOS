@@ -1,0 +1,112 @@
+{
+  "developer": {
+    "access": {
+      "sections": {
+        "matrix": "Role and permission matrix",
+        "flags": "Feature flags and readiness",
+        "runbook": "Deploy and restart guide"
+      },
+      "scope": {
+        "own": "Own",
+        "team": "Team",
+        "org": "Organisation",
+        "summary": "Summary"
+      },
+      "matrix": {
+        "title": "Role x permission matrix",
+        "description": "Read from the code catalogue. Wider scope wins when a user holds several roles.",
+        "search": "Search permissions",
+        "searchPlaceholder": "e.g. lead:view",
+        "domain": "Domain",
+        "allDomains": "All domains",
+        "role": "Role",
+        "allRoles": "All roles",
+        "sensitiveOnly": "Sensitive only",
+        "showing": "Showing {shown} of {total} permissions",
+        "totals": "Permissions granted per role",
+        "permission": "Permission",
+        "sensitive": "Sensitive",
+        "none": "Not granted",
+        "empty": "No permissions match these filters"
+      },
+      "inspect": {
+        "title": "Inspect a user",
+        "hint": "Shows the effective permissions: the union of the user's roles, widest scope wins.",
+        "search": "Find a user",
+        "placeholder": "Name or email",
+        "results": "Matching users",
+        "noUsers": "No users found",
+        "count": "{count} effective permissions",
+        "sensitive": "Sensitive",
+        "via": "via {roles}",
+        "whyNot": "If a permission is not listed, none of the user's roles grants it (deny by default)."
+      },
+      "flags": {
+        "title": "Feature flags and integration readiness",
+        "description": "Derived from the server environment. Only states are shown, never values.",
+        "environment": "Environment: {env}",
+        "noSecrets": "Secrets, keys and URLs are never displayed.",
+        "empty": "No flags available",
+        "names": {
+          "AI_OPENAI": "OpenAI API key",
+          "AI_GEMINI": "Gemini API key",
+          "AI_ANTHROPIC": "Anthropic API key",
+          "STORAGE_S3": "Object storage (S3/R2)",
+          "STORAGE_ENCRYPTION_KEY": "Platform encryption key",
+          "FILE_SCANNER": "File scanner",
+          "MESSAGING_PROVIDERS": "Email, WhatsApp and SMS providers",
+          "THROTTLE_STORAGE": "Rate-limit store",
+          "TRUST_PROXY": "Trust proxy headers",
+          "API_DOCS": "API documentation (Swagger)",
+          "COOKIE_SAMESITE": "Session cookie SameSite",
+          "METRICS_TOKEN": "Metrics token",
+          "ERROR_REPORTING": "Error reporting (Sentry)",
+          "ANALYTICS_SCHEDULER": "KPI snapshot scheduler",
+          "EXPORT_RUNNER": "Export runner",
+          "DB_AUTO_DDL": "Boot-time database guards"
+        },
+        "groups": {
+          "ai": "AI",
+          "storage": "Storage",
+          "messaging": "Messaging",
+          "security": "Security",
+          "observability": "Observability",
+          "runtime": "Runtime"
+        },
+        "status": {
+          "configured": "Configured",
+          "not configured": "Not configured",
+          "enabled": "Enabled",
+          "disabled": "Disabled",
+          "on": "On",
+          "off": "Off",
+          "redis": "Redis",
+          "memory": "Memory (per process)",
+          "lax": "Lax",
+          "strict": "Strict",
+          "local": "Local (not an antivirus)",
+          "clamd": "ClamAV",
+          "none": "None",
+          "database-managed": "Managed in Admin > Integrations"
+        }
+      },
+      "runbook": {
+        "title": "Deploy and restart guide",
+        "description": "Condensed from the deployment, backup and incident runbooks.",
+        "warnTitle": "Run on the server, not from this panel.",
+        "warnBody": "This panel never restarts, deploys or executes anything. Commands are for copying only. On the shared machine touch only salesos-* names.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyFailed": "Copy failed",
+        "empty": "No guide available",
+        "sections": {
+          "deploy": "Deploy a release",
+          "restart": "Restart a service safely",
+          "backup": "Backup and restore drill",
+          "rollback": "Roll back a bad release",
+          "incident": "Incident: first 15 minutes"
+        }
+      }
+    }
+  }
+}

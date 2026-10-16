@@ -9,6 +9,9 @@ const LANDING: Array<[RoleKey, string]> = [
   ['ADMIN', '/dashboard/admin'],
 ];
 
+/** Landing page of Developer Panel users. `/dashboard?workspace=1` still opens the normal workspace home. */
+export const DEVELOPER_HOME = '/admin/developer';
+
 /**
  * Roles without a dashboard of their own (FINANCE, HR, MARKETING, ...) stay on `/dashboard`, which shows a workspace
  * home with shortcuts to the pages their role may open (no sales KPIs). Without `permissions` (legacy callers) the old
@@ -16,6 +19,8 @@ const LANDING: Array<[RoleKey, string]> = [
  */
 export function landingPathFor(roles: readonly RoleKey[], permissions?: readonly EffectivePermission[]): string {
   for (const [role, path] of LANDING) if (roles.includes(role)) return path;
+  // Developer Panel users (super admin) land on their panel; every other role is unchanged.
+  if (roles.includes('DEVELOPER') || permissions?.some((x) => x.key === 'devpanel:access')) return DEVELOPER_HOME;
   if (!permissions) return '/dashboard/executive';
   return '/dashboard';
 }

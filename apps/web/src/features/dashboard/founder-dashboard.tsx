@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { TodayRow } from './today-row';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, PageHeader, Stat } from '@salesos/ui';
@@ -33,6 +34,7 @@ export function FounderDashboard() {
           </>
         }
       />
+      <TodayRow />
       <AnalyticsFilterBar filters={filters} target="founder" />
       <QueryBoundary q={q}>
         {(d, fetching) => {

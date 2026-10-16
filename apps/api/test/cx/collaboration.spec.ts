@@ -172,6 +172,18 @@ describe('campaign / webinar plan alignment', () => {
     expect((await fx.agents.marketing.post('/collaboration/plan-links').send({ kind: 'CAMPAIGN', title: 'Foreign campaign', campaignId: other.lead.id, windowStart: start, windowEnd: end })).status).toBe(422);
     expect((await fx.agents.execA1.post('/collaboration/plan-links').send({ kind: 'LEAD_GEN', title: 'Exec plan', windowStart: start, windowEnd: end })).status).toBe(403);
     expect((await other.agent.get('/collaboration/plan-links')).body.data).toEqual([]);
+    // plan can be edited, moved through its states, and is final once closed
+    const planId = r.body.data.id as string;
+    const edit = await fx.agents.marketing.patch(`/collaboration/plan-links/${planId}`).send({ plannedLeads: 250, salesPlanNote: 'Three callers on demo follow-up', status: 'ACTIVE' });
+    expect(edit.status, JSON.stringify(edit.body)).toBe(200);
+    expect(edit.body.data.plannedLeads).toBe(250);
+    expect(edit.body.data.status).toBe('ACTIVE');
+    expect((await fx.agents.marketing.patch(`/collaboration/plan-links/${planId}`).send({})).status).toBe(400);
+    expect((await fx.agents.marketing.patch(`/collaboration/plan-links/${planId}`).send({ salesPlanNote: 'call 9876543210' })).status).toBe(422);
+    expect((await fx.agents.marketing.patch(`/collaboration/plan-links/${planId}`).send({ campaignId: other.lead.id })).status).toBe(422);
+    expect((await fx.agents.execA1.patch(`/collaboration/plan-links/${planId}`).send({ status: 'CANCELLED' })).status).toBe(403);
+    expect((await other.agent.patch(`/collaboration/plan-links/${planId}`).send({ status: 'CANCELLED' })).status).toBe(404);
+    expect((await fx.agents.marketing.patch(`/collaboration/plan-links/${planId}`).send({ status: 'PLANNED' })).status).toBe(409);
     // a task can be linked to the plan + event
     const task = await fx.agents.teamLead.post('/xf-tasks').send({ title: 'Webinar run-of-show', department: 'OPERATIONS', ownerId: fx.ops.id, dueAt: future(24), eventId: ev.id, planLinkId: r.body.data.id, kind: 'WEBINAR_PLANNING' });
     expect(task.status, JSON.stringify(task.body)).toBe(201);

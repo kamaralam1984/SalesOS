@@ -1,0 +1,31 @@
+{
+  "dashAttendance": {
+    "title": "आज की उपस्थिति",
+    "open": "उपस्थिति खोलें",
+    "retry": "फिर कोशिश करें",
+    "loadError": "आज की उपस्थिति लोड नहीं हो सकी।",
+    "actionError": "यह पूरा नहीं हो सका। कृपया फिर कोशिश करें।",
+    "checkInOffice": "चेक-इन (ऑफिस)",
+    "checkInWfh": "चेक-इन (घर से)",
+    "checkOut": "चेक-आउट",
+    "checkedInAt": "{time} बजे चेक-इन किया",
+    "checkedOutAt": "{time} बजे चेक-आउट किया",
+    "checkInCloses": "चेक-इन {time} IST पर बंद होगा",
+    "checkInClosed": "चेक-इन {time} IST पर बंद हो गया। HR या अपने मैनेजर से कहें।",
+    "joinMeeting": "Zoom मीटिंग में जुड़ें",
+    "meetingHost": "{host} नए टैब में खुलेगा",
+    "selfDisabled": "स्वयं चेक-इन बंद है। HR या अपने मैनेजर से कहें।",
+    "status": {
+      "NOT_CHECKED_IN": "चेक-इन नहीं किया",
+      "PRESENT": "उपस्थित",
+      "LATE": "देरी से",
+      "WFH": "घर से काम",
+      "HALF_DAY": "आधा दिन",
+      "HOLIDAY": "छुट्टी",
+      "WEEKLY_OFF": "साप्ताहिक अवकाश",
+      "ON_LEAVE": "अवकाश पर",
+      "ABSENT": "अनुपस्थित",
+      "UNPAID_LEAVE": "बिना वेतन अवकाश"
+    }
+  }
+}

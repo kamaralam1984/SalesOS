@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { TodayRow } from './today-row';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, PageHeader, Stat } from '@salesos/ui';
@@ -25,6 +26,7 @@ export function TeamLeadDashboard() {
   return (
     <>
       <PageHeader eyebrow={t('eyebrow')} title={t('title')} description={t('description')} actions={<ExportButtons report="team-performance" params={filters.query} />} />
+      <TodayRow />
       <AnalyticsFilterBar filters={filters} target="team-lead" />
       <QueryBoundary q={q}>
         {(d, fetching) => {

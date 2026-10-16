@@ -18,8 +18,10 @@ export interface XfTask {
 }
 
 export interface PlanLink {
-  id: string; kind: 'CAMPAIGN' | 'WEBINAR' | 'EVENT' | 'LEAD_GEN'; title: string; programName: string | null; event: { id: string; title: string; startsAt: string; status: string; type: string } | null;
+  id: string; kind: 'CAMPAIGN' | 'WEBINAR' | 'EVENT' | 'LEAD_GEN'; title: string; programId: string | null; campaignId: string | null; sourceId: string | null; programName: string | null; event: { id: string; title: string; startsAt: string; status: string; type: string } | null;
   windowStart: string; windowEnd: string; plannedLeads: number | null; actualLeads: number | null; salesPlanNote: string | null; status: string; attendance: Record<string, number>; ownerName: string | null; createdByName: string | null;
 }
+
+export type PlanStatus = 'PLANNED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
 
 export interface Insight { id: string; kind: string; title: string; body: string; tags: string[]; audience: string[]; programId: string | null; authorName: string | null; createdAt: string }

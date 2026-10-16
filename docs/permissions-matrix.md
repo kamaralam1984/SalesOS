@@ -262,6 +262,26 @@ Columns: F=FOUNDER_CEO, TL=SALES_TEAM_LEAD, MG=SALES_MANAGER, EX=SALES_EXECUTIVE
 | `payroll:run:mark-paid` | Record that an approved run was paid externally (payout reference); SalesOS never moves money | - | - | - | - | - | org | - | - | - | - | - |
 | `payroll:payslip:view` | View own payslips | own | own | own | own | own | own | own | own | own | own | own |
 
+## devpanel - Developer Panel (super-admin, outside the business hierarchy)
+
+`DEVELOPER` is a primary role that sits above FOUNDER_CEO for platform control only. It holds no CRM, revenue, HR or finance permissions (deny-by-default). Only a DEVELOPER can grant or remove roles via the panel, including DEVELOPER itself; the normal Users API refuses to assign or modify DEVELOPER accounts. Guards: no self role changes, one primary role, the last active Founder/Developer cannot be removed. Every action is audited (`devpanel.*`). Server view is read-only; no shell or process control is exposed (docs/deployment-runbook.md owns that).
+
+| Permission key | Action | DEVELOPER |
+|---|---|---|
+| `devpanel:access` | Open the Developer Panel | org |
+| `devpanel:roles:manage` | Grant/remove any role (except DEVELOPER) for any user | org |
+| `devpanel:developer:assign` | Grant/remove the DEVELOPER role | org |
+| `devpanel:sessions:revoke` | Revoke one user's sessions or force-logout everyone | org |
+| `devpanel:server:view` | View server, database, Redis, worker and queue health | org |
+| `devpanel:diagnostics:view` | View diagnostics: health latency, failed jobs, errors, migrations, build info | org |
+| `devpanel:jobs:manage` | Retry or discard failed background jobs | org |
+| `devpanel:security:view` | View live sessions, login history and locked accounts | org |
+| `devpanel:security:manage` | Kill a session, unlock an account, issue a password-reset link | org |
+| `devpanel:config:view` | View feature flags, integrations/backup status and the role matrix | org |
+| `devpanel:maintenance:manage` | Turn maintenance mode on or off | org |
+
+Also granted to DEVELOPER: `auth:login`, `auth:me:view`, `auth:session:revoke-own`, `audit:view` (org).
+
 ## Action coverage (view/create/update/delete/export/approve)
 
 | Module | view | create | update | delete | export | approve |
@@ -1390,7 +1410,18 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
   "payroll:run:manage",
   "payroll:run:approve",
   "payroll:run:mark-paid",
-  "payroll:payslip:view"
+  "payroll:payslip:view",
+  "devpanel:access",
+  "devpanel:roles:manage",
+  "devpanel:developer:assign",
+  "devpanel:sessions:revoke",
+  "devpanel:server:view",
+  "devpanel:diagnostics:view",
+  "devpanel:jobs:manage",
+  "devpanel:security:view",
+  "devpanel:security:manage",
+  "devpanel:config:view",
+  "devpanel:maintenance:manage"
  ]
 }
 ```

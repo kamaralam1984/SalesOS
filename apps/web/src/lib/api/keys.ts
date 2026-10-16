@@ -13,6 +13,12 @@ export const qk = {
   },
   audit: { list: (q: object) => ['audit', 'list', q] as const },
   crm: { all: ['crm'] as const },
+  devpanel: {
+    all: ['devpanel'] as const,
+    users: (q: object) => ['devpanel', 'users', q] as const,
+    overview: ['devpanel', 'overview'] as const,
+    server: ['devpanel', 'server'] as const,
+  },
   orgSettings: ['org', 'settings'] as const,
   permissionCatalogue: ['permissions', 'catalogue'] as const,
 };

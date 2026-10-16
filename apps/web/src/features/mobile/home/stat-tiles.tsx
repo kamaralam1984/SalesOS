@@ -2,11 +2,13 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
-import { Phone, RotateCw, Users } from 'lucide-react';
-import { Button, Skeleton } from '@salesos/ui';
+import { CalendarDays, Phone, Users } from 'lucide-react';
+import { Skeleton } from '@salesos/ui';
+import { useAuth } from '@/features/auth/auth-provider';
 import { CountUp } from '@/components/shell/motion';
 import { useDashboard } from '@/lib/api/hooks/analytics';
 import { useLeads, useWorkspace } from '@/lib/api/hooks/crm';
+import { useIsCallTeam } from '../call-team';
 
 const CALL_KPI = 'KPI-PRD-006';
 const DASH = '—';
@@ -33,14 +35,14 @@ function Tile({ href, label, icon, loading, value, locale, index }: TileProps) {
       href={href}
       aria-label={value === null ? label : `${label}: ${text}`}
       style={{ '--enter-delay': `${index * 70}ms` } as React.CSSProperties}
-      className="enter-up glow-hover hover-lift flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border border-gold-300/50 bg-surface p-3 text-center focus-visible:outline-2 focus-visible:outline-focus"
+      className="enter-up glow-hover hover-lift flex min-h-[7.5rem] flex-col items-start justify-start gap-2 rounded-2xl border border-gold-400/40 bg-surface p-3 shadow-sm text-left focus-visible:outline-2 focus-visible:outline-focus"
     >
-      <span className="inline-flex size-9 items-center justify-center rounded-full border border-gold-400/70 text-gold-500">{icon}</span>
-      <span className="text-xs font-medium text-muted">{label}</span>
+      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-gold-500/70 bg-transparent text-gold-700">{icon}</span>
+      <span className="mt-1 text-[0.8125rem] leading-tight font-medium text-ink-700">{label}</span>
       {loading ? (
         <Skeleton className="h-7 w-10" />
       ) : (
-        <span className="kpi-number enter-fade tabular font-display text-2xl leading-none font-semibold text-ink">
+        <span className="kpi-number enter-fade tabular font-display mt-auto text-[1.75rem] leading-none font-bold text-ink">
           {value === null ? DASH : <CountUp text={text} locale={locale} />}
         </span>
       )}
@@ -48,43 +50,49 @@ function Tile({ href, label, icon, loading, value, locale, index }: TileProps) {
   );
 }
 
-/** My Leads, Calls Today and Follow-ups, each from an existing real endpoint; unavailable numbers show an em dash. */
+function LeadsTile({ locale, index }: { locale: string; index: number }) {
+  const t = useTranslations('mobileStats');
+  const q = useLeads({ mine: true, page: 1, limit: 1 });
+  return <Tile index={index} href="/m/leads" label={t('leads')} icon={<Users aria-hidden="true" className="size-[1.125rem]" />} loading={q.isPending} value={q.data?.pagination?.total ?? null} locale={locale} />;
+}
+
+function CallsTile({ locale, index }: { locale: string; index: number }) {
+  const t = useTranslations('mobileStats');
+  const today = React.useMemo(() => istToday(), []);
+  const q = useDashboard('salesperson', { from: today, to: today, asOf: today });
+  const kpi = q.data?.kpis[CALL_KPI];
+  const raw = kpi && kpi.status === 'OK' && kpi.value !== null ? Number(kpi.value) : null;
+  const value = raw !== null && Number.isFinite(raw) ? raw : null;
+  return <Tile index={index} href="/m/calls" label={t('calls')} icon={<Phone aria-hidden="true" className="size-[1.125rem]" />} loading={q.isPending} value={value} locale={locale} />;
+}
+
+function FollowUpsTile({ locale, index }: { locale: string; index: number }) {
+  const t = useTranslations('mobileStats');
+  const q = useWorkspace();
+  return <Tile index={index} href="/m/calls" label={t('followUps')} icon={<CalendarDays aria-hidden="true" className="size-[1.125rem]" />} loading={q.isPending} value={q.data?.counts.tasksToday ?? null} locale={locale} />;
+}
+
+/** Only the tiles this role may use; each tile owns its hook, so no request is made for a hidden tile. */
 export function StatTiles() {
   const t = useTranslations('mobileStats');
   const lc = useLocale();
-  const today = React.useMemo(() => istToday(), []);
-  const leads = useLeads({ mine: true, page: 1, limit: 1 });
-  const workspace = useWorkspace();
-  const dash = useDashboard('salesperson', { from: today, to: today, asOf: today });
-
-  const leadsValue = leads.data?.pagination?.total ?? null;
-  const callKpi = dash.data?.kpis[CALL_KPI];
-  const callsRaw = callKpi && callKpi.status === 'OK' && callKpi.value !== null ? Number(callKpi.value) : null;
-  const callsValue = callsRaw !== null && Number.isFinite(callsRaw) ? callsRaw : null;
-  const followValue = workspace.data?.counts.tasksToday ?? null;
-
-  const failed = leads.isError || workspace.isError || dash.isError;
-  const retry = () => {
-    if (leads.isError) void leads.refetch();
-    if (workspace.isError) void workspace.refetch();
-    if (dash.isError) void dash.refetch();
-  };
-
+  const { can } = useAuth();
+  const callTeam = useIsCallTeam();
+  const show = [
+    can('leads:view') ? LeadsTile : null,
+    // Calls Today and Follow-ups belong to the call team (sales team / telecallers) only
+    callTeam && can('dashboard:salesperson:view') ? CallsTile : null,
+    callTeam && can('tasks:view') ? FollowUpsTile : null,
+  ].filter((x): x is typeof LeadsTile => x !== null);
+  if (show.length === 0) return null;
   return (
     <section aria-label={t('title')} data-testid="mobile-stat-tiles">
-      <div className="grid grid-cols-3 gap-3">
-        <Tile index={0} href="/m/leads" label={t('leads')} icon={<Users aria-hidden="true" className="size-[1.125rem]" />} loading={leads.isPending} value={leadsValue} locale={lc} />
-        <Tile index={1} href="/m/calls" label={t('calls')} icon={<Phone aria-hidden="true" className="size-[1.125rem]" />} loading={dash.isPending} value={callsValue} locale={lc} />
-        <Tile index={2} href="/m/calls" label={t('followUps')} icon={<RotateCw aria-hidden="true" className="size-[1.125rem]" />} loading={workspace.isPending} value={followValue} locale={lc} />
+      {/* always 3 columns so one or two tiles stay compact like the reference instead of stretching full width */}
+      <div className="grid grid-cols-3 items-stretch gap-2.5">
+        {show.map((C, i) => (
+          <C key={C.name} locale={lc} index={i} />
+        ))}
       </div>
-      {failed && (
-        <div role="alert" className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-3 py-2 text-sm text-muted">
-          <span>{t('error')}</span>
-          <Button size="sm" variant="ghost" onClick={retry}>
-            {t('retry')}
-          </Button>
-        </div>
-      )}
     </section>
   );
 }

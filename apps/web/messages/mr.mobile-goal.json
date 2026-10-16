@@ -2,6 +2,7 @@
   "mobileGoal": {
     "title": "45-दिवसांचे ध्येय",
     "percentAria": "{pct} टक्के",
+    "subtitle": "अधिक डील बंद करा. वेगाने पुढे जा.",
     "dayOf": "दिवस {day} / {total}",
     "daysToGo": "{count, plural, =0 {शेवटचा दिवस} one {# दिवस बाकी} other {# दिवस बाकी}}",
     "empty": "सध्या कोणतेही सक्रिय ध्येय नाही.",

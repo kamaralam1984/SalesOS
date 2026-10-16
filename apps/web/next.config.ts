@@ -12,6 +12,8 @@ const config: NextConfig = {
   reactStrictMode: true,
   // Dev only: allow opening the dev server from a phone on the same Wi-Fi (LAN IP).
   allowedDevOrigins: ['192.168.0.197', '192.168.1.105'],
+  // Dev only: hide the floating Next.js "N" indicator (it covers the mobile bottom nav on phones).
+  devIndicators: false,
   poweredByHeader: false,
   transpilePackages: ['@salesos/ui'],
   typedRoutes: false,

@@ -1,0 +1,89 @@
+{
+  "developer": {
+    "diagnostics": {
+      "health": {
+        "title": "Live health",
+        "description": "Median of 5 quick probes. Refreshes every 15 seconds.",
+        "refresh": "Refresh",
+        "checked": "Checked at {time}",
+        "database": "Database",
+        "redis": "Redis",
+        "worker": "Background worker",
+        "outbox": "Outbox backlog",
+        "ms": "ms",
+        "noReading": "No reading",
+        "thresholds": "Slow from {slow} ms, down from {down} ms",
+        "noHeartbeat": "No heartbeat seen",
+        "heartbeat": "Last heartbeat {seconds}s ago",
+        "instances": "{count, plural, one {# instance} other {# instances}}",
+        "pending": "Pending",
+        "dead": "Dead",
+        "oldest": "Oldest due event: {seconds}s",
+        "auto": "Latency is measured from the API process, not from your browser.",
+        "verdict": {
+          "ok": "OK",
+          "slow": "Slow",
+          "down": "Down",
+          "unknown": "Unknown"
+        }
+      },
+      "jobs": {
+        "title": "Failed background jobs",
+        "description": "Outbox events that ran out of retries. Error text is shortened and scrubbed.",
+        "total": "{count, plural, one {# dead job} other {# dead jobs}}",
+        "empty": "No failed jobs. Everything is flowing.",
+        "meta": "{aggregate} · {attempts} attempts · {time}",
+        "noError": "No error text recorded",
+        "retry": "Retry",
+        "retryDone": "Job queued for retry",
+        "retryAll": "Retry all",
+        "retryAllTitle": "Retry all failed jobs?",
+        "retryAllBody": "Up to 200 dead jobs go back to the queue with a fresh attempt count. This is recorded in the audit log.",
+        "retryAllDone": "{count, plural, one {# job queued for retry} other {# jobs queued for retry}}",
+        "discard": "Discard",
+        "discardTitle": "Discard this job?",
+        "discardBody": "The job will not be delivered. The row is kept and the reason is audited.",
+        "reason": "Reason",
+        "discardDone": "Job discarded",
+        "loadMore": "Load more"
+      },
+      "errors": {
+        "title": "Errors and slow requests",
+        "description": "Recent server errors (5xx) and slow requests. Only method, route, status and timing are kept.",
+        "filter": "Show",
+        "all": "All",
+        "error": "Server errors",
+        "slow": "Slow requests",
+        "refresh": "Refresh",
+        "scope": "Held in this process memory only: it resets when the API restarts and covers only this instance. Capturing since {since}. Keeps the last {size} entries; slow means {slow} ms or more.",
+        "empty": "Nothing captured yet.",
+        "time": "Time",
+        "request": "Request",
+        "status": "Status",
+        "duration": "Duration",
+        "requestId": "Request ID",
+        "ms": "ms"
+      },
+      "migrations": {
+        "title": "Database migrations",
+        "unavailable": "Migration history is not available here. This database was probably created with prisma db push instead of migrate deploy.",
+        "problems": "{count, plural, one {# migration is unfinished or rolled back} other {# migrations are unfinished or rolled back}}. Investigate before deploying.",
+        "count": "{count, plural, one {# migration recorded} other {# migrations recorded}}",
+        "applied": "Applied",
+        "unfinished": "Unfinished",
+        "rolled_back": "Rolled back"
+      },
+      "build": {
+        "title": "Build and runtime",
+        "version": "App version",
+        "commit": "Git commit",
+        "buildTime": "Build time",
+        "node": "Node.js",
+        "env": "Environment",
+        "uptime": "Process uptime",
+        "platform": "Platform",
+        "unknown": "Not set"
+      }
+    }
+  }
+}

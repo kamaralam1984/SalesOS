@@ -7,6 +7,8 @@ import { PERMISSION_CATALOGUE } from '../src/common/authz/permissions.catalogue'
 const COLS = ['FOUNDER_CEO', 'SALES_TEAM_LEAD', 'SALES_MANAGER', 'SALES_EXECUTIVE', 'ADMIN', 'FINANCE', 'HR', 'MARKETING', 'COMMUNITY', 'OPERATIONS', 'STUDENT_SUCCESS'];
 /** Keys that intentionally exist only in code (none: every key has a row in the tables). */
 const CODE_ONLY = new Set<string>();
+/** DEVELOPER (super-admin) has its own section in the matrix doc; the 11-column tables cover the business roles only. */
+const withoutDeveloper = (g: Record<string, string>) => Object.fromEntries(Object.entries(g).filter(([r]) => r !== 'DEVELOPER'));
 
 function parseMatrix() {
   const file = path.resolve(__dirname, '../../../docs/permissions-matrix.md');
@@ -31,19 +33,26 @@ describe('permission catalogue stays in sync with docs/permissions-matrix.md', (
     for (const [key, grants] of matrix) {
       const code = byKey.get(key);
       if (!code) { diffs.push(`${key}: missing in code`); continue; }
-      if (JSON.stringify(Object.entries(code.grants).sort()) !== JSON.stringify(Object.entries(grants).sort())) {
+      if (JSON.stringify(Object.entries(withoutDeveloper(code.grants as Record<string, string>)).sort()) !== JSON.stringify(Object.entries(grants).sort())) {
         diffs.push(`${key}: code=${JSON.stringify(code.grants)} matrix=${JSON.stringify(grants)}`);
       }
     }
     expect(diffs, diffs.join('\n')).toEqual([]);
   });
   it('code has no keys absent from the matrix (except documented tightenings)', () => {
-    const extra = PERMISSION_CATALOGUE.map((p) => p.key as string).filter((k) => !matrix.has(k) && !CODE_ONLY.has(k));
+    const extra = PERMISSION_CATALOGUE.filter((p) => p.domain !== 'devpanel').map((p) => p.key as string).filter((k) => !matrix.has(k) && !CODE_ONLY.has(k));
     expect(extra).toEqual([]);
   });
   it('ADMIN never holds a sensitive (HR / payments / incentives / refunds) permission', () => {
     const bad = PERMISSION_CATALOGUE.filter((p) => p.sensitive && p.grants.ADMIN).map((p) => p.key);
     expect(bad).toEqual([]);
+  });
+  it('only DEVELOPER holds devpanel permissions, and the doc lists them', () => {
+    const md = fs.readFileSync(path.resolve(__dirname, '../../../docs/permissions-matrix.md'), 'utf8');
+    for (const p of PERMISSION_CATALOGUE.filter((x) => x.domain === 'devpanel')) {
+      expect(Object.keys(p.grants), p.key).toEqual(['DEVELOPER']);
+      expect(md.includes(`\`${p.key}\``), p.key).toBe(true);
+    }
   });
   it('the machine-readable per-role appendix is regenerated from the catalogue (run pnpm --filter @salesos/api permissions:matrix)', () => {
     const file = path.resolve(__dirname, '../../../docs/permissions-matrix.md');

@@ -1,0 +1,82 @@
+{
+  "developer": {
+    "overview": {
+      "lastUpdated": "Last updated {time}",
+      "autoRefresh": "Refreshes automatically every 20 seconds.",
+      "refresh": "Refresh now",
+      "health": "System health",
+      "overall": {
+        "ok": "All systems operational",
+        "degraded": "Degraded: needs attention",
+        "down": "A core service is down"
+      },
+      "probe": "Checked in {ms} ms",
+      "outboxValue": "{pending} pending, {dead} dead",
+      "lockedNow": "Locked accounts now",
+      "perRole": "Active users per role",
+      "alerts": {
+        "title": "Alerts, last 24 hours",
+        "description": "From the audit log and live health checks over the last {hours} hours.",
+        "none": "No alerts. Nothing needs attention.",
+        "severity": {
+          "critical": "Critical",
+          "warning": "Warning",
+          "info": "Notice"
+        },
+        "items": {
+          "databaseDown": "The database is not responding",
+          "redisDown": "Redis is not responding",
+          "workerStale": "The background worker has stopped sending heartbeats",
+          "workerUnknown": "No background worker heartbeat found",
+          "deadOutbox": "{count, plural, one {# event} other {# events}} failed permanently in the outbox",
+          "outboxBacklog": "{count, plural, one {# event} other {# events}} waiting in the outbox for too long",
+          "lockouts": "{count, plural, one {# account was} other {# accounts were}} locked after failed logins",
+          "failedLogins": "{count} failed login attempts",
+          "forceLogouts": "{count, plural, one {# session revoke or force-logout} other {# session revokes or force-logouts}} by a developer",
+          "roleChanges": "{count, plural, one {# role change} other {# role changes}} made in the Developer Panel"
+        }
+      },
+      "counters": {
+        "failedLogins": "Failed logins",
+        "accountLockouts": "Lockouts",
+        "forceLogouts": "Force-logouts",
+        "roleChanges": "Role changes"
+      },
+      "integrations": {
+        "title": "Integrations",
+        "empty": "No integration has been set up yet.",
+        "lastSuccess": "Last success {time}",
+        "noSuccess": "No success recorded (7 days)",
+        "lastFailure": "last failure {time}",
+        "noFailure": "no failures (7 days)",
+        "state": {
+          "not_configured": "Not configured",
+          "blocked": "Blocked",
+          "disabled": "Disabled",
+          "healthy": "Healthy",
+          "degraded": "Degraded",
+          "unknown": "No health check yet"
+        }
+      },
+      "backup": {
+        "title": "Last backup",
+        "status": {
+          "OK": "Up to date",
+          "STALE": "Stale",
+          "MISSING": "No backup found",
+          "UNKNOWN": "Unknown"
+        },
+        "last": "Last backup {time} ({hours} h ago)",
+        "checksumYes": "A checksum file is present.",
+        "checksumNo": "No checksum file next to the backup.",
+        "threshold": "A backup older than {hours} hours is reported as stale.",
+        "reason": {
+          "BACKUP_DIR_NOT_SET": "Cannot be verified: the server has no backup folder configured (BACKUP_DIR).",
+          "BACKUP_DIR_UNREADABLE": "Cannot be verified: the backup folder could not be read.",
+          "NO_BACKUP_FILES": "The backup folder contains no dump files."
+        }
+      }
+    },
+    "workspaceLink": "Open workspace home"
+  }
+}

@@ -1,11 +1,19 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import en from '../../../messages/en.json';
-import hi from '../../../messages/hi.json';
-import mr from '../../../messages/mr.json';
+import enBase from '../../../messages/en.json';
+import hiBase from '../../../messages/hi.json';
+import mrBase from '../../../messages/mr.json';
+import { MESSAGE_AREAS, mergeMessages } from '../../i18n/merge';
 
 type Tree = { [k: string]: string | Tree };
+// domain files messages/<locale>.<area>.json are merged over the base exactly like the runtime does
+const areaFiles = import.meta.glob('../../../messages/*.*.json', { eager: true, import: 'default' }) as Record<string, Tree>;
+const withAreas = (locale: string, base: unknown): Tree =>
+  mergeMessages(base as Tree, ...MESSAGE_AREAS.map((a) => areaFiles[`../../../messages/${locale}.${a}.json`] ?? {}));
+const en = withAreas('en', enBase);
+const hi = withAreas('hi', hiBase);
+const mr = withAreas('mr', mrBase);
 const get = (t: Tree, p: string): string | undefined => {
   let cur: string | Tree | undefined = t;
   for (const k of p.split('.')) {

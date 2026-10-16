@@ -156,9 +156,11 @@
     "reportingFounder": "Founder report data",
     "reportingReconciliation": "Data reconciliation",
     "reportingKpis": "KPI dictionary",
-    "reportingExports": "My exports"
+    "reportingExports": "My exports",
+    "adminDeveloper": "Developer Panel"
   },
   "roles": {
+    "DEVELOPER": "Developer (Super Admin)",
     "FOUNDER_CEO": "Founder / CEO",
     "SALES_TEAM_LEAD": "Sales Team Lead",
     "SALES_MANAGER": "Sales Manager",
@@ -303,7 +305,8 @@
       "adminTeams": "Organise executives under managers and manage memberships.",
       "adminSettings": "Team size guidance, timezone, currency and session security.",
       "adminAudit": "Review who did what and when. Append-only history.",
-      "adminRoles": "See which roles hold which permissions and at what scope."
+      "adminRoles": "See which roles hold which permissions and at what scope.",
+      "adminDeveloper": "Super-admin control: assign or remove any role, end sessions and watch server health."
     },
     "users": {
       "eyebrow": "Administration",
@@ -663,7 +666,7 @@
       "webhookSecret": "Webhook signing secret",
       "webhookHint": "At least 16 characters. Stored encrypted. Used to verify the signature of incoming provider callbacks.",
       "webhookUrl": "Callback URL",
-      "signatureFormat": "Header X-Signature: t=<unix seconds>,v1=<HMAC-SHA256 of \"t.body\">. Requests older than 5 minutes or repeated event ids are rejected.",
+      "signatureFormat": "Header X-Signature: t=UNIX_SECONDS,v1=HMAC_SHA256 of \"t.body\". Requests older than 5 minutes or repeated event ids are rejected.",
       "clearSecret": "Remove secret",
       "clearWebhookSecret": "Remove webhook secret",
       "colWhen": "Created",
@@ -4150,7 +4153,24 @@
       "plannedLeads": "Planned leads",
       "salesNote": "Sales plan note",
       "salesNoteHint": "How Sales will follow up",
-      "create": "Create plan"
+      "create": "Create plan",
+      "program": "Program",
+      "campaign": "Campaign",
+      "source": "Lead source",
+      "refHint": "Link a program, campaign or lead source so \"Leads so far\" can be counted. Without one, actual intake cannot be measured.",
+      "noKeyHint": "No program, campaign or source linked, so leads so far cannot be counted.",
+      "status": "Status",
+      "statusHint": "Planned, then Active, then Completed or Cancelled. A closed plan cannot be changed.",
+      "statusValue": {
+        "PLANNED": "Planned",
+        "ACTIVE": "Active",
+        "COMPLETED": "Completed",
+        "CANCELLED": "Cancelled"
+      },
+      "edit": "Edit",
+      "editTitle": "Edit plan",
+      "save": "Save changes",
+      "closedNote": "This plan is closed and can no longer be changed."
     },
     "insights": {
       "title": "Shared insights",

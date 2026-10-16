@@ -312,7 +312,7 @@ function RolePicker({
     <div className="space-y-4">
       <FormField label={t('primaryRole')} hint={t('primaryRoleHint')} required>
         <Select value={primary} onChange={(e) => onChange(e.target.value as RoleKey, secondary)}>
-          {PRIMARY_ROLE_KEYS.map((r) => (
+          {PRIMARY_ROLE_KEYS.filter((r) => r !== 'DEVELOPER').map((r) => (
             <option key={r} value={r} disabled={disabledRoles.has(r) && r !== primary}>
               {tr(r)}
             </option>

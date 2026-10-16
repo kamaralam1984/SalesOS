@@ -153,6 +153,8 @@ async function rawFetch(path: string, opts: RequestOptions): Promise<ApiResult<u
       env = null;
     }
   }
+  if (res.status === 503 && env?.error?.code === 'MAINTENANCE' && typeof window !== 'undefined')
+    window.dispatchEvent(new Event('salesos:maintenance'));
   if (!res.ok || env?.error) {
     throw new ApiError({
       status: res.status,

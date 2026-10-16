@@ -8,18 +8,31 @@
       "leads": "Leads",
       "calls": "Calls",
       "goals": "Goals",
-      "profile": "Profile"
+      "profile": "Profile",
+      "work": "My Work"
     },
     "profile": {
       "title": "Profile",
       "roles": "Your roles",
       "language": "Language",
       "openStandard": "Open the standard app",
-      "signOut": "Sign out"
+      "signOut": "Sign out",
+      "theme": "Theme"
     },
     "denied": {
       "title": "Sales home is not available for your role",
       "description": "You do not have access to leads or follow-ups. Open the standard app to see what your role allows."
+    },
+    "workspace": {
+      "allAreas": "All areas",
+      "seeAll": "See all",
+      "emptyTitle": "Nothing to show yet",
+      "emptyBody": "Your role has no workspace areas assigned. Ask your administrator if you expect to see something here.",
+      "open": "Open {name}"
+    },
+    "theme": {
+      "toLight": "Switch to light mode",
+      "toDark": "Switch to dark mode"
     }
   }
 }

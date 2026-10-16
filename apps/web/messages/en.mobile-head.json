@@ -10,7 +10,8 @@
       "afternoon": "Good afternoon, <name>{who}</name>",
       "evening": "Good evening, <name>{who}</name>"
     },
-    "subline": "Let's make today count."
+    "subline": "Let's make today count.",
+    "productGeneric": "Workspace"
   },
   "mobileStats": {
     "title": "Today at a glance",

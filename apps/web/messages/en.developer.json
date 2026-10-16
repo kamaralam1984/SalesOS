@@ -1,0 +1,108 @@
+{
+  "developer": {
+    "eyebrow": "Super admin",
+    "title": "Developer Panel",
+    "description": "Controls above every business role. Every action here is audited. The server view is read-only.",
+    "tabs": {
+      "users": "Users and roles",
+      "server": "Server",
+      "sessions": "Sessions",
+      "overview": "Overview",
+      "diagnostics": "Diagnostics",
+      "security": "Security",
+      "access": "Access map",
+      "maintenance": "Maintenance",
+      "guide": "Role guide"
+    },
+    "overview": {
+      "users": "Users",
+      "active": "Active users",
+      "sessions": "Live sessions"
+    },
+    "users": {
+      "search": "Search name or email",
+      "allRoles": "All roles",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Deactivated",
+      "empty": "No users match.",
+      "loadError": "Could not load users.",
+      "sessions": "{count} live sessions",
+      "manageRoles": "Roles on/off",
+      "revokeSessions": "End sessions",
+      "name": "User",
+      "roles": "Roles",
+      "lastLogin": "Last login",
+      "never": "Never"
+    },
+    "roles": {
+      "title": "Roles for {name}",
+      "description": "One primary role, plus any number of extra groups. Saving signs the user out so the change applies cleanly.",
+      "primary": "Primary role",
+      "secondary": "Extra groups",
+      "save": "Save roles",
+      "saved": "Roles updated for {name}",
+      "warnDeveloper": "Developer is full platform control. Grant it only to people you trust with the server.",
+      "self": "You cannot change your own roles.",
+      "toggleDescription": "Turn a role on or off. Each switch saves immediately and signs the user out so the change applies cleanly.",
+      "primaryHint": "A user holds one primary role. Turning another one on replaces it.",
+      "toggled": "{role} turned {state} for {name}",
+      "on": "on",
+      "off": "off",
+      "done": "Done",
+      "warnFounder": "Founder / CEO sees the whole business, including payroll. Grant it only to the owner.",
+      "confirmGrant": "Yes, grant {role}",
+      "signOutNote": "Changes are written to the audit log. You cannot change your own roles, and the last Founder or Developer cannot be removed."
+    },
+    "revoke": {
+      "done": "Ended {count} sessions"
+    },
+    "forceLogout": {
+      "title": "Emergency: sign everyone out",
+      "description": "Ends every session in the organisation except yours. Use for a suspected account takeover.",
+      "reason": "Reason (kept in the audit log)",
+      "confirm": "Sign everyone out",
+      "done": "Signed out {count} sessions"
+    },
+    "server": {
+      "refresh": "Refresh",
+      "loadError": "Could not load server status.",
+      "checked": "Checked {time} in {ms} ms",
+      "database": "Database",
+      "redis": "Redis",
+      "worker": "Background worker",
+      "ok": "Healthy",
+      "down": "Down",
+      "stale": "Stale",
+      "unknown": "Unknown",
+      "outbox": "Event outbox",
+      "pending": "Pending",
+      "dead": "Dead (needs attention)",
+      "oldest": "Oldest pending {seconds}s",
+      "process": "API process",
+      "node": "Node",
+      "uptime": "Uptime",
+      "memory": "Memory (RSS)",
+      "host": "Host",
+      "cpus": "CPUs",
+      "load": "Load average",
+      "ram": "RAM free",
+      "disk": "Disk free",
+      "readOnly": "Read-only snapshot. Restarts and deploys are done through the deployment runbook, not from this panel."
+    },
+    "error": "That did not go through. Please try again.",
+    "guide": {
+      "intro": "What each role gets, which pages are rolled out for it, and how they work. Page lists come from the permission catalogue, so they match what the server enforces.",
+      "pickRole": "Role",
+      "landsOn": "Lands on",
+      "limits": "Limits",
+      "pages": "Pages this role sees",
+      "pagesCount": "{count} pages",
+      "flows": "Key workflows",
+      "scopeHint": "Scope: Own = their own records, Team = their reports, Organisation = everyone, Summary = names only.",
+      "generated": "Page access was generated from the permission catalogue on 16 Oct 2026. Use the Access map tab for the live view.",
+      "open": "Open",
+      "english": "This guide is written in English only."
+    }
+  }
+}

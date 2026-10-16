@@ -126,7 +126,8 @@ describe('HoursCard', () => {
     );
     renderWithProviders(<HoursCard />);
     expect(await screen.findByText('12.5 h')).toBeInTheDocument();
-    expect(screen.getByText('8')).toBeInTheDocument();
+    // CountUp only animates once in view (never in jsdom), so assert the session count via the coach line.
+    expect(screen.getByText('12.5 h across 8 sessions')).toBeInTheDocument();
     expect(screen.getByText('Meera Joshi')).toBeInTheDocument();
     expect(screen.getByText(/no scores|actually recorded/i)).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText(/period/i), 'week');
