@@ -28,6 +28,7 @@ type CreateValues = z.infer<typeof createSchema>;
 
 /** Default goal cycle: 45 days counting the start day, like the server default (start + 44). */
 const DEFAULT_CYCLE_DAYS = 45;
+const ALL_PEOPLE = '__all__';
 export function defaultTargetDay(start: string, cycleDays = DEFAULT_CYCLE_DAYS): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return '';
   const d = new Date(`${start}T00:00:00Z`);
@@ -49,8 +50,33 @@ export function CreateGoalDialog({ open, onOpenChange, onCreated }: { open: bool
     resolver: zodResolver(createSchema),
     defaultValues: { title: '', description: '', ownerId: '', startDate: '', targetDate: '', targetValue: '', unit: '' },
   });
+  const everyone = (people.data ?? []).filter((p) => p.id !== user?.id);
   const onSubmit = handleSubmit(async (v) => {
     try {
+      const body = {
+        title: v.title.trim(),
+        ...(v.description.trim() ? { description: v.description.trim() } : {}),
+        ...(v.startDate ? { startDate: v.startDate } : {}),
+        ...(v.targetDate ? { targetDate: v.targetDate } : {}),
+        ...(v.targetValue.trim() ? { targetValue: v.targetValue.trim() } : {}),
+        ...(v.unit.trim() ? { unit: v.unit.trim() } : {}),
+      };
+      if (v.ownerId === ALL_PEOPLE) {
+        // One goal per person through the normal create endpoint, so every person is still checked by the server.
+        const failed: string[] = [];
+        for (const p of everyone) {
+          try {
+            await create.mutateAsync({ ...body, ownerId: p.id });
+          } catch {
+            failed.push(p.name);
+          }
+        }
+        const ok = everyone.length - failed.length;
+        if (failed.length === 0) toast({ tone: 'success', title: t('create.createdMany', { n: ok }) });
+        else toast({ tone: 'warning', title: t('create.createdSome', { ok, n: everyone.length, names: failed.join(', ') }) });
+        onOpenChange(false);
+        return;
+      }
       const res = await create.mutateAsync({
         title: v.title.trim(),
         ...(v.description.trim() ? { description: v.description.trim() } : {}),
@@ -88,6 +114,7 @@ export function CreateGoalDialog({ open, onOpenChange, onCreated }: { open: bool
             <FormField label={t('create.owner')}>
               <Select {...register('ownerId')}>
                 <option value="">{t('create.ownerSelf')}</option>
+                {everyone.length > 1 && <option value={ALL_PEOPLE}>{t('create.ownerAll', { n: everyone.length })}</option>}
                 {(people.data ?? []).filter((p) => p.id !== user?.id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>
             </FormField>

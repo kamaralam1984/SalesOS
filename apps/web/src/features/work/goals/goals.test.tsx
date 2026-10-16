@@ -145,6 +145,27 @@ describe('GoalsPage states', () => {
     expect(target.value).toBe('2026-12-31');
   });
 
+  it('a leader can set the same goal for everyone in one go', async () => {
+    h.auth = makeAuth({ 'goals:view': 'org', 'goals:create': 'org' }, ['FOUNDER_CEO'], 'me');
+    h.get.mockImplementation(async (path: string) => {
+      if (path.endsWith('/summary')) return one(summary);
+      if (path.includes('team-members')) return one([{ id: 'me', name: 'Me' }, { id: 'u1', name: 'Rajat' }, { id: 'u2', name: 'Monica' }]);
+      return page([], false);
+    });
+    h.post.mockResolvedValue(one(goal({ id: 'g' })));
+    renderWork(<GoalsPage />);
+    await userEvent.click(await screen.findByRole('button', { name: /new goal/i }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.type(within(dialog).getByRole('textbox', { name: /^goal/i }), 'Enrol thirty learners');
+    await userEvent.selectOptions(within(dialog).getByLabelText(/goal for/i), '__all__');
+    await userEvent.type(within(dialog).getByLabelText(/^start date/i), '2026-10-16');
+    await userEvent.click(within(dialog).getByRole('button', { name: /create goal/i }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledTimes(2));
+    expect(h.post).toHaveBeenCalledWith('/workforce/goals', expect.objectContaining({ ownerId: 'u1', startDate: '2026-10-16', targetDate: '2026-11-29' }));
+    expect(h.post).toHaveBeenCalledWith('/workforce/goals', expect.objectContaining({ ownerId: 'u2' }));
+    expect(h.push).not.toHaveBeenCalled();
+  });
+
   it('a failed create shows the server message and never claims success', async () => {
     routeGets([]);
     h.post.mockRejectedValue(new ApiError({ status: 422, code: 'INVALID_REVIEWER', message: 'The reviewer cannot be the goal owner' }));

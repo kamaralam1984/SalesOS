@@ -54,6 +54,7 @@
       "details": "Details",
       "owner": "Goal for",
       "ownerSelf": "Myself",
+      "ownerAll": "Everyone in my team ({n} people)",
       "startDate": "Start date",
       "targetDate": "Target date",
       "targetHint": "Filled automatically as start date + 45 days. You can change it.",
@@ -62,7 +63,9 @@
       "unit": "Unit",
       "unitHint": "For example enrolments",
       "submit": "Create goal",
-      "created": "Goal created"
+      "created": "Goal created",
+      "createdMany": "Goal set for {n} people",
+      "createdSome": "Goal set for {ok} of {n} people. Failed: {names}"
     },
     "errors": {
       "required": "This field is required",
