@@ -16,15 +16,18 @@ COPY packages/validation/package.json packages/validation/
 COPY packages/platform-core/package.json packages/platform-core/
 COPY packages/crm-core/package.json packages/crm-core/
 COPY packages/cx-core/package.json packages/cx-core/
+COPY packages/workforce-core/package.json packages/workforce-core/
 COPY packages/ui/package.json packages/ui/
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
 COPY prisma prisma
 COPY packages packages
 COPY apps/api apps/api
-RUN pnpm exec prisma generate --schema prisma/schema \
+# V8 stops at ~1.25 GB in a memory-capped build container and tsc then aborts ("heap out of memory"); build step only, not in the image.
+RUN export NODE_OPTIONS=--max-old-space-size=1800 \
+ && pnpm exec prisma generate --schema prisma/schema \
  && pnpm --filter @salesos/shared-types --filter @salesos/validation --filter @salesos/platform-core run build \
- && pnpm --filter @salesos/crm-core run build && pnpm --filter @salesos/cx-core run build \
+ && pnpm --filter @salesos/crm-core run build && pnpm --filter @salesos/cx-core run build && pnpm --filter @salesos/workforce-core run build \
  && chown -R salesos:salesos /repo
 COPY --chown=salesos:salesos deploy/docker/tools-entrypoint.sh /usr/local/bin/salesos-tools
 USER salesos

@@ -17,6 +17,7 @@ COPY packages/validation/package.json packages/validation/
 COPY packages/platform-core/package.json packages/platform-core/
 COPY packages/crm-core/package.json packages/crm-core/
 COPY packages/cx-core/package.json packages/cx-core/
+COPY packages/workforce-core/package.json packages/workforce-core/
 COPY packages/ui/package.json packages/ui/
 RUN pnpm install --frozen-lockfile
 COPY tsconfig.base.json ./
@@ -25,7 +26,9 @@ COPY apps/web apps/web
 ARG NEXT_PUBLIC_API_URL=http://localhost:4100/api/v1
 ARG ENABLE_STYLE_GUIDE=false
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} NEXT_STANDALONE=1 NEXT_DIST_DIR=.next
-RUN pnpm --filter @salesos/shared-types --filter @salesos/validation run build \
+# Build step only: raise the V8 heap above the ~1.25 GB default that a memory-capped build container gets.
+RUN export NODE_OPTIONS=--max-old-space-size=1800 \
+ && pnpm --filter @salesos/shared-types --filter @salesos/validation run build \
  && pnpm --filter @salesos/web run build
 
 FROM ${NODE_IMAGE} AS runtime
