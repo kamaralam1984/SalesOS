@@ -30,6 +30,8 @@
     "lateNow": "आप {duration} लेट हैं। ऑफिस का समय {time} से शुरू हो चुका है।",
     "lateAt": "आपने {duration} लेट चेक-इन किया।",
     "overtime": "ओवरटाइम: {time} के बाद {duration}।",
-    "meetingJoinedAt": "आपने {time} पर मीटिंग बटन दबाया।"
+    "meetingJoinedAt": "आपने {time} पर मीटिंग बटन दबाया।",
+    "lateJoinNote": "चेक-इन का समय ({time}) निकल चुका है। आप कारण देकर अब भी चेक-इन कर सकते हैं; HR को सूचना जाती है।",
+    "lateJoinRecorded": "देर से जुड़े; कारण HR के पास है।"
   }
 }

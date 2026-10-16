@@ -15,15 +15,21 @@ export interface AttendanceRecord {
   overtimeMinutes?: number | null;
   /** first press of the meeting button that day */
   meetingJoinedAt?: string | null;
+  /** checked in after the cutoff, with the reason given */
+  lateJoin?: boolean; lateJoinReason?: string | null;
+  /** end-of-day report: how much of the day's work the person says is done, a note, and the server's task snapshot */
+  dayReportPct?: number | null; dayReportNote?: string | null; tasksDone?: number | null; tasksOpen?: number | null;
   source: 'SELF' | 'MANAGER' | 'HR' | 'SYSTEM'; note: string | null; version: number; needsReview?: boolean;
 }
 export interface AttendanceToday {
   date: string; timezone: string; dayKind: DayKind; holiday: { name: string; kind: string } | null; record: AttendanceRecord | null;
-  can: { checkIn: boolean; checkOut: boolean }; policy: { lateAfter: string; fullDayMinutes: number; selfCheckIn: boolean; checkInCutoff?: string; workdayEnd?: string };
+  can: { checkIn: boolean; checkOut: boolean }; policy: { lateAfter: string; fullDayMinutes: number; selfCheckIn: boolean; checkInCutoff?: string; workdayEnd?: string; lateJoinAllowed?: boolean; requireDayReport?: boolean };
   /** Minutes past the late time right now when the user has not checked in on a working day (null otherwise). */
   lateByMinutes?: number | null;
   /** Cutoff passed and no record today. */
   checkInClosed?: boolean;
+  /** Cutoff passed but the person can still check in with a reason (HR and the Boss are told). */
+  lateJoin?: boolean;
   /** Non-null only when the user is marked present today and HR configured a link. */
   meeting?: { url: string } | null;
 }
@@ -36,11 +42,12 @@ export interface TeamSummary { date: string; dayKind: DayKind; total: number; re
 export interface DaySheetItem {
   userId: string; name: string; status: AttendanceStatus | null; checkInAt: string | null; lateMinutes: number | null; meetingJoinedAt: string | null;
   checkOutAt: string | null; workMinutes: number | null; overtimeMinutes: number | null; source: 'SELF' | 'MANAGER' | 'HR' | 'SYSTEM' | null;
+  lateJoin: boolean; lateJoinReason: string | null; dayReportPct: number | null; dayReportNote: string | null; tasksDone: number | null; tasksOpen: number | null;
 }
 export interface DaySheet {
   date: string; dayKind: DayKind; timezone: string;
-  policy: { lateAfter: string; workdayEnd: string; meetingConfigured: boolean };
-  totals: { people: number; marked: number; notMarked: number; late: number; lateMinutes: number; meetingJoined: number; overtimeMinutes: number };
+  policy: { lateAfter: string; checkInCutoff: string; workdayEnd: string; meetingConfigured: boolean };
+  totals: { people: number; marked: number; notMarked: number; late: number; lateMinutes: number; meetingJoined: number; overtimeMinutes: number; lateJoins: number; reportsFilled: number };
   items: DaySheetItem[];
 }
 export interface AttendanceCorrection {
@@ -80,8 +87,9 @@ function useAttMutation<V, R>(fn: (v: V) => Promise<R>) {
   const qc = useQueryClient();
   return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: attKeys.all }) });
 }
-export const useCheckIn = () => useAttMutation((b: { mode: 'OFFICE' | 'WFH' }) => api.post<AttendanceRecord>('/workforce/attendance/check-in', b).then((r) => r.data));
-export const useCheckOut = () => useAttMutation(() => api.post<AttendanceRecord>('/workforce/attendance/check-out', {}).then((r) => r.data));
+export const useCheckIn = () => useAttMutation((b: { mode: 'OFFICE' | 'WFH'; reason?: string }) => api.post<AttendanceRecord>('/workforce/attendance/check-in', b).then((r) => r.data));
+export interface CheckOutInput { dayReportPct?: number; dayReportNote?: string }
+export const useCheckOut = () => useAttMutation((b: CheckOutInput | void) => api.post<AttendanceRecord>('/workforce/attendance/check-out', b ?? {}).then((r) => r.data));
 /** The person pressed the meeting button; recorded once a day. Failures are ignored by the caller (the link still opens). */
 export const useMeetingJoin = () => useAttMutation(() => api.post<{ joinedAt: string; first: boolean }>('/workforce/attendance/meeting-join', {}).then((r) => r.data));
 export interface CorrectionInput { userId: string; date: string; status: AttendanceStatus; reason: string; checkInAt?: string | null; checkOutAt?: string | null; version?: number }

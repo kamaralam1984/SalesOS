@@ -14,6 +14,7 @@ import {
 import { ApiError } from '@/lib/api/client';
 import { currentMonth, emptyDayReason, formatMinutes, istTimeToIso, safeMeetingLink, shiftMonth, statusTone, today } from './attendance-logic';
 import { CorrectAttendanceDialog } from './correct-dialog';
+import { DayReportDialog, LateJoinDialog } from './day-dialogs';
 import { DaySheetPanel } from './day-sheet';
 import { MeetingButton } from './meeting-button';
 import { useWhen } from './format';
@@ -58,6 +59,8 @@ function TodayCard() {
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
   const [needsReview, setNeedsReview] = React.useState(false);
+  const [lateMode, setLateMode] = React.useState<'OFFICE' | 'WFH' | null>(null);
+  const [reportOpen, setReportOpen] = React.useState(false);
   return (
     <Panel title={t('today.title')} description={q.data ? w.day(q.data.date) : undefined} aria-live="polite">
       <QueryState query={q} isEmpty={!q.data} emptyTitle={t('today.title')}>
@@ -69,6 +72,7 @@ function TodayCard() {
           const lateAttempt = checkIn.error instanceof ApiError && checkIn.error.code === 'CHECK_IN_CLOSED';
           const closed = Boolean(d.checkInClosed) || lateAttempt;
           const meeting = safeMeetingLink(d.meeting?.url);
+          const startCheckIn = (mode: 'OFFICE' | 'WFH') => (d.lateJoin ? setLateMode(mode) : checkIn.mutate({ mode }, { onSuccess: () => toast({ tone: 'success', title: t('today.checkedInToast') }) }));
           return (
             <div className="space-y-4">
               {d.dayKind === 'HOLIDAY' && <Alert tone="info">{t('today.holiday', { name: d.holiday?.name ?? '' })}</Alert>}
@@ -94,7 +98,10 @@ function TodayCard() {
               )}
               {rec?.meetingJoinedAt && <p className="text-sm text-muted">{t('today.meetingJoinedAt', { time: w.time(rec.meetingJoinedAt) })}</p>}
               {needsReview && <Alert tone="warning">{t('today.needsReview')}</Alert>}
-              {!closed && d.can.checkIn && cutoffTime && <p className="text-sm text-muted">{t('today.checkInCloses', { time: cutoffTime })}</p>}
+              {!closed && d.can.checkIn && !d.lateJoin && cutoffTime && <p className="text-sm text-muted">{t('today.checkInCloses', { time: cutoffTime })}</p>}
+              {!closed && d.can.checkIn && d.lateJoin && <Alert tone="warning">{t('today.lateJoinNote', { time: cutoffTime ?? '—' })}</Alert>}
+              {rec?.lateJoin && <p className="text-sm text-muted">{t('today.lateJoinRecorded', { reason: rec.lateJoinReason ?? '—' })}</p>}
+              {rec && rec.checkOutAt && rec.dayReportPct != null && <p className="text-sm text-ink">{t('today.dayReportDone', { pct: rec.dayReportPct })}</p>}
               {closed && !rec && (
                 <div role="status" className="flex items-start gap-3 rounded-lg border border-gold-300 bg-gold-50 p-3.5 text-sm text-ink">
                   <Clock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-gold-700" />
@@ -120,11 +127,11 @@ function TodayCard() {
                     <Button
                       leadingIcon={<LogIn aria-hidden="true" />}
                       loading={checkIn.isPending}
-                      onClick={() => checkIn.mutate({ mode: 'OFFICE' }, { onSuccess: () => toast({ tone: 'success', title: t('today.checkedInToast') }) })}
+                      onClick={() => startCheckIn('OFFICE')}
                     >
                       {t('today.checkInOffice')}
                     </Button>
-                    <Button variant="secondary" loading={checkIn.isPending} onClick={() => checkIn.mutate({ mode: 'WFH' }, { onSuccess: () => toast({ tone: 'success', title: t('today.checkedInToast') }) })}>
+                    <Button variant="secondary" loading={checkIn.isPending} onClick={() => startCheckIn('WFH')}>
                       {t('today.checkInWfh')}
                     </Button>
                   </>
@@ -134,13 +141,21 @@ function TodayCard() {
                     variant="secondary"
                     leadingIcon={<LogOut aria-hidden="true" />}
                     loading={checkOut.isPending}
-                    onClick={() => checkOut.mutate(undefined, { onSuccess: (r) => { setNeedsReview(Boolean(r.needsReview)); toast({ tone: 'success', title: t('today.checkedOutToast') }); } })}
+                    onClick={() => (d.policy.requireDayReport ? setReportOpen(true) : checkOut.mutate(undefined, { onSuccess: (r) => { setNeedsReview(Boolean(r.needsReview)); toast({ tone: 'success', title: t('today.checkedOutToast') }); } }))}
                   >
                     {t('today.checkOut')}
                   </Button>
                 )}
               </div>
-              <MutationAlert error={lateAttempt ? checkOut.error : (checkIn.error ?? checkOut.error)} />
+              <MutationAlert error={lateAttempt ? checkOut.error : (lateMode || reportOpen ? undefined : (checkIn.error ?? checkOut.error))} />
+              {lateMode && (
+                <LateJoinDialog open onOpenChange={(o) => !o && setLateMode(null)} pending={checkIn.isPending} error={checkIn.error} lateBy={d.lateByMinutes ? formatMinutes(d.lateByMinutes) : undefined}
+                  onSubmit={(reason) => checkIn.mutate({ mode: lateMode, reason }, { onSuccess: () => { setLateMode(null); toast({ tone: 'success', title: t('today.checkedInToast') }); } })} />
+              )}
+              {reportOpen && (
+                <DayReportDialog open onOpenChange={(o) => !o && setReportOpen(false)} pending={checkOut.isPending} error={checkOut.error}
+                  onSubmit={(v) => checkOut.mutate(v, { onSuccess: (r) => { setReportOpen(false); setNeedsReview(Boolean(r.needsReview)); toast({ tone: 'success', title: t('today.checkedOutToast') }); } })} />
+              )}
             </div>
           );
         })()}

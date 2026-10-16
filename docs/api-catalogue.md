@@ -532,6 +532,7 @@ Cross-cutting: `Idempotency-Key` header on POST /leads/import, POST /collections
 | GET | `/api/v1/workforce/goals` |
 | GET | `/api/v1/workforce/goals/summary` |
 | GET | `/api/v1/workforce/goals/:id` |
+| GET | `/api/v1/workforce/goals/:id/export` |
 | PATCH | `/api/v1/workforce/goals/:id` |
 | POST | `/api/v1/workforce/goals/:id/progress` |
 | POST | `/api/v1/workforce/goals/:id/milestones` |
@@ -554,6 +555,8 @@ Cross-cutting: `Idempotency-Key` header on POST /leads/import, POST /collections
 | GET | `/api/v1/workforce/hr/probation` |
 | GET | `/api/v1/workforce/hr/probation/:userId/history` |
 | POST | `/api/v1/workforce/hr/probation/:userId/decision` |
+| GET | `/api/v1/workforce/hr/joiners/options` |
+| POST | `/api/v1/workforce/hr/joiners` |
 | GET | `/api/v1/workforce/leave/types` |
 | GET | `/api/v1/workforce/leave/balances` |
 | POST | `/api/v1/workforce/leave/balances/adjust` |

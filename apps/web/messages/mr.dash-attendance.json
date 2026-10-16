@@ -30,6 +30,8 @@
     "lateNow": "तुम्ही {duration} उशिरा आहात. ऑफिसची वेळ {time} ला सुरू झाली आहे.",
     "lateAt": "तुम्ही {duration} उशिरा चेक-इन केले.",
     "overtime": "ओव्हरटाइम: {time} नंतर {duration}.",
-    "meetingJoinedAt": "तुम्ही {time} ला मीटिंग बटण दाबले."
+    "meetingJoinedAt": "तुम्ही {time} ला मीटिंग बटण दाबले.",
+    "lateJoinNote": "चेक-इनची वेळ ({time}) संपली आहे. तुम्ही कारण देऊन अजूनही चेक-इन करू शकता; HR ला कळवले जाते.",
+    "lateJoinRecorded": "उशिरा सामील झाले; कारण HR कडे आहे."
   }
 }

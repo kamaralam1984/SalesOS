@@ -3,7 +3,7 @@ import { uuidSchema } from './common';
 import { isoDate } from './sop';
 
 /** Workforce reports and exports (DEC-048 area D2). */
-export const WORKFORCE_REPORTS = ['attendance', 'leave', 'earned-leave', 'tasks', 'goals', 'holidays', 'probation', 'birthdays', 'department-performance'] as const;
+export const WORKFORCE_REPORTS = ['attendance', 'leave', 'earned-leave', 'tasks', 'goals', 'holidays', 'probation', 'birthdays', 'department-performance', 'weekly-progress', 'new-joiners'] as const;
 export type WorkforceReportKey = (typeof WORKFORCE_REPORTS)[number];
 export const workforceReportKeySchema = z.enum(WORKFORCE_REPORTS);
 

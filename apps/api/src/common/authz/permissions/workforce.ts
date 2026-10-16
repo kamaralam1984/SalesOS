@@ -23,6 +23,7 @@ export const workforcePermissions = definePermissions('workforce', {
   'leave:approve': { description: 'Approve/reject leave at the manager step', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'team', SALES_MANAGER: 'team' } },
   'leave:approve-hr': { description: 'Approve/reject leave at the HR step', sensitive: true, grants: { FOUNDER_CEO: 'org', HR: 'org' } },
   'leave:balance:adjust': { description: 'Adjust a leave balance (opening balance, correction); always audited', sensitive: true, grants: { FOUNDER_CEO: 'org', HR: 'org' } },
+  'joiners:manage': { description: 'Join a new employee: create the account, HR record, the 90-day training plan and first tasks (HR and the Boss)', sensitive: true, grants: { FOUNDER_CEO: 'org', HR: 'org' } },
   'workforce:settings:view': { description: 'View workforce policy (leave types, Earned Leave, attendance, goals, payroll)', grants: { FOUNDER_CEO: 'org', HR: 'org' } },
   'workforce:settings:manage': { description: 'Change workforce policy; every change is logged with user and time', sensitive: true, grants: { FOUNDER_CEO: 'org', HR: 'org' } },
   'goals:view': { description: 'View goals (own / team / organisation)', grants: selfGrants({ FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'team', SALES_MANAGER: 'team', HR: 'org' }) },

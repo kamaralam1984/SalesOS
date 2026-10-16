@@ -10,6 +10,7 @@ export const B_CASES: NegativeCase[] = [
   { route: 'GET /workforce/goals' },
   { route: 'GET /workforce/goals/summary' },
   { route: 'GET /workforce/goals/:id' },
+  { route: 'GET /workforce/goals/:id/export' },
   { route: 'PATCH /workforce/goals/:id', body: { version: 1, title: 'negative goal' } },
   { route: 'POST /workforce/goals/:id/progress', body: { progressPct: 10 } },
   { route: 'POST /workforce/goals/:id/milestones', body: { title: 'negative milestone' } },

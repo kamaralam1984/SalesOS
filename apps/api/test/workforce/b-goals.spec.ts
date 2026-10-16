@@ -234,3 +234,22 @@ describe('Admin and summary leakage', () => {
     expect(list.body.data.every((x: { ownerId: string }) => x.ownerId === fx.admin.id)).toBe(true);
   });
 });
+
+describe('Excel download of a goal', () => {
+  const download = (who: AuthedAgent, id: string) => who.get(`/workforce/goals/${id}/export`).buffer(true).parse((r, cb) => { const c: Buffer[] = []; r.on('data', (x: Buffer) => c.push(x)); r.on('end', () => cb(null, Buffer.concat(c))); });
+
+  it('the owner and their manager get an .xlsx (audited); someone else gets 404 and no file', async () => {
+    const g = await mk(a.execA1, { title: '=HYPERLINK("http://evil","x")' });
+    await a.execA1.post(`/workforce/goals/${g.id}/progress`).send({ progressPct: 40, note: 'forty percent', version: g.version });
+    const before = await t.prisma.auditLog.count({ where: { organizationId: fx.org.id, action: 'export.created', entityId: g.id } });
+    const own = await download(a.execA1, g.id);
+    expect(own.status).toBe(200);
+    expect(own.headers['content-type']).toContain('spreadsheetml');
+    expect(own.headers['content-disposition']).toContain('attachment');
+    expect((own.body as Buffer).subarray(0, 2).toString()).toBe('PK');
+    expect((await download(a.managerA, g.id)).status).toBe(200);
+    expect(await t.prisma.auditLog.count({ where: { organizationId: fx.org.id, action: 'export.created', entityId: g.id } })).toBe(before + 2);
+    expect((await download(a.execB1, g.id)).status).toBe(404);
+    expect((await a.execA1.get('/workforce/goals/11111111-1111-4111-8111-111111111111/export')).status).toBe(404);
+  });
+});

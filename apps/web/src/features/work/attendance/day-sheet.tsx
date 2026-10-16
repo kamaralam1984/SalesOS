@@ -21,11 +21,13 @@ export function DaySheetPanel({ date }: { date: string }) {
       <QueryState query={q} isEmpty={!d || d.items.length === 0} emptyTitle={t('daySheet.empty')}>
         {d && (
           <div className="space-y-4">
-            <section aria-label={t('daySheet.totals')} className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <section aria-label={t('daySheet.totals')} className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               <Stat label={t('daySheet.lateCount')} value={d.totals.late} hint={d.totals.late ? t('daySheet.lateTotalHint', { duration: formatMinutes(d.totals.lateMinutes) }) : undefined} accent="red" />
               <Stat label={t('daySheet.meetingCount')} value={d.policy.meetingConfigured ? `${d.totals.meetingJoined} / ${d.totals.marked}` : '—'} hint={d.policy.meetingConfigured ? undefined : t('daySheet.noMeeting')} accent="blue" />
               <Stat label={t('daySheet.overtimeTotal')} value={formatMinutes(d.totals.overtimeMinutes)} accent="green" />
               <Stat label={t('people.notMarked')} value={d.totals.notMarked} accent="gold" />
+              <Stat label={t('daySheet.lateJoins')} value={d.totals.lateJoins} hint={t('daySheet.lateJoinsHint', { time: d.policy.checkInCutoff })} accent="red" />
+              <Stat label={t('daySheet.reports')} value={`${d.totals.reportsFilled} / ${d.totals.marked}`} hint={t('daySheet.reportsHint')} accent="blue" />
             </section>
             <ul className="divide-y divide-line rounded-lg border border-line bg-surface" aria-label={t('daySheet.list')}>
               {d.items.map((i) => <Row key={i.userId} item={i} meetingConfigured={d.policy.meetingConfigured} when={w} />)}
@@ -60,6 +62,18 @@ function Row({ item: i, meetingConfigured, when: w }: { item: DaySheetItem; meet
         {i.checkOutAt ? w.time(i.checkOutAt) : '—'}
         {(i.overtimeMinutes ?? 0) > 0 && <span className="ml-2 font-medium text-green-700">{t('daySheet.overtime', { duration: formatMinutes(i.overtimeMinutes) })}</span>}
       </p>
+      {(i.lateJoin || i.dayReportPct !== null) && (
+        <div className="space-y-0.5 text-sm sm:col-span-full">
+          {i.lateJoin && <p className="text-red-700">{t('daySheet.lateJoinReason', { reason: i.lateJoinReason ?? '—' })}</p>}
+          {i.dayReportPct !== null && (
+            <p className="text-ink">
+              {t('daySheet.dayReport', { pct: i.dayReportPct })}
+              {i.tasksDone !== null && <span className="ml-2 text-muted">{t('daySheet.taskSnapshot', { done: i.tasksDone, open: i.tasksOpen ?? 0 })}</span>}
+              {i.dayReportNote && <span className="ml-2 text-muted">“{i.dayReportNote}”</span>}
+            </p>
+          )}
+        </div>
+      )}
     </li>
   );
 }

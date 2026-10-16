@@ -30,6 +30,8 @@
     "lateNow": "You are {duration} late. Office time started at {time}.",
     "lateAt": "You checked in {duration} late.",
     "overtime": "Overtime: {duration} after {time}.",
-    "meetingJoinedAt": "You pressed the meeting button at {time}."
+    "meetingJoinedAt": "You pressed the meeting button at {time}.",
+    "lateJoinNote": "Check-in time ({time}) is over. You can still check in with a reason; HR is told.",
+    "lateJoinRecorded": "Joined late; HR has the reason."
   }
 }

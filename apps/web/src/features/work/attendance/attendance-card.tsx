@@ -10,6 +10,7 @@ import { useAttendanceToday, useCheckIn, useCheckOut, type AttendanceStatus } fr
 import { formatMinutes, istTimeToIso, safeMeetingLink, statusTone } from './attendance-logic';
 import { MeetingButton } from './meeting-button';
 import { useWhen } from './format';
+import { DayReportDialog, LateJoinDialog } from './day-dialogs';
 
 type ChipKey = AttendanceStatus | 'NOT_CHECKED_IN';
 
@@ -31,6 +32,8 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
   const q = useAttendanceToday();
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
+  const [lateMode, setLateMode] = React.useState<'OFFICE' | 'WFH' | null>(null);
+  const [reportOpen, setReportOpen] = React.useState(false);
 
   const shell = variant === 'mobile'
     ? 'enter-up rounded-2xl border border-line bg-surface p-4 shadow-sm'
@@ -67,6 +70,7 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
   const meeting = safeMeetingLink(d.meeting?.url);
   const actionFailed = (checkIn.isError && !lateAttempt) || checkOut.isError;
   const showCheckIn = d.can.checkIn && !closed;
+  const startCheckIn = (mode: 'OFFICE' | 'WFH') => (d.lateJoin ? setLateMode(mode) : checkIn.mutate({ mode }));
 
   return (
     <section aria-label={t('title')} aria-live="polite" className={shell}>
@@ -93,7 +97,9 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
       {rec && rec.checkOutAt && (rec.overtimeMinutes ?? 0) > 0 && <p className="mt-1 text-sm font-medium text-green-700">{t('overtime', { duration: formatMinutes(rec.overtimeMinutes), time: d.policy.workdayEnd ?? '19:00' })}</p>}
       {rec?.meetingJoinedAt && <p className="mt-1 text-sm text-muted">{t('meetingJoinedAt', { time: w.time(rec.meetingJoinedAt) })}</p>}
       {!d.policy.selfCheckIn && !rec && <p className="mt-3 text-sm text-muted">{t('selfDisabled')}</p>}
-      {showCheckIn && cutoffTime && <p className="mt-3 text-sm text-muted">{t('checkInCloses', { time: cutoffTime })}</p>}
+      {showCheckIn && !d.lateJoin && cutoffTime && <p className="mt-3 text-sm text-muted">{t('checkInCloses', { time: cutoffTime })}</p>}
+      {showCheckIn && d.lateJoin && <p role="status" className="mt-3 text-sm text-ink">{t('lateJoinNote', { time: cutoffTime ?? '—' })}</p>}
+      {rec?.lateJoin && <p className="mt-1 text-sm text-muted">{t('lateJoinRecorded')}</p>}
       {closed && !rec && (
         <div role="status" className="mt-3 flex items-start gap-2 rounded-lg border border-gold-300 bg-gold-50 p-3 text-sm text-ink">
           <Clock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-gold-700" />
@@ -120,23 +126,32 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
                 className="glow-gold min-h-11"
                 leadingIcon={<LogIn aria-hidden="true" />}
                 loading={checkIn.isPending}
-                onClick={() => checkIn.mutate({ mode: 'OFFICE' })}
+                onClick={() => startCheckIn('OFFICE')}
               >
                 {t('checkInOffice')}
               </Button>
-              <Button variant="secondary" className="min-h-11" leadingIcon={<Home aria-hidden="true" />} loading={checkIn.isPending} onClick={() => checkIn.mutate({ mode: 'WFH' })}>
+              <Button variant="secondary" className="min-h-11" leadingIcon={<Home aria-hidden="true" />} loading={checkIn.isPending} onClick={() => startCheckIn('WFH')}>
                 {t('checkInWfh')}
               </Button>
             </>
           )}
           {d.can.checkOut && (
-            <Button className="col-span-2 min-h-11" variant="secondary" leadingIcon={<LogOut aria-hidden="true" />} loading={checkOut.isPending} onClick={() => checkOut.mutate()}>
+            <Button className="col-span-2 min-h-11" variant="secondary" leadingIcon={<LogOut aria-hidden="true" />} loading={checkOut.isPending} onClick={() => (d.policy.requireDayReport ? setReportOpen(true) : checkOut.mutate())}>
               {t('checkOut')}
             </Button>
           )}
         </div>
       )}
       {actionFailed && <p role="alert" className="mt-2 text-sm text-red-700">{t('actionError')}</p>}
+
+      {lateMode && (
+        <LateJoinDialog open onOpenChange={(o) => !o && setLateMode(null)} pending={checkIn.isPending} error={checkIn.error} lateBy={d.lateByMinutes ? formatMinutes(d.lateByMinutes) : undefined}
+          onSubmit={(reason) => checkIn.mutate({ mode: lateMode, reason }, { onSuccess: () => setLateMode(null) })} />
+      )}
+      {reportOpen && (
+        <DayReportDialog open onOpenChange={(o) => !o && setReportOpen(false)} pending={checkOut.isPending} error={checkOut.error}
+          onSubmit={(v) => checkOut.mutate(v, { onSuccess: () => setReportOpen(false) })} />
+      )}
 
       <Link href="/work/attendance" className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus">
         {t('open')}

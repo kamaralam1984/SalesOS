@@ -2,7 +2,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Cake, FileBarChart, Hourglass, Megaphone, Scale, SlidersHorizontal, Users } from 'lucide-react';
+import { Cake, FileBarChart, Hourglass, Megaphone, Scale, SlidersHorizontal, UserPlus, Users } from 'lucide-react';
 import { PageHeader, Stat } from '@salesos/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/require-permission';
@@ -19,6 +19,7 @@ export function HrHubPage() {
 const TILES = [
   { key: 'policy', href: '/work/hr/policy', perm: 'workforce:settings:view', icon: SlidersHorizontal },
   { key: 'balances', href: '/work/hr/balances', perm: 'leave:balance:adjust', icon: Scale },
+  { key: 'joiners', href: '/work/hr/joiners', perm: 'joiners:manage', icon: UserPlus },
   { key: 'probation', href: '/work/hr/probation', perm: 'workforce:reports:view', icon: Hourglass },
   { key: 'birthdays', href: '/work/hr/birthdays', perm: 'birthdays:view', icon: Cake },
   { key: 'announcements', href: '/work/hr/announcements', perm: 'announcements:manage', icon: Megaphone },

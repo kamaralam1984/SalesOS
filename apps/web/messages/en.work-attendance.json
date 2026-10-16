@@ -33,7 +33,10 @@
       "lateNow": "You are {duration} late. Office time started at {time}.",
       "lateAt": "You checked in {duration} late.",
       "overtime": "Overtime: {duration} after {time}.",
-      "meetingJoinedAt": "You pressed the meeting button at {time}."
+      "meetingJoinedAt": "You pressed the meeting button at {time}.",
+      "lateJoinNote": "The usual check-in time ({time}) is over. You can still check in, but you must give a reason and HR is told.",
+      "lateJoinRecorded": "Joined late. Reason: {reason}",
+      "dayReportDone": "Today's work report: {pct}% done"
     },
     "month": {
       "previous": "Previous month",
@@ -143,7 +146,33 @@
       "onTime": "On time",
       "joined": "Joined {time}",
       "notJoined": "Not joined",
-      "overtime": "+{duration} overtime"
+      "overtime": "+{duration} overtime",
+      "lateJoins": "Joined after the cutoff",
+      "lateJoinsHint": "After {time}, with a reason",
+      "reports": "Work reports filled",
+      "reportsHint": "Filled before check-out",
+      "lateJoinReason": "Late join reason: {reason}",
+      "dayReport": "Work report: {pct}% done",
+      "taskSnapshot": "Tasks: {done} done today, {open} still open"
+    },
+    "lateJoin": {
+      "title": "Joining late",
+      "description": "It is after the usual check-in time. Tell HR why you are joining late. HR and the Boss are told.",
+      "descriptionLate": "You are {duration} late. Tell HR why you are joining late. HR and the Boss are told.",
+      "reason": "Reason for joining late",
+      "reasonShort": "Write the reason (at least 3 characters)",
+      "submit": "Check in"
+    },
+    "dayReport": {
+      "title": "Today's work report",
+      "description": "Before you check out, tell us how much of today's work is done. HR sees this every day.",
+      "pct": "Work done today (%)",
+      "pctHint": "0 to 100",
+      "pctBad": "Enter a number from 0 to 100",
+      "quick": "Quick choices",
+      "note": "What is still pending?",
+      "noteBad": "Add a short note on what is pending",
+      "submit": "Check out"
     }
   },
   "workHolidays": {

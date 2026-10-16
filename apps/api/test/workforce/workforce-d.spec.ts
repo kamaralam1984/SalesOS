@@ -295,7 +295,7 @@ describe('D2 reports and exports', () => {
     expect((await hr.get('/workforce/reports/attendance?limit=101')).status).toBe(400);
   });
   it('every report key runs without error for HR; birthdays is HR/Founder only', async () => {
-    for (const k of ['attendance', 'leave', 'earned-leave', 'tasks', 'goals', 'holidays', 'probation', 'birthdays', 'department-performance']) {
+    for (const k of ['attendance', 'leave', 'earned-leave', 'tasks', 'goals', 'holidays', 'probation', 'birthdays', 'department-performance', 'weekly-progress', 'new-joiners']) {
       const r = await hr.get(`/workforce/reports/${k}`);
       expect(r.status, k).toBe(200);
       expect(Array.isArray(r.body.data.columns), k).toBe(true);

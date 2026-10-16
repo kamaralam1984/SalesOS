@@ -23,7 +23,9 @@
       "holidays": "Holidays",
       "probation": "Probation",
       "birthdays": "Birthdays",
-      "department-performance": "Department and manager performance"
+      "department-performance": "Department and manager performance",
+      "weekly-progress": "Weekly progress (tasks, attendance, goals)",
+      "new-joiners": "New joiners: first 90 days"
     },
     "help": {
       "attendance": "One row per employee per day in the range.",
@@ -34,7 +36,9 @@
       "holidays": "Approved and suggested holidays in the range.",
       "probation": "Probation end dates and decisions. Default range: last 30 to next 90 days.",
       "birthdays": "Upcoming birthdays (HR and Founder only). Birth year and age are never included.",
-      "department-performance": "Attendance, task and goal results grouped by department or manager."
+      "department-performance": "Attendance, task and goal results grouped by department or manager.",
+      "weekly-progress": "One row per person: attendance, late joins, their own end-of-day work reports, tasks done and goal progress. Default range: this week, Monday to today.",
+      "new-joiners": "People who joined in the last 90 days: day of 90, training done, tasks, attendance and goal progress. Default range: joined in the last 90 days."
     },
     "level": {
       "own": "your own records",

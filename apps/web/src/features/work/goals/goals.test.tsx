@@ -188,6 +188,27 @@ describe('GoalsPage states', () => {
 });
 
 describe('GoalDetailPage', () => {
+  it('when the 45-day cycle is complete it offers the Excel sheet, and the download goes to the export route', async () => {
+    h.get.mockResolvedValue(one(goal({ elapsedPct: 100, progressPct: 80 })));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(new Blob(['x']), { status: 200, headers: { 'content-disposition': 'attachment; filename="goal_x.xlsx"' } }));
+    vi.stubGlobal('fetch', fetchMock);
+    URL.createObjectURL = vi.fn(() => 'blob:x');
+    URL.revokeObjectURL = vi.fn();
+    renderWork(<GoalDetailPage id="g1" />);
+    expect(await screen.findByText('The 45-day cycle is complete')).toBeInTheDocument();
+    const buttons = screen.getAllByRole('button', { name: 'Download Excel' });
+    expect(buttons.length).toBeGreaterThanOrEqual(2);
+    await userEvent.click(buttons[buttons.length - 1]!);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/workforce/goals/g1/export'), expect.objectContaining({ credentials: 'include' })));
+    vi.unstubAllGlobals();
+  });
+
+  it('a goal without a measurable target says its progress follows the linked tasks', async () => {
+    h.get.mockResolvedValue(one(goal({ targetValue: null, unit: null })));
+    renderWork(<GoalDetailPage id="g1" />);
+    expect(await screen.findByText(/progress of this goal follows its linked tasks/i)).toBeInTheDocument();
+  });
+
   it('shows progress, milestones, linked tasks and activity', async () => {
     h.get.mockResolvedValue(one(goal()));
     renderWork(<GoalDetailPage id="g1" />);

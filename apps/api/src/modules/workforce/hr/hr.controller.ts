@@ -1,17 +1,32 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { birthdaysQuerySchema, hrProfilePatchSchema, probationDecisionSchema, probationListQuerySchema } from '@salesos/validation';
+import { birthdaysQuerySchema, hrProfilePatchSchema, newJoinerSchema, probationDecisionSchema, probationListQuerySchema } from '@salesos/validation';
 import type { z } from 'zod';
 import { CurrentUser, RequirePermission, type Principal } from '../../../common/authz';
 import { ZodPipe } from '../../../common/http/zod.pipe';
 import { BirthdaysService } from './birthdays.service';
 import { HrService } from './hr.service';
+import { NewJoinerService } from './new-joiner.service';
 import { ProbationService } from './probation.service';
 
 @ApiTags('workforce-hr')
 @Controller('workforce')
 export class HrController {
-  constructor(private readonly hr: HrService, private readonly birthdays: BirthdaysService, private readonly probation: ProbationService) {}
+  constructor(private readonly hr: HrService, private readonly birthdays: BirthdaysService, private readonly probation: ProbationService, private readonly joiners: NewJoinerService) {}
+
+  /** What the joining form offers: roles this caller may give, managers, training templates, suggested first tasks. */
+  @Get('hr/joiners/options')
+  @RequirePermission('joiners:manage')
+  joinerOptions(@CurrentUser() u: Principal) {
+    return this.joiners.options(u);
+  }
+
+  /** Join a new employee in one step: account + invite link, HR record, the 90-day plan with 30/60/90-day reviews, and the first tasks. HR and the Boss. */
+  @Post('hr/joiners')
+  @RequirePermission('joiners:manage')
+  joinEmployee(@CurrentUser() u: Principal, @Body(new ZodPipe(newJoinerSchema)) b: z.infer<typeof newJoinerSchema>) {
+    return this.joiners.create(u, b);
+  }
 
   /** HR record (date of birth, probation, employee code...). HR only; every read is audited. */
   @Get('hr/profiles/:userId')

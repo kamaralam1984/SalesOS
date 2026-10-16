@@ -1,12 +1,14 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import {
   createGoalSchema, createMilestoneSchema, goalCancelSchema, goalCommentSchema, goalProgressSchema, goalReturnSchema, goalSubmitSchema, goalVerifySchema,
   listGoalsQuerySchema, updateGoalSchema, updateMilestoneSchema,
 } from '@salesos/validation';
+import type { Response } from 'express';
 import type { z } from 'zod';
 import { CurrentUser, RequireAnyPermission, RequirePermission, type Principal } from '../../../common/authz';
 import { ZodPipe } from '../../../common/http/zod.pipe';
+import { Limited } from '../../../common/security/rate-limits';
 import { GoalsService } from './goals.service';
 
 @ApiTags('workforce-goals')
@@ -30,6 +32,22 @@ export class GoalsController {
   @RequirePermission('goals:view')
   summary(@CurrentUser() u: Principal) {
     return this.svc.summary(u);
+  }
+
+  /** The goal as an Excel file: details, day-by-day progress history and linked tasks. Same visibility as the goal itself; audited. */
+  @Limited('EXPORT')
+  @Get(':id/export')
+  @RequirePermission('goals:view')
+  async export(@CurrentUser() u: Principal, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    const f = await this.svc.exportXlsx(u, id);
+    res.status(200).set({
+      'Content-Type': f.contentType,
+      'Content-Length': String(f.data.length),
+      'Content-Disposition': `attachment; filename="${f.fileName.replace(/[^\w. ()\-+]/g, '_')}"`,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'private, no-store',
+    });
+    res.end(f.data);
   }
 
   @Get(':id')

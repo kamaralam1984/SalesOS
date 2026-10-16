@@ -30,7 +30,7 @@ export const peoplePermissions = definePermissions('people', {
   'hiring:view': { description: 'View hiring pipeline', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
   'hiring:manage': { description: 'Manage requisitions/candidates', sensitive: true, grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
   'onboarding:view': { description: 'View onboarding/training/probation', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', SALES_EXECUTIVE: 'own', HR: 'org' } },
-  'onboarding:manage': { description: 'Manage onboarding/probation', sensitive: true, grants: { SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
+  'onboarding:manage': { description: 'Manage onboarding/probation', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', SALES_MANAGER: 'team', HR: 'org' } },
   'succession:view': { description: 'View succession bench', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', HR: 'org' } },
   'succession:manage': { description: 'Manage succession bench', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', HR: 'org' } },
   'hr:records:view': { description: 'View sensitive HR records (employee profiles)', sensitive: true, grants: { HR: 'org' } },

@@ -8,7 +8,7 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/require-permission';
 import { ConfirmDialog, MutationAlert, QueryState } from '@/features/people/hub/shared';
 import {
-  useAddMilestone, useCommentGoal, useGoal, useGoalAction, usePostGoalProgress, useUpdateMilestone, type GoalDetail,
+  useAddMilestone, useCommentGoal, useDownloadGoalExcel, useGoal, useGoalAction, usePostGoalProgress, useUpdateMilestone, type GoalDetail,
 } from '@/lib/api/hooks/work-goals';
 import { ProgressBar, useWorkDates } from '../common/shared';
 import { EditGoalDialog } from './goal-forms';
@@ -44,6 +44,7 @@ function Inner({ id }: { id: string }) {
             breadcrumbLabel={t('detail.breadcrumb')}
             actions={
               <>
+                <ExcelButton g={g} />
                 {g.can.edit && <Button variant="secondary" onClick={() => setEdit(true)}>{t('detail.edit')}</Button>}
                 {g.can.submit && <Button variant={primary === 'submit' ? 'gold' : 'secondary'} onClick={() => setAction('submit')}>{t('actions.submit')}</Button>}
                 {g.can.completeDirect && <Button variant={primary === 'complete' ? 'gold' : 'secondary'} onClick={() => setAction('complete')}>{t('actions.complete')}</Button>}
@@ -87,11 +88,28 @@ function Inner({ id }: { id: string }) {
   );
 }
 
+function ExcelButton({ g }: { g: GoalDetail }) {
+  const t = useTranslations('workGoals');
+  const dl = useDownloadGoalExcel(g.id);
+  return <Button variant="secondary" loading={dl.isPending} onClick={() => dl.mutate()}>{t('detail.downloadExcel')}</Button>;
+}
+
 function Banners({ g }: { g: GoalDetail }) {
   const t = useTranslations('workGoals');
   const { user } = useAuth();
+  const dl = useDownloadGoalExcel(g.id);
+  const measurable = g.targetValue != null && Number(g.targetValue) > 0;
+  const cycleDone = g.status === 'COMPLETED' || g.elapsedPct >= 100;
   return (
     <div className="mb-4 space-y-3">
+      {cycleDone && g.status !== 'CANCELLED' && (
+        <Alert tone="success" title={t('detail.cycleCompleteTitle', { n: g.cycleDays })}>
+          <span className="block">{t('detail.cycleCompleteBody', { progress: g.progressPct })}</span>
+          <Button className="mt-2" variant="gold" size="sm" loading={dl.isPending} onClick={() => dl.mutate()}>{t('detail.downloadExcel')}</Button>
+          {dl.isError && <span role="alert" className="mt-1 block text-sm text-red-700">{t('detail.downloadFailed')}</span>}
+        </Alert>
+      )}
+      {g.status === 'ACTIVE' && !measurable && g.tasks.length > 0 && <Alert tone="info">{t('detail.followsTasks')}</Alert>}
       {g.status === 'PENDING_VERIFICATION' && (
         <Alert tone="info" title={t('detail.pendingTitle')}>{g.ownerId === user?.id ? t('detail.pendingMine', { name: g.reviewerName ?? '—' }) : t('detail.pendingBody')}</Alert>
       )}

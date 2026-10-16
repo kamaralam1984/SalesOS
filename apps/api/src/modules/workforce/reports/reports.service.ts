@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { addDays, localDay, monthStart, nextBirthday, monthDay, type Day } from '@salesos/workforce-core';
+import { addDays, isoWeekday, localDay, monthStart, nextBirthday, monthDay, type Day } from '@salesos/workforce-core';
 import type { WorkforceReportKey, WorkforceReportQuery } from '@salesos/validation';
 import { AccessService, type Principal } from '../../../common/authz';
 import { ApiResult } from '../../../common/http/api-result';
@@ -49,7 +49,11 @@ export class WorkforceReportsService {
     const ids = await scopeUserIds(this.access, user, 'workforce:reports:view');
     const { config } = await this.cfg.getConfig(user.organizationId);
     const today = localDay(new Date(), config.timezone);
-    const defaults = key === 'probation' ? { from: addDays(today, -30), to: addDays(today, 90) } : key === 'birthdays' ? { from: today, to: addDays(today, 30) } : { from: monthStart(today.slice(0, 7)), to: today };
+    const defaults = key === 'probation' ? { from: addDays(today, -30), to: addDays(today, 90) }
+      : key === 'birthdays' ? { from: today, to: addDays(today, 30) }
+      : key === 'weekly-progress' ? { from: addDays(today, 1 - isoWeekday(today)), to: today }
+      : key === 'new-joiners' ? { from: addDays(today, -90), to: today }
+      : { from: monthStart(today.slice(0, 7)), to: today };
     const from = q.from ?? defaults.from;
     const to = q.to ?? defaults.to;
     if (q.userId && ids && !ids.includes(q.userId)) throw notFound('Employee');
@@ -79,6 +83,8 @@ export class WorkforceReportsService {
       case 'probation': return this.probationReport(c);
       case 'birthdays': return this.birthdays(c);
       case 'department-performance': return this.departmentPerformance(c);
+      case 'weekly-progress': return this.weeklyProgress(c);
+      case 'new-joiners': return this.newJoiners(c);
     }
   }
 
@@ -293,6 +299,103 @@ export class WorkforceReportsService {
       goals: x.goals, goalsDone: x.goalsDone, goalsAtRisk: x.goalsRisk, leaveDays: round2(x.leaveDays),
     }));
     return { columns, rows: out, summary: { groups: out.length, employees: c.ids.length } };
+  }
+
+  // ------------------------------------------------------------------ weekly progress (one row per person; default = this week, Monday to today)
+  private async weeklyProgress(c: Ctx) {
+    const org = c.user.organizationId;
+    const day = { gte: toDate(c.from), lte: toDate(c.to) };
+    const inst = { gte: new Date(`${c.from}T00:00:00Z`), lt: new Date(`${addDays(c.to, 1)}T00:00:00Z`) };
+    const [att, tasks, goals] = await Promise.all([
+      this.prisma.attendanceRecord.findMany({
+        where: { organizationId: org, userId: { in: c.ids }, date: day },
+        select: { userId: true, status: true, lateMinutes: true, lateJoin: true, overtimeMinutes: true, dayReportPct: true }, take: 50_000,
+      }),
+      this.prisma.workTask.findMany({
+        where: { organizationId: org, assigneeId: { in: c.ids }, status: { notIn: ['CANCELLED', 'REJECTED'] }, OR: [{ createdAt: inst }, { dueAt: inst }, { completedAt: inst }] },
+        select: { assigneeId: true, status: true, dueAt: true, completedAt: true, createdAt: true }, take: 100_000,
+      }),
+      this.prisma.goal.findMany({ where: { organizationId: org, ownerId: { in: c.ids }, status: 'ACTIVE', startDate: { lte: toDate(c.to) }, targetDate: { gte: toDate(c.from) } }, select: { ownerId: true, progressPct: true }, take: 50_000 }),
+    ]);
+    const now = new Date();
+    const inRange = (d: Date | null) => !!d && d >= inst.gte && d < inst.lt;
+    const rows: ReportRow[] = c.ids.map((id) => {
+      const a = att.filter((r) => r.userId === id);
+      const marked = a.filter((r) => MARKED.includes(r.status)).length;
+      const present = a.filter((r) => PRESENT_LIKE.includes(r.status)).length + a.filter((r) => r.status === 'HALF_DAY').length * 0.5;
+      const reports = a.filter((r) => r.dayReportPct !== null);
+      const ts = tasks.filter((t) => t.assigneeId === id && (inRange(t.createdAt) || inRange(t.dueAt)));
+      const done = ts.filter((t) => t.status === 'COMPLETED').length;
+      const gl = goals.filter((g) => g.ownerId === id);
+      return {
+        ...this.who(c, id), daysMarked: marked, attendancePct: pct(present, marked), lateDays: a.filter((r) => (r.lateMinutes ?? 0) > 0).length, lateJoinDays: a.filter((r) => r.lateJoin).length,
+        overtimeMinutes: a.reduce((n, r) => n + (r.overtimeMinutes ?? 0), 0), reportsFilled: reports.length,
+        avgDayReportPct: reports.length ? Math.round(reports.reduce((n, r) => n + (r.dayReportPct ?? 0), 0) / reports.length) : null,
+        tasks: ts.length, tasksDone: done, taskCompletionPct: pct(done, ts.length), tasksCompletedInRange: tasks.filter((t) => t.assigneeId === id && inRange(t.completedAt)).length,
+        tasksOverdue: ts.filter((t) => t.status !== 'COMPLETED' && !!t.dueAt && t.dueAt < now).length,
+        goalsActive: gl.length, avgGoalProgressPct: gl.length ? Math.round(gl.reduce((n, g) => n + g.progressPct, 0) / gl.length) : null,
+      };
+    }).sort((x, y) => String(x.employee).localeCompare(String(y.employee)));
+    const columns: ReportColumn[] = [
+      { key: 'employee', label: 'Employee', type: 'text' }, { key: 'department', label: 'Department', type: 'text' }, { key: 'daysMarked', label: 'Days marked', type: 'int' }, { key: 'attendancePct', label: 'Attendance %', type: 'pct' },
+      { key: 'lateDays', label: 'Late days', type: 'int' }, { key: 'lateJoinDays', label: 'Late joins (after cutoff)', type: 'int' }, { key: 'overtimeMinutes', label: 'Overtime minutes', type: 'int' },
+      { key: 'reportsFilled', label: 'Day reports filled', type: 'int' }, { key: 'avgDayReportPct', label: 'Average work done (own report) %', type: 'pct' },
+      { key: 'tasks', label: 'Tasks (assigned or due)', type: 'int' }, { key: 'tasksDone', label: 'Tasks done', type: 'int' }, { key: 'taskCompletionPct', label: 'Task completion %', type: 'pct' },
+      { key: 'tasksCompletedInRange', label: 'Tasks completed in the week', type: 'int' }, { key: 'tasksOverdue', label: 'Tasks overdue', type: 'int' },
+      { key: 'goalsActive', label: 'Active goals', type: 'int' }, { key: 'avgGoalProgressPct', label: 'Average goal progress %', type: 'pct' },
+    ];
+    const total = (k: string) => rows.reduce((n, r) => n + Number(r[k] ?? 0), 0);
+    return { columns, rows, summary: { employees: rows.length, tasks: total('tasks'), tasksDone: total('tasksDone'), taskCompletionPct: pct(total('tasksDone'), total('tasks')), lateDays: total('lateDays'), lateJoinDays: total('lateJoinDays') } };
+  }
+
+  // ------------------------------------------------------------------ new joiners: progress through the first 90 days
+  private async newJoiners(c: Ctx) {
+    const org = c.user.organizationId;
+    const profiles = await this.prisma.employeeProfile.findMany({
+      where: { organizationId: org, userId: { in: c.ids }, joinDate: { gte: toDate(c.from), lte: toDate(c.to) }, exitDate: null },
+      select: { userId: true, joinDate: true, positionTitle: true }, orderBy: { joinDate: 'desc' }, take: 2000,
+    });
+    const ids = profiles.map((p) => p.userId);
+    const [plans, att, tasks, goals, reviews, mgrNames] = await Promise.all([
+      this.prisma.onboardingPlan.findMany({ where: { organizationId: org, employeeId: { in: ids }, status: { not: 'CANCELLED' } }, select: { employeeId: true, items: { select: { status: true } } } }),
+      this.prisma.attendanceRecord.findMany({ where: { organizationId: org, userId: { in: ids } }, select: { userId: true, date: true, status: true, dayReportPct: true, lateMinutes: true }, take: 100_000 }),
+      this.prisma.workTask.findMany({ where: { organizationId: org, assigneeId: { in: ids }, status: { notIn: ['CANCELLED', 'REJECTED'] } }, select: { assigneeId: true, status: true, createdAt: true }, take: 100_000 }),
+      this.prisma.goal.findMany({ where: { organizationId: org, ownerId: { in: ids }, status: { in: ['ACTIVE', 'PENDING_VERIFICATION', 'COMPLETED'] } }, select: { ownerId: true, progressPct: true }, take: 50_000 }),
+      this.prisma.probationReview.findMany({ where: { organizationId: org, employeeId: { in: ids } }, select: { employeeId: true, checkpointDay: true, status: true, outcome: true }, orderBy: { checkpointDay: 'asc' } }),
+      this.nameMap(org, [...c.users.values()].map((u) => u.managerId)),
+    ]);
+    const rows: ReportRow[] = profiles.map((p) => {
+      const joined = isoDay(p.joinDate)!;
+      const dayN = Math.max(1, Math.round((Date.parse(`${c.today}T00:00:00Z`) - Date.parse(`${joined}T00:00:00Z`)) / 86_400_000) + 1);
+      const u = c.users.get(p.userId);
+      const items = plans.filter((x) => x.employeeId === p.userId).flatMap((x) => x.items).filter((i) => i.status !== 'SKIPPED');
+      const a = att.filter((r) => r.userId === p.userId && isoDay(r.date)! >= joined);
+      const marked = a.filter((r) => MARKED.includes(r.status)).length;
+      const present = a.filter((r) => PRESENT_LIKE.includes(r.status)).length + a.filter((r) => r.status === 'HALF_DAY').length * 0.5;
+      const reports = a.filter((r) => r.dayReportPct !== null);
+      const ts = tasks.filter((t) => t.assigneeId === p.userId);
+      const gl = goals.filter((g) => g.ownerId === p.userId);
+      const rv = reviews.filter((r) => r.employeeId === p.userId);
+      const next = rv.find((r) => r.status !== 'COMPLETED');
+      return {
+        employee: u?.name ?? '—', department: u?.department ?? null, manager: u?.managerId ? mgrNames.get(u.managerId) ?? null : null, position: p.positionTitle, joined, day: dayN, daysLeftOf90: Math.max(0, 90 - dayN),
+        onboardingItems: items.length, onboardingDonePct: pct(items.filter((i) => i.status === 'DONE').length, items.length),
+        tasks: ts.length, tasksDone: ts.filter((t) => t.status === 'COMPLETED').length, taskCompletionPct: pct(ts.filter((t) => t.status === 'COMPLETED').length, ts.length),
+        attendancePct: pct(present, marked), lateDays: a.filter((r) => (r.lateMinutes ?? 0) > 0).length,
+        avgDayReportPct: reports.length ? Math.round(reports.reduce((n, r) => n + (r.dayReportPct ?? 0), 0) / reports.length) : null,
+        avgGoalProgressPct: gl.length ? Math.round(gl.reduce((n, g) => n + g.progressPct, 0) / gl.length) : null,
+        nextReview: next ? `Day ${next.checkpointDay} review` : rv.length ? 'All reviews done' : null,
+      };
+    });
+    const columns: ReportColumn[] = [
+      { key: 'employee', label: 'Employee', type: 'text' }, { key: 'department', label: 'Department', type: 'text' }, { key: 'manager', label: 'Line manager', type: 'text' }, { key: 'position', label: 'Position', type: 'text' },
+      { key: 'joined', label: 'Joined', type: 'date' }, { key: 'day', label: 'Day of 90', type: 'int' }, { key: 'daysLeftOf90', label: 'Days left of 90', type: 'int' },
+      { key: 'onboardingItems', label: 'Training items', type: 'int' }, { key: 'onboardingDonePct', label: 'Training done %', type: 'pct' },
+      { key: 'tasks', label: 'Tasks', type: 'int' }, { key: 'tasksDone', label: 'Tasks done', type: 'int' }, { key: 'taskCompletionPct', label: 'Task completion %', type: 'pct' },
+      { key: 'attendancePct', label: 'Attendance %', type: 'pct' }, { key: 'lateDays', label: 'Late days', type: 'int' }, { key: 'avgDayReportPct', label: 'Average work done (own report) %', type: 'pct' },
+      { key: 'avgGoalProgressPct', label: 'Average goal progress %', type: 'pct' }, { key: 'nextReview', label: 'Next review', type: 'text' },
+    ];
+    return { columns, rows, summary: { newJoiners: rows.length, inFirst30Days: rows.filter((r) => Number(r.day) <= 30).length, inFirst90Days: rows.filter((r) => Number(r.day) <= 90).length } };
   }
 
   private async nameMap(organizationId: string, ids: Array<string | null | undefined>) {

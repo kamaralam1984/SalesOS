@@ -5,6 +5,7 @@ import { registerGoals } from './goals';
 import { registerTasks } from './tasks';
 import { registerBirthdays } from './birthdays';
 import { registerProbation } from './probation';
+import { registerAttendanceDigest } from './attendance-digest';
 
 /**
  * workforce jobs (DEC-048). Owners add their handlers here, each in its own file under jobs/workforce/:
@@ -20,4 +21,5 @@ export function register(registry: JobRegistry): void {
   registerTasks(registry);
   registerProbation(registry);
   registerBirthdays(registry);
+  registerAttendanceDigest(registry);
 }

@@ -27,7 +27,7 @@ import { ProbationPage } from './probation-page';
 const DEFAULT_WORKFORCE_CONFIG = {
   timezone: 'Asia/Kolkata',
   weeklyOffDays: [7],
-  attendance: { selfCheckIn: true, lateAfter: '10:15', checkInCutoff: '11:00', workdayEnd: '19:00', meetingUrl: null, fullDayMinutes: 480, halfDayMinutes: 240, autoMarkAbsent: true, managerCorrectionWindowDays: 7 },
+  attendance: { selfCheckIn: true, lateAfter: '10:15', checkInCutoff: '11:00', workdayEnd: '19:00', lateJoinAllowed: true, requireDayReport: true, meetingUrl: null, fullDayMinutes: 480, halfDayMinutes: 240, autoMarkAbsent: true, managerCorrectionWindowDays: 7 },
   leave: {
     types: [
       { key: 'CASUAL', name: 'Casual leave', isPaid: true, needsBalance: true, maxConsecutiveDays: null, active: true },

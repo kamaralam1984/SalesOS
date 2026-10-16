@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { Prisma, WorkTaskStatus } from '@prisma/client';
 import { PLATFORM_EVENTS, WORKFORCE_EVENTS } from '@salesos/shared-types';
 import type { createWorkTaskSchema, listWorkTasksQuerySchema, updateWorkTaskSchema, workTaskCommentSchema, workTaskTransitionSchema } from '@salesos/validation';
-import { isTaskOverdue, TASK_OPEN, transitionTask, type TaskActorRole, type TaskStatusKey } from '@salesos/workforce-core';
+import { computeGoalRisk, isTaskOverdue, localDay, TASK_OPEN, transitionTask, type TaskActorRole, type TaskStatusKey } from '@salesos/workforce-core';
 import type { z } from 'zod';
 import { AuditService } from '../../../common/audit/audit.service';
 import { AccessService, type Principal } from '../../../common/authz';
@@ -10,7 +10,7 @@ import { AppError, conflict, forbidden, notFound } from '../../../common/http/er
 import { OutboxService } from '../../../common/outbox/outbox.service';
 import { pageArgs, pageResult } from '../../../common/pagination/pagination';
 import { PrismaService, type Tx } from '../../../common/prisma';
-import { asPage, assertOrgUsers, scopeUserIds, userNameMap } from '../../people/common/helpers';
+import { asPage, assertOrgUsers, isoDay, scopeUserIds, userNameMap } from '../../people/common/helpers';
 import { WorkforceConfigService } from '../common/workforce-config.service';
 
 type Dto<T extends z.ZodTypeAny> = z.infer<T>;
@@ -167,6 +167,28 @@ export class TasksService {
     });
   }
 
+  /**
+   * A goal WITHOUT a measurable target follows its linked tasks: progress = completed / (all linked tasks that are not cancelled or rejected).
+   * Every task change (create, complete, reopen, cancel, move to another goal) recomputes it, so finishing tasks improves the goal every day.
+   * A goal with a measurable target keeps its value-based progress (the owner posts the number). History gets one PROGRESS entry per change.
+   */
+  private async syncGoalFromTasks(tx: Tx, user: Principal, goalId: string | null | undefined) {
+    if (!goalId) return;
+    const g = await tx.goal.findFirst({ where: { id: goalId, organizationId: user.organizationId, status: 'ACTIVE' } });
+    if (!g || g.targetValue !== null) return;
+    const groups = await tx.workTask.groupBy({ by: ['status'], where: { organizationId: user.organizationId, goalId }, _count: { _all: true } });
+    const count = (st: string) => groups.find((x) => x.status === st)?._count._all ?? 0;
+    const counted = groups.reduce((n, x) => n + (x.status === 'CANCELLED' || x.status === 'REJECTED' ? 0 : x._count._all), 0);
+    if (counted === 0) return;
+    const done = count('COMPLETED');
+    const pct = Math.round((100 * done) / counted);
+    if (pct === g.progressPct) return;
+    const { config } = await this.cfg.getConfig(user.organizationId);
+    const risk = computeGoalRisk({ status: 'ACTIVE', progressPct: pct, startDay: isoDay(g.startDate)!, targetDay: isoDay(g.targetDate)!, today: localDay(new Date(), config.timezone), atRiskGapPct: config.goals.atRiskGapPct });
+    await tx.goal.update({ where: { id: g.id }, data: { progressPct: pct, risk, version: { increment: 1 } } });
+    await tx.goalUpdate.create({ data: { organizationId: user.organizationId, goalId: g.id, authorId: user.userId, kind: 'PROGRESS', progressPct: pct, note: `From linked tasks: ${done} of ${counted} done` } });
+  }
+
   async create(user: Principal, dto: Dto<typeof createWorkTaskSchema>) {
     const assigneeId = dto.assigneeId ?? user.userId;
     await this.assertAssignable(user, assigneeId);
@@ -182,6 +204,7 @@ export class TasksService {
       });
       await this.record(tx, user, t, { audit: 'work_task.created', eventType: WORKFORCE_EVENTS.WORK_TASK_ASSIGNED, kind: 'CREATED', to: t.status, key: `created`, meta: { goalId: dto.goalId ?? null } });
       await this.notify(tx, user, t.id, 'work_task.assigned', assigneeId, 'A task was assigned to you', `work_task.assigned:${t.id}:${assigneeId}`);
+      await this.syncGoalFromTasks(tx, user, t.goalId);
       return t.id;
     });
     return this.get(user, id);
@@ -221,6 +244,10 @@ export class TasksService {
       });
       if (reassigned) await this.notify(tx, user, id, 'work_task.assigned', dto.assigneeId, 'A task was assigned to you', `work_task.assigned:${id}:${dto.assigneeId}`);
       else await this.notify(tx, user, id, 'work_task.update', t.assigneeId, 'A task was updated', `work_task.update:${id}:v${next.version}`);
+      if (dto.goalId !== undefined) {
+        await this.syncGoalFromTasks(tx, user, t.goalId);
+        await this.syncGoalFromTasks(tx, user, dto.goalId);
+      }
     });
     return this.get(user, id);
   }
@@ -250,6 +277,7 @@ export class TasksService {
       if (dto.evidence) await tx.workTaskEvent.create({ data: { organizationId: user.organizationId, taskId: id, actorId: user.userId, kind: 'EVIDENCE', note: dto.evidence } });
       const other = user.userId === t.assigneeId ? t.assignerId : t.assigneeId;
       await this.notify(tx, user, id, 'work_task.update', other, 'A task status changed', `work_task.update:${id}:v${next.version}`);
+      await this.syncGoalFromTasks(tx, user, t.goalId);
     });
     return this.get(user, id);
   }

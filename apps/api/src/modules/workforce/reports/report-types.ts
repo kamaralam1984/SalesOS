@@ -30,6 +30,8 @@ export const REPORT_TITLES: Record<WorkforceReportKey, string> = {
   probation: 'Probation report',
   birthdays: 'Birthday report',
   'department-performance': 'Department / manager performance report',
+  'weekly-progress': 'Weekly progress report (attendance, tasks, goals)',
+  'new-joiners': 'New joiner 90-day progress report',
 };
 
 /** percentage with one decimal; zero denominator = null (shown as a dash, never NaN or Infinity) */

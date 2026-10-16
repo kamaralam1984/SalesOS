@@ -33,7 +33,10 @@
       "lateNow": "आप {duration} लेट हैं। ऑफिस का समय {time} से शुरू हो चुका है।",
       "lateAt": "आपने {duration} लेट चेक-इन किया।",
       "overtime": "ओवरटाइम: {time} के बाद {duration}।",
-      "meetingJoinedAt": "आपने {time} पर मीटिंग बटन दबाया।"
+      "meetingJoinedAt": "आपने {time} पर मीटिंग बटन दबाया।",
+      "lateJoinNote": "चेक-इन का सामान्य समय ({time}) निकल चुका है। आप अब भी चेक-इन कर सकते हैं, पर कारण देना होगा और HR को सूचना जाएगी।",
+      "lateJoinRecorded": "देर से जुड़े। कारण: {reason}",
+      "dayReportDone": "आज की काम की रिपोर्ट: {pct}% पूरा"
     },
     "month": {
       "previous": "पिछला महीना",
@@ -143,7 +146,33 @@
       "onTime": "समय पर",
       "joined": "{time} पर जुड़े",
       "notJoined": "नहीं जुड़े",
-      "overtime": "+{duration} ओवरटाइम"
+      "overtime": "+{duration} ओवरटाइम",
+      "lateJoins": "कटऑफ के बाद जुड़े",
+      "lateJoinsHint": "{time} के बाद, कारण के साथ",
+      "reports": "काम की रिपोर्ट भरी",
+      "reportsHint": "चेक-आउट से पहले भरी गई",
+      "lateJoinReason": "देर से जुड़ने का कारण: {reason}",
+      "dayReport": "काम की रिपोर्ट: {pct}% पूरा",
+      "taskSnapshot": "टास्क: आज {done} पूरे, {open} अभी खुले"
+    },
+    "lateJoin": {
+      "title": "देर से जुड़ना",
+      "description": "चेक-इन का सामान्य समय निकल चुका है। देर से आने का कारण HR को बताइए। HR और बॉस को सूचना जाती है।",
+      "descriptionLate": "आप {duration} देर से हैं। देर से जुड़ने का कारण बताइए। HR और बॉस को सूचना जाती है।",
+      "reason": "देर से जुड़ने का कारण",
+      "reasonShort": "कारण लिखिए (कम से कम 3 अक्षर)",
+      "submit": "चेक-इन करें"
+    },
+    "dayReport": {
+      "title": "आज की काम की रिपोर्ट",
+      "description": "चेक-आउट से पहले बताइए कि आज का कितना काम हुआ। HR यह रोज देखता है।",
+      "pct": "आज का काम पूरा (%)",
+      "pctHint": "0 से 100",
+      "pctBad": "0 से 100 के बीच संख्या लिखिए",
+      "quick": "जल्दी चुनें",
+      "note": "क्या काम बाकी है?",
+      "noteBad": "बाकी काम के बारे में छोटा नोट लिखिए",
+      "submit": "चेक-आउट करें"
     }
   },
   "workHolidays": {

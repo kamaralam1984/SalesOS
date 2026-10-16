@@ -9,8 +9,14 @@ export const workDaySchema = z
   .refine((s) => !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s, 'Not a valid date');
 export const workMonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM');
 
-export const checkInSchema = z.object({ mode: z.enum(['OFFICE', 'WFH']).default('OFFICE') }).strict();
-export const checkOutSchema = z.object({}).strict();
+export const checkInSchema = z.object({ mode: z.enum(['OFFICE', 'WFH']).default('OFFICE'), /** required when checking in after the cutoff */ reason: z.string().trim().min(3).max(300).optional() }).strict();
+export const checkOutSchema = z
+  .object({
+    /** how much of today's work is done, 0-100 (required by policy `attendance.requireDayReport`) */
+    dayReportPct: z.number().int().min(0).max(100).optional(),
+    dayReportNote: z.string().trim().max(1000).optional(),
+  })
+  .strict();
 
 export const attendanceMonthQuerySchema = z.object({ userId: uuidSchema.optional(), month: workMonthSchema.optional() });
 export const teamSummaryQuerySchema = z.object({ date: workDaySchema.optional() });

@@ -21,6 +21,6 @@ import { RolesService } from './roles.service';
     AuthService, UsersService, TeamsService, OrgService, PasswordService, RolesService,
     { provide: EMAIL_PROVIDER, useClass: OutboxEmailProvider },
   ],
-  exports: [PasswordService, RolesService, OrgService],
+  exports: [PasswordService, RolesService, OrgService, UsersService],
 })
 export class IdentityModule {}

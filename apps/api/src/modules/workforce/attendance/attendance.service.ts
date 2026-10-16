@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, type AttendanceRecord } from '@prisma/client';
 import { PLATFORM_EVENTS, WORKFORCE_EVENTS } from '@salesos/shared-types';
-import type { attendanceCorrectionSchema, attendanceMonthQuerySchema, checkInSchema, correctionsQuerySchema, daySheetQuerySchema, teamSummaryQuerySchema, WorkforceConfig } from '@salesos/validation';
+import type { attendanceCorrectionSchema, attendanceMonthQuerySchema, checkInSchema, checkOutSchema, correctionsQuerySchema, daySheetQuerySchema, teamSummaryQuerySchema, WorkforceConfig } from '@salesos/validation';
 import {
-  addDays, canSeeMeeting, classifyCheckIn, classifyCheckOut, eachDay, isCheckInOpen, lateMinutesOf, lateSoFarMinutes, localDay, minutesBetween, monthEnd, monthOf, monthStart, overtimeMinutesOf, summarise,
+  addDays, canSeeMeeting, classifyCheckIn, classifyCheckOut, eachDay, isCheckInOpen, lateMinutesOf, lateSoFarMinutes, localDay, minutesBetween, monthEnd, monthOf, monthStart, overtimeMinutesOf, startOfLocalDay, summarise, TASK_OPEN,
   type AttendanceSummary,
 } from '@salesos/workforce-core';
 import type { z } from 'zod';
@@ -31,6 +31,8 @@ const recordView = (r: AttendanceRecord, config?: Pick<WorkforceConfig, 'timezon
   lateMinutes: r.lateMinutes ?? (config && r.checkInAt && r.status !== 'WFH' ? lateMinutesOf(config, r.checkInAt) : null),
   overtimeMinutes: r.overtimeMinutes ?? (config && r.checkOutAt ? overtimeMinutesOf(config, isoDay(r.date)!, r.checkOutAt) : null),
   meetingJoinedAt: r.meetingJoinedAt,
+  lateJoin: r.lateJoin, lateJoinReason: r.lateJoinReason,
+  dayReportPct: r.dayReportPct, dayReportNote: r.dayReportNote, tasksDone: r.tasksDone, tasksOpen: r.tasksOpen,
   source: r.source, note: r.note, version: r.version,
 });
 
@@ -53,14 +55,19 @@ export class AttendanceService {
     const { calendar } = await this.cfg.getCalendar(user.organizationId, today, today);
     const kind = calendar.kindOf(today);
     if (kind !== 'WORKING') throw new AppError('NON_WORKING_DAY', kind === 'HOLIDAY' ? 'Today is a holiday' : 'Today is not a working day. HR can record attendance if you worked.', 409);
-    if (!isCheckInOpen(config, now)) {
-      throw new AppError('CHECK_IN_CLOSED', `Self check-in closed at ${config.attendance.checkInCutoff}. Ask HR or your manager to record your attendance.`, 409);
+    const lateJoin = !isCheckInOpen(config, now);
+    if (lateJoin) {
+      if (!config.attendance.lateJoinAllowed) {
+        throw new AppError('CHECK_IN_CLOSED', `Self check-in closed at ${config.attendance.checkInCutoff}. Ask HR or your manager to record your attendance.`, 409);
+      }
+      if (!body.reason) throw new AppError('LATE_JOIN_REASON_REQUIRED', `It is after ${config.attendance.checkInCutoff}. Tell HR why you are joining late.`, 422);
     }
+    // joining after the cutoff is always at least LATE, whatever the mode (WFH keeps its own status)
     const status = classifyCheckIn(config, now, body.mode);
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const rec = await tx.attendanceRecord.create({ data: { organizationId: user.organizationId, userId: user.userId, date: toDate(today), status, checkInAt: now, lateMinutes: lateMinutesOf(config, now, body.mode), source: 'SELF' } });
-        await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'attendance.checked_in', entityType: 'attendance_record', entityId: rec.id, metadata: { date: today, status, mode: body.mode } });
+        const rec = await tx.attendanceRecord.create({ data: { organizationId: user.organizationId, userId: user.userId, date: toDate(today), status, checkInAt: now, lateMinutes: lateMinutesOf(config, now, body.mode), lateJoin, lateJoinReason: lateJoin ? body.reason ?? null : null, source: 'SELF' } });
+        await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'attendance.checked_in', entityType: 'attendance_record', entityId: rec.id, metadata: { date: today, status, mode: body.mode, lateJoin } });
         return recordView(rec, config);
       });
     } catch (e) {
@@ -72,7 +79,7 @@ export class AttendanceService {
     }
   }
 
-  async checkOut(user: Principal) {
+  async checkOut(user: Principal, body: Dto<typeof checkOutSchema> = {}) {
     const now = new Date();
     const { config } = await this.cfg.getConfig(user.organizationId);
     const today = localDay(now, config.timezone);
@@ -86,12 +93,29 @@ export class AttendanceService {
       if (done?.checkOutAt) throw new AppError('ALREADY_CHECKED_OUT', 'You have already checked out today', 409, recordView(done, config));
       throw new AppError('NOT_CHECKED_IN', 'Check in first', 409);
     }
+    if (config.attendance.requireDayReport) {
+      if (body.dayReportPct === undefined) throw new AppError('DAY_REPORT_REQUIRED', 'Fill in how much of today\'s work is done before you check out', 422);
+      if (body.dayReportPct < 100 && !body.dayReportNote?.trim()) throw new AppError('DAY_REPORT_NOTE_REQUIRED', 'Add a short note on what is still pending', 422);
+    }
     const res = classifyCheckOut(config, rec.status, rec.checkInAt, now);
+    const day = isoDay(rec.date)!;
+    const dayStart = startOfLocalDay(day, config.timezone);
+    const dayEnd = startOfLocalDay(addDays(day, 1), config.timezone);
+    const [tasksDone, tasksOpen] = await Promise.all([
+      this.prisma.workTask.count({ where: { organizationId: user.organizationId, assigneeId: user.userId, status: 'COMPLETED', completedAt: { gte: dayStart, lt: dayEnd } } }),
+      this.prisma.workTask.count({ where: { organizationId: user.organizationId, assigneeId: user.userId, status: { in: [...TASK_OPEN] }, dueAt: { lt: dayEnd } } }),
+    ]);
     return this.prisma.$transaction(async (tx) => {
-      const upd = await tx.attendanceRecord.updateMany({ where: { id: rec.id, checkOutAt: null, version: rec.version }, data: { checkOutAt: now, workMinutes: res.workMinutes, overtimeMinutes: overtimeMinutesOf(config, isoDay(rec.date)!, now), status: res.status, version: { increment: 1 } } });
+      const upd = await tx.attendanceRecord.updateMany({
+        where: { id: rec.id, checkOutAt: null, version: rec.version },
+        data: {
+          checkOutAt: now, workMinutes: res.workMinutes, overtimeMinutes: overtimeMinutesOf(config, day, now), status: res.status, version: { increment: 1 },
+          dayReportPct: body.dayReportPct ?? null, dayReportNote: body.dayReportNote?.trim() || null, tasksDone, tasksOpen,
+        },
+      });
       if (upd.count !== 1) throw conflict('ALREADY_CHECKED_OUT', 'You have already checked out');
       const out = await tx.attendanceRecord.findUniqueOrThrow({ where: { id: rec.id } });
-      await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'attendance.checked_out', entityType: 'attendance_record', entityId: rec.id, metadata: { date: isoDay(rec.date), workMinutes: res.workMinutes, status: res.status, needsReview: res.needsReview } });
+      await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'attendance.checked_out', entityType: 'attendance_record', entityId: rec.id, metadata: { date: day, workMinutes: res.workMinutes, status: res.status, needsReview: res.needsReview, dayReportPct: body.dayReportPct ?? null, tasksDone, tasksOpen } });
       return { ...recordView(out, config), needsReview: res.needsReview };
     });
   }
@@ -116,12 +140,15 @@ export class AttendanceService {
     return {
       date: today, timezone: config.timezone, dayKind: kind, holiday: holiday ? { name: holiday.name, kind: holiday.kind } : null,
       record: todays ? recordView(todays, config) : open ? recordView(open, config) : null,
-      can: { checkIn: config.attendance.selfCheckIn && kind === 'WORKING' && !todays && !cutoffPassed, checkOut: !!open },
-      checkInClosed: cutoffPassed && !todays && kind === 'WORKING' && config.attendance.selfCheckIn,
+      can: { checkIn: config.attendance.selfCheckIn && kind === 'WORKING' && !todays && (!cutoffPassed || config.attendance.lateJoinAllowed), checkOut: !!open },
+      /** after the cutoff with late join off: nobody can check in themselves */
+      checkInClosed: cutoffPassed && !config.attendance.lateJoinAllowed && !todays && kind === 'WORKING' && config.attendance.selfCheckIn,
+      /** after the cutoff with late join on: check-in still works but needs a reason and HR is told */
+      lateJoin: cutoffPassed && config.attendance.lateJoinAllowed && !todays && kind === 'WORKING' && config.attendance.selfCheckIn,
       /** minutes past the late time right now, for someone who has not checked in on a working day (null otherwise) */
       lateByMinutes: !todays && kind === 'WORKING' ? lateSoFarMinutes(config, now) : null,
       meeting,
-      policy: { lateAfter: config.attendance.lateAfter, checkInCutoff: config.attendance.checkInCutoff, workdayEnd: config.attendance.workdayEnd, fullDayMinutes: config.attendance.fullDayMinutes, selfCheckIn: config.attendance.selfCheckIn },
+      policy: { lateAfter: config.attendance.lateAfter, checkInCutoff: config.attendance.checkInCutoff, workdayEnd: config.attendance.workdayEnd, fullDayMinutes: config.attendance.fullDayMinutes, selfCheckIn: config.attendance.selfCheckIn, lateJoinAllowed: config.attendance.lateJoinAllowed, requireDayReport: config.attendance.requireDayReport },
     };
   }
 
@@ -278,6 +305,7 @@ export class AttendanceService {
       return {
         userId: p.id, name: p.name, status: v?.status ?? null, checkInAt: v?.checkInAt ?? null, lateMinutes: v?.lateMinutes ?? null,
         meetingJoinedAt: v?.meetingJoinedAt ?? null, checkOutAt: v?.checkOutAt ?? null, workMinutes: v?.workMinutes ?? null, overtimeMinutes: v?.overtimeMinutes ?? null, source: v?.source ?? null,
+        lateJoin: v?.lateJoin ?? false, lateJoinReason: v?.lateJoinReason ?? null, dayReportPct: v?.dayReportPct ?? null, dayReportNote: v?.dayReportNote ?? null, tasksDone: v?.tasksDone ?? null, tasksOpen: v?.tasksOpen ?? null,
       };
     });
     // marked people first by check-in time, then the not-marked
@@ -286,11 +314,11 @@ export class AttendanceService {
     const kind = calendar.kindOf(date);
     return {
       date, dayKind: kind, timezone: config.timezone,
-      policy: { lateAfter: config.attendance.lateAfter, workdayEnd: config.attendance.workdayEnd, meetingConfigured: Boolean(config.attendance.meetingUrl) },
+      policy: { lateAfter: config.attendance.lateAfter, checkInCutoff: config.attendance.checkInCutoff, workdayEnd: config.attendance.workdayEnd, meetingConfigured: Boolean(config.attendance.meetingUrl) },
       totals: {
         people: items.length, marked: marked.length, notMarked: kind === 'WORKING' ? items.length - marked.length : 0,
         late: marked.filter((i) => (i.lateMinutes ?? 0) > 0).length, lateMinutes: marked.reduce((n, i) => n + (i.lateMinutes ?? 0), 0),
-        meetingJoined: marked.filter((i) => i.meetingJoinedAt).length, overtimeMinutes: marked.reduce((n, i) => n + (i.overtimeMinutes ?? 0), 0),
+        meetingJoined: marked.filter((i) => i.meetingJoinedAt).length, lateJoins: marked.filter((i) => i.lateJoin).length, reportsFilled: marked.filter((i) => i.dayReportPct !== null).length, overtimeMinutes: marked.reduce((n, i) => n + (i.overtimeMinutes ?? 0), 0),
       },
       items,
     };

@@ -208,3 +208,35 @@ describe('policy: tasks.requireReview=false', () => {
     expect((await move(exec, task.id, 'COMPLETED')).body.data.status).toBe('COMPLETED');
   });
 });
+
+describe('a goal without a measurable target follows its linked tasks', () => {
+  it('progress = completed / counted linked tasks, recomputed on every task change; measurable goals are left alone', async () => {
+    const g = (await a.execA1.post('/workforce/goals').send({ title: 'Task driven goal' })).body.data;
+    const t1 = await mk(a.execA1, { goalId: g.id, title: 'First linked task' });
+    const t2 = await mk(a.execA1, { goalId: g.id, title: 'Second linked task' });
+    const t3 = await mk(a.execA1, { goalId: g.id, title: 'Third linked task' });
+    const pct = async () => (await a.execA1.get(`/workforce/goals/${g.id}`)).body.data.progressPct as number;
+    expect(await pct()).toBe(0);
+    for (const x of [t1, t2]) {
+      expect((await move(a.execA1, x.id, 'IN_PROGRESS')).status).toBe(200);
+    }
+    // the assignee finishes straight away when tasks.requireReview is off; otherwise via review, so set the policy for this check
+    await t.prisma.workforceSetting.upsert({ where: { organizationId: fx.org.id }, create: { organizationId: fx.org.id, config: { tasks: { requireReview: false } } }, update: { config: { tasks: { requireReview: false } } } });
+    expect((await move(a.execA1, t1.id, 'COMPLETED')).status).toBe(200);
+    expect(await pct()).toBe(33);
+    expect((await move(a.execA1, t2.id, 'COMPLETED')).status).toBe(200);
+    expect(await pct()).toBe(67);
+    // a cancelled task no longer counts: 2 of 2 -> 100
+    expect((await move(a.execA1, t3.id, 'CANCELLED')).status).toBe(200);
+    expect(await pct()).toBe(100);
+    const hist = (await a.execA1.get(`/workforce/goals/${g.id}`)).body.data.updates as Array<{ note: string | null }>;
+    expect(hist.some((u) => u.note?.startsWith('From linked tasks:'))).toBe(true);
+    // a goal with a measurable target keeps its own number
+    const m = (await a.execA1.post('/workforce/goals').send({ title: 'Measurable goal', targetValue: '30', unit: 'enrolments' })).body.data;
+    const tm = await mk(a.execA1, { goalId: m.id, title: 'Linked to measurable' });
+    await move(a.execA1, tm.id, 'IN_PROGRESS');
+    await move(a.execA1, tm.id, 'COMPLETED');
+    expect((await a.execA1.get(`/workforce/goals/${m.id}`)).body.data.progressPct).toBe(0);
+    await t.prisma.workforceSetting.deleteMany({ where: { organizationId: fx.org.id } });
+  });
+});

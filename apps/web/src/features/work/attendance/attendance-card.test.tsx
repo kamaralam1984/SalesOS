@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider, TooltipProvider } from '@salesos/ui';
@@ -115,5 +115,40 @@ describe('AttendanceCard', () => {
     fireEvent.click(a);
     await waitFor(() => expect(h.post).toHaveBeenCalledWith('/workforce/attendance/meeting-join', {}));
     expect(a.getAttribute('target')).toBe('_blank');
+  });
+
+  it('after the cutoff it asks for a reason before a late check-in and sends it with the request', async () => {
+    h.get.mockResolvedValue(one(today({ lateJoin: true, lateByMinutes: 120 })));
+    h.post.mockResolvedValue(one(present));
+    renderCard();
+    expect(await screen.findByText(/You can still check in with a reason/)).toBeTruthy();
+    expect(screen.queryByText(/Check-in closes at/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Check in \(office\)/ }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Check in' }));
+    expect(await within(dialog).findByText('Write the reason (at least 3 characters)')).toBeTruthy();
+    expect(h.post).not.toHaveBeenCalled();
+    fireEvent.change(within(dialog).getByLabelText(/Reason for joining late/), { target: { value: 'Client visit' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Check in' }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledWith('/workforce/attendance/check-in', { mode: 'OFFICE', reason: 'Client visit' }));
+  });
+
+  it('check-out asks how much of today\'s work is done (and a note when it is not everything) and sends both', async () => {
+    h.get.mockResolvedValue(one(today({ record: present, can: { checkIn: false, checkOut: true }, policy: { lateAfter: '10:15', fullDayMinutes: 480, selfCheckIn: true, checkInCutoff: '11:00', requireDayReport: true } })));
+    h.post.mockResolvedValue(one({ ...present, checkOutAt: '2026-10-15T13:00:00Z' }));
+    renderCard();
+    fireEvent.click(await screen.findByRole('button', { name: /Check out/ }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Check out' }));
+    expect(await within(dialog).findByText('Enter a number from 0 to 100')).toBeTruthy();
+    expect(h.post).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', { name: '50%' }));
+    expect(within(dialog).getByDisplayValue('50')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Check out' }));
+    expect(await within(dialog).findByText('Add a short note on what is pending')).toBeTruthy();
+    expect(h.post).not.toHaveBeenCalled();
+    fireEvent.change(within(dialog).getByLabelText(/What is still pending/), { target: { value: 'Two follow-ups' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Check out' }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledWith('/workforce/attendance/check-out', { dayReportPct: 50, dayReportNote: 'Two follow-ups' }));
   });
 });

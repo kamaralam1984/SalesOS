@@ -20,8 +20,8 @@ export class AttendanceController {
   @Post('check-out')
   @HttpCode(200)
   @RequirePermission('attendance:self')
-  checkOut(@CurrentUser() u: Principal, @Body(new ZodPipe(checkOutSchema)) _b: z.infer<typeof checkOutSchema>) {
-    return this.svc.checkOut(u);
+  checkOut(@CurrentUser() u: Principal, @Body(new ZodPipe(checkOutSchema)) b: z.infer<typeof checkOutSchema>) {
+    return this.svc.checkOut(u, b);
   }
 
   @Get('today')

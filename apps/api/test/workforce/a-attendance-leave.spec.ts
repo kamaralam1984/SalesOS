@@ -11,7 +11,7 @@ const today = () => localDay(new Date(), TZ);
 const future = (n: number) => addDays(today(), n);
 /** Replaces the stored policy. The self check-in cutoff defaults to 23:59 so tests do not depend on the time of day they run at. */
 const setConfig = (input: { attendance?: Record<string, string | number | boolean | null> } & Record<string, unknown>) => {
-  const config: object = { ...input, attendance: { checkInCutoff: '23:59', ...input.attendance } };
+  const config: object = { ...input, attendance: { checkInCutoff: '23:59', requireDayReport: false, ...input.attendance } };
   return t.prisma.workforceSetting.upsert({ where: { organizationId: fx.org.id }, create: { organizationId: fx.org.id, config }, update: { config } });
 };
 const audit = (action: string, entityId?: string) => t.prisma.auditLog.findMany({ where: { organizationId: fx.org.id, action, ...(entityId ? { entityId } : {}) } });
@@ -96,7 +96,7 @@ describe('attendance: check-in cutoff and meeting link', () => {
   const todayView = async (a: AuthedAgent) => (await a.get('/workforce/attendance/today')).body.data;
 
   it('cutoff 00:00 rejects self check-in with CHECK_IN_CLOSED and today() reflects it', async () => {
-    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '00:00' } });
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '00:00', lateJoinAllowed: false } });
     const res = await A.execB1.post('/workforce/attendance/check-in').send({ mode: 'OFFICE' });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('CHECK_IN_CLOSED');
@@ -107,7 +107,7 @@ describe('attendance: check-in cutoff and meeting link', () => {
     expect(view.checkInClosed).toBe(true);
     expect(view.policy.checkInCutoff).toBe('00:00');
     // switched-off self check-in is not reported as "closed by the clock"
-    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '00:00', selfCheckIn: false } });
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '00:00', lateJoinAllowed: false, selfCheckIn: false } });
     expect((await todayView(A.execB1)).checkInClosed).toBe(false);
   });
 
@@ -571,5 +571,49 @@ describe('attendance: lateness, meeting button, overtime and the day sheet', () 
   it('the month view totals late days, minutes late, overtime and meeting days', async () => {
     const m = await A.hr.get(`/workforce/attendance/month?userId=${wfh.id}`);
     expect(m.body.data.summary).toMatchObject({ lateDays: 1, lateMinutes: 30, overtimeMinutes: 90 });
+  });
+});
+
+describe('attendance: late join after the cutoff and the end-of-day report before check-out', () => {
+  let joiner: Awaited<ReturnType<typeof createUser>>;
+  let aJoin: AuthedAgent;
+  beforeAll(async () => {
+    joiner = await createUser(t.prisma, fx.org, { roles: ['SALES_EXECUTIVE'], managerId: fx.managerB.id });
+    aJoin = await loginAgent(t.app, joiner);
+  });
+  it('after the cutoff a person can still check in with a reason; it is flagged as a late join and HR sees why', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { checkInCutoff: '00:00', lateJoinAllowed: true } });
+    const view = (await aJoin.get('/workforce/attendance/today')).body.data;
+    expect(view).toMatchObject({ can: { checkIn: true }, checkInClosed: false, lateJoin: true });
+    const noReason = await aJoin.post('/workforce/attendance/check-in').send({ mode: 'OFFICE' });
+    expect(noReason.status).toBe(422);
+    expect(noReason.body.error.code).toBe('LATE_JOIN_REASON_REQUIRED');
+    expect(await t.prisma.attendanceRecord.count({ where: { userId: joiner.id } })).toBe(0);
+    const ok = await aJoin.post('/workforce/attendance/check-in').send({ mode: 'OFFICE', reason: 'Client visit in the morning' });
+    expect(ok.status, JSON.stringify(ok.body)).toBe(201);
+    expect(ok.body.data).toMatchObject({ lateJoin: true, lateJoinReason: 'Client visit in the morning' });
+    const sheet = (await A.hr.get('/workforce/attendance/day')).body.data;
+    expect(sheet.items.find((i: { userId: string }) => i.userId === joiner.id)).toMatchObject({ lateJoin: true, lateJoinReason: 'Client visit in the morning' });
+    expect(sheet.totals.lateJoins).toBeGreaterThanOrEqual(1);
+    await setConfig({ weeklyOffDays: [] });
+  });
+
+  it('check-out needs the end-of-day report: how much is done (and a note when not everything is), stored with a task snapshot', async () => {
+    await setConfig({ weeklyOffDays: [], attendance: { requireDayReport: true } });
+    const missing = await aJoin.post('/workforce/attendance/check-out').send({});
+    expect(missing.status).toBe(422);
+    expect(missing.body.error.code).toBe('DAY_REPORT_REQUIRED');
+    const noNote = await aJoin.post('/workforce/attendance/check-out').send({ dayReportPct: 60 });
+    expect(noNote.body.error.code).toBe('DAY_REPORT_NOTE_REQUIRED');
+    expect((await aJoin.post('/workforce/attendance/check-out').send({ dayReportPct: 140 })).status).toBe(400);
+    expect((await t.prisma.attendanceRecord.findFirstOrThrow({ where: { userId: joiner.id } })).checkOutAt).toBeNull();
+    const ok = await aJoin.post('/workforce/attendance/check-out').send({ dayReportPct: 60, dayReportNote: 'Two follow-ups pending for tomorrow' });
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200);
+    expect(ok.body.data).toMatchObject({ dayReportPct: 60, dayReportNote: 'Two follow-ups pending for tomorrow' });
+    expect(typeof ok.body.data.tasksDone).toBe('number');
+    const sheet = (await A.hr.get('/workforce/attendance/day')).body.data;
+    expect(sheet.items.find((i: { userId: string }) => i.userId === joiner.id)).toMatchObject({ dayReportPct: 60, dayReportNote: 'Two follow-ups pending for tomorrow' });
+    expect(sheet.totals.reportsFilled).toBeGreaterThanOrEqual(1);
+    await setConfig({ weeklyOffDays: [] });
   });
 });

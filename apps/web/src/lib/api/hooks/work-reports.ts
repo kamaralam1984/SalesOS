@@ -3,7 +3,7 @@ import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import { API_BASE_URL, ApiError, api } from '../client';
 
 /** Workforce reports and exports (area D2). */
-export const WORKFORCE_REPORT_KEYS = ['attendance', 'leave', 'earned-leave', 'tasks', 'goals', 'holidays', 'probation', 'birthdays', 'department-performance'] as const;
+export const WORKFORCE_REPORT_KEYS = ['attendance', 'leave', 'earned-leave', 'tasks', 'goals', 'holidays', 'probation', 'birthdays', 'department-performance', 'weekly-progress', 'new-joiners'] as const;
 export type WorkforceReportKey = (typeof WORKFORCE_REPORT_KEYS)[number];
 
 export interface ReportColumn { key: string; label: string; type: 'text' | 'int' | 'number' | 'pct' | 'date' }

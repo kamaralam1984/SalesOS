@@ -10,7 +10,9 @@ import {
   type GoalAction, type GoalActorRole, type GoalStatusKey,
 } from '@salesos/workforce-core';
 import type { z } from 'zod';
-import { AuditService } from '../../../common/audit/audit.service';
+import ExcelJS from 'exceljs';
+import { CONTENT_TYPES, neutralise } from '../../reporting/exports/writers';
+import { AuditService, AUDIT_ACTIONS } from '../../../common/audit/audit.service';
 import { AccessService, type Principal } from '../../../common/authz';
 import { AppError, conflict, forbidden, notFound } from '../../../common/http/errors';
 import { OutboxService } from '../../../common/outbox/outbox.service';
@@ -168,6 +170,36 @@ export class GoalsService {
       updates: updates.map((u) => ({ id: u.id, kind: u.kind, authorId: u.authorId, authorName: names.get(u.authorId) ?? null, currentValue: u.currentValue?.toString() ?? null, progressPct: u.progressPct, note: u.note, createdAt: u.createdAt })),
       tasks, tasksAvailable,
     };
+  }
+
+  /** Excel copy of one goal (visible to whoever can open the goal): details, progress history (one row per update) and linked tasks. */
+  async exportXlsx(user: Principal, id: string) {
+    const g = await this.get(user, id) as Awaited<ReturnType<GoalsService['get']>> & Record<string, unknown>;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'CoachEasily SalesOS';
+    wb.created = new Date();
+    const safe = (v: unknown) => (typeof v === 'string' ? neutralise(v) : v ?? '');
+    const info = wb.addWorksheet('Goal');
+    info.columns = [{ width: 28 }, { width: 70 }];
+    const rows: Array<[string, unknown]> = [
+      ['Goal', g.title], ['Details', g.description], ['Owner', g.ownerName], ['Reviewer', g.reviewerName], ['Start date', g.startDate], ['Target date', g.targetDate], ['Cycle (days)', g.cycleDays],
+      ['Status', g.status], ['Risk', g.risk], ['Progress %', g.progressPct], ['Measurable target', g.targetValue], ['Current value', g.currentValue], ['Unit', g.unit],
+      ['Verified by', g.verifiedByName], ['Verified at', g.verifiedAt], ['Exported at (UTC)', new Date().toISOString()],
+    ];
+    for (const [k, v] of rows) info.addRow([k, safe(v instanceof Date ? v.toISOString() : v)]);
+    info.getColumn(1).font = { bold: true };
+    const hist = wb.addWorksheet('Progress history', { views: [{ state: 'frozen', ySplit: 1 }] });
+    hist.columns = [{ header: 'When (UTC)', width: 24 }, { header: 'What', width: 14 }, { header: 'By', width: 24 }, { header: 'Progress %', width: 12 }, { header: 'Current value', width: 14 }, { header: 'Note', width: 60 }];
+    hist.getRow(1).font = { bold: true };
+    for (const u of g.updates) hist.addRow([u.createdAt.toISOString(), u.kind, safe(u.authorName), u.progressPct, u.currentValue === null ? null : Number(u.currentValue), safe(u.note)]);
+    const tasks = wb.addWorksheet('Linked tasks', { views: [{ state: 'frozen', ySplit: 1 }] });
+    tasks.columns = [{ header: 'Task', width: 44 }, { header: 'Assignee', width: 24 }, { header: 'Status', width: 14 }, { header: 'Priority', width: 12 }, { header: 'Due', width: 24 }];
+    tasks.getRow(1).font = { bold: true };
+    for (const tk of g.tasks as Array<{ title: string; assigneeName: string | null; status: string; priority: string; dueAt: Date | null }>) tasks.addRow([safe(tk.title), safe(tk.assigneeName), tk.status, tk.priority, tk.dueAt ? tk.dueAt.toISOString() : null]);
+    const data = Buffer.from((await wb.xlsx.writeBuffer()) as ArrayBuffer);
+    await this.audit.record({ organizationId: user.organizationId, actorId: user.userId, action: AUDIT_ACTIONS.EXPORT_CREATED, entityType: 'workforce_goal_export', entityId: id, metadata: { format: 'xlsx', updates: g.updates.length, tasks: (g.tasks as unknown[]).length } });
+    const slug = String(g.title).replace(/[^\w.-]+/g, '_').slice(0, 40) || 'goal';
+    return { data, contentType: CONTENT_TYPES.XLSX, fileName: `goal_${slug}_${String(g.startDate).slice(0, 10)}.xlsx` };
   }
 
   // ------------------------------------------------------------------ writes

@@ -126,7 +126,12 @@
       "atRiskTitle": "This goal is behind schedule",
       "riskBody": "Progress is {progress}% while {elapsed}% of the cycle has passed.",
       "verified": "This goal was verified.",
-      "cancelled": "This goal was cancelled."
+      "cancelled": "This goal was cancelled.",
+      "downloadExcel": "Download Excel",
+      "cycleCompleteTitle": "The {n}-day cycle is complete",
+      "cycleCompleteBody": "Final progress is {progress}%. Download the full goal sheet (details, progress history and tasks) as Excel.",
+      "downloadFailed": "Could not download the file. Try again.",
+      "followsTasks": "Progress of this goal follows its linked tasks: every task you finish moves it forward."
     },
     "actions": {
       "submit": "Submit for verification",

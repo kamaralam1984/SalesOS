@@ -1,6 +1,6 @@
 'use client';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '../client';
+import { API_BASE_URL, ApiError, api } from '../client';
 
 /** Workforce goals (45-day cycle). Query keys: ['work', 'goals', ...]; every mutation invalidates the whole ['work', 'goals'] tree. */
 export type GoalStatus = 'ACTIVE' | 'PENDING_VERIFICATION' | 'COMPLETED' | 'CANCELLED';
@@ -68,3 +68,29 @@ export const useCommentGoal = (id: string) => useGoalMutation((b: { note: string
 export type GoalActionBody = { version?: number; note?: string; reason?: string };
 export const useGoalAction = (id: string, action: 'submit' | 'verify' | 'return' | 'cancel') =>
   useGoalMutation((b: GoalActionBody) => api.post<GoalDetail>(`/workforce/goals/${id}/${action}`, b).then((r) => r.data));
+
+/** Excel copy of one goal (details, progress history, linked tasks). Authenticated download; the server audits it. */
+export async function downloadGoalExcel(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/workforce/goals/${id}/export`, { credentials: 'include', cache: 'no-store' });
+  if (!res.ok) {
+    let code = `HTTP_${res.status}`;
+    let message = 'Download failed';
+    try {
+      const env = (await res.json()) as { error?: { code?: string; message?: string } };
+      code = env.error?.code ?? code;
+      message = env.error?.message ?? message;
+    } catch { /* not JSON */ }
+    throw new ApiError({ status: res.status, code, message });
+  }
+  const blob = await res.blob();
+  const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? 'goal.xlsx';
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 5000);
+}
+export const useDownloadGoalExcel = (id: string) => useMutation({ mutationFn: () => downloadGoalExcel(id) });

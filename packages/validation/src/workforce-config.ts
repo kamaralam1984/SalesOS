@@ -37,6 +37,10 @@ export const workforceConfigSchema = z.object({
     checkInCutoff: hhmm,
     /** end of the working day (local time). A check-out after it is recorded as overtime (minutes beyond this time) */
     workdayEnd: hhmm,
+    /** after the cutoff a person may still check in, with a reason; HR and the Boss are told (false = only HR / a manager can record it) */
+    lateJoinAllowed: z.boolean(),
+    /** check-out needs the end-of-day report (how much of today's work is done) */
+    requireDayReport: z.boolean(),
     /** ONE org-wide meeting link (https only, null = none); the server only returns it to employees marked PRESENT/LATE/WFH/HALF_DAY today */
     meetingUrl: z
       .string()
@@ -119,7 +123,7 @@ export type WorkforceConfig = z.infer<typeof workforceConfigSchema>;
 export const DEFAULT_WORKFORCE_CONFIG: WorkforceConfig = {
   timezone: 'Asia/Kolkata',
   weeklyOffDays: [7],
-  attendance: { selfCheckIn: true, lateAfter: '10:15', checkInCutoff: '11:00', workdayEnd: '19:00', meetingUrl: null, fullDayMinutes: 480, halfDayMinutes: 240, autoMarkAbsent: true, managerCorrectionWindowDays: 7 },
+  attendance: { selfCheckIn: true, lateAfter: '10:15', checkInCutoff: '11:00', workdayEnd: '19:00', lateJoinAllowed: true, requireDayReport: true, meetingUrl: null, fullDayMinutes: 480, halfDayMinutes: 240, autoMarkAbsent: true, managerCorrectionWindowDays: 7 },
   leave: {
     types: [
       { key: 'CASUAL', name: 'Casual leave', isPaid: true, needsBalance: true, maxConsecutiveDays: null, active: true },

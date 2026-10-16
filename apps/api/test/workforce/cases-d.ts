@@ -18,6 +18,8 @@ export const D_CASES: NegativeCase[] = [
   { route: 'GET /workforce/hr/probation', deniedUser: 'execA1' },
   { route: 'GET /workforce/hr/probation/:userId/history', deniedUser: 'execA1' },
   { route: 'POST /workforce/hr/probation/:userId/decision', deniedUser: 'execA1', body: { decision: 'CONFIRM' } },
+  { route: 'GET /workforce/hr/joiners/options', deniedUser: 'execA1' },
+  { route: 'POST /workforce/hr/joiners', deniedUser: 'execA1', body: { name: 'Negative Joiner', email: 'negative.joiner@example.test', roles: ['SALES_EXECUTIVE'], positionTitle: 'Sales Executive' } },
   { route: 'GET /workforce/reports/:report', deniedUser: 'execA1' },
   { route: 'GET /workforce/reports/:report/export', deniedUser: 'managerA' },
 ];

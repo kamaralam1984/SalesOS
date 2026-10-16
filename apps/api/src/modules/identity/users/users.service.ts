@@ -154,6 +154,34 @@ export class UsersService {
     return new ApiResult(toUserDto(created), { warnings });
   }
 
+  /**
+   * Account for a new joiner, inside the caller's transaction (HR / Founder through `joiners:manage`, which is narrower than `users:role:assign`):
+   * HR may give employee-level roles only; Founder / HR / Finance / Admin roles need `users:role:assign-sensitive`; Developer never. The invite link is
+   * returned (not e-mailed) so the person who joins the employee can hand it over.
+   */
+  async createForJoiner(actor: Principal, tx: Tx, dto: CreateDto) {
+    this.assertRoleSet(dto.roles);
+    const hrAssignable: RoleKey[] = ['SALES_MANAGER', 'SALES_EXECUTIVE', 'MARKETING', 'COMMUNITY', 'OPERATIONS', 'STUDENT_SUCCESS'];
+    if (dto.roles.includes('DEVELOPER')) throw forbidden('The Developer role is managed only from the Developer Panel');
+    if (dto.roles.some((r) => !hrAssignable.includes(r)) && !this.access.has(actor, 'users:role:assign-sensitive')) {
+      throw forbidden('Only the Founder can give this role; HR can join sales managers, executives and the support groups');
+    }
+    if (dto.managerId) await this.assertValidManager(actor.organizationId, dto.managerId, undefined, tx);
+    const roleIds = await Promise.all(dto.roles.map((r) => this.roles.idFor(r)));
+    const existing = await tx.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw conflict('EMAIL_TAKEN', 'A user with this email already exists');
+    const user = await tx.user.create({ data: { organizationId: actor.organizationId, email: dto.email, name: dto.name, managerId: dto.managerId ?? null, department: dto.department?.trim() || null } });
+    await tx.userRoleAssignment.createMany({ data: roleIds.map((roleId) => ({ organizationId: actor.organizationId, userId: user.id, roleId, assignedById: actor.userId })) });
+    const invite = await this.auth.issueToken(user, 'INVITE', tx, { sendEmail: false });
+    await this.outbox.publish(tx, {
+      eventType: IDENTITY_EVENTS.USER_CREATED, aggregateType: 'user', aggregateId: user.id, organizationId: actor.organizationId,
+      payload: { userId: user.id, organizationId: actor.organizationId, createdById: actor.userId },
+    });
+    await this.audit.recordTx(tx, { organizationId: actor.organizationId, actorId: actor.userId, action: AUDIT_ACTIONS.USER_CREATED, entityType: 'user', entityId: user.id, metadata: { roles: dto.roles, managerId: dto.managerId ?? null, via: 'new_joiner' } });
+    const warnings = await this.softLimitWarnings(actor.organizationId, dto.managerId, tx);
+    return { userId: user.id, invite, warnings };
+  }
+
   async update(actor: Principal, id: string, dto: UpdateDto) {
     const target = await this.loadTarget(actor, id, 'users:update');
     if (dto.managerId) {

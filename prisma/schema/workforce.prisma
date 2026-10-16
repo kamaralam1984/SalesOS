@@ -176,6 +176,15 @@ model AttendanceRecord {
   overtimeMinutes Int?                @map("overtime_minutes")
   /// first time the person pressed the meeting button that day
   meetingJoinedAt DateTime?           @map("meeting_joined_at") @db.Timestamptz(6)
+  /// checked in after the self check-in cutoff (needs a reason; HR / the Boss are told every day)
+  lateJoin        Boolean             @default(false) @map("late_join")
+  lateJoinReason  String?             @map("late_join_reason")
+  /// end-of-day report filled before check-out: how much of today's work the person says is done (0-100) and a note
+  dayReportPct    Int?                @map("day_report_pct")
+  dayReportNote   String?             @map("day_report_note")
+  /// server snapshot at check-out of the person's work tasks: completed today / still open and due by today
+  tasksDone       Int?                @map("tasks_done")
+  tasksOpen       Int?                @map("tasks_open")
   source         WorkAttendanceSource @default(SELF)
   note           String?
   /// optimistic concurrency for corrections

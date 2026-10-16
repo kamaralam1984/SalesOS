@@ -39,6 +39,7 @@ export const workNav: NavDomain = {
         { id: 'work.hr.policy', labelKey: 'workHrPolicy', href: '/work/hr/policy', permission: 'workforce:settings:view' },
         { id: 'work.hr.balances', labelKey: 'workHrBalances', href: '/work/hr/balances', permission: 'leave:balance:adjust' },
         { id: 'work.hr.birthdays', labelKey: 'workHrBirthdays', href: '/work/hr/birthdays', permission: 'birthdays:view' },
+        { id: 'work.hr.joiners', labelKey: 'workHrJoiners', href: '/work/hr/joiners', permission: 'joiners:manage' },
         { id: 'work.hr.probation', labelKey: 'workHrProbation', href: '/work/hr/probation', permission: 'workforce:settings:view' },
         { id: 'work.hr.announcements', labelKey: 'workHrAnnouncements', href: '/work/hr/announcements', permission: 'announcements:manage' },
       ],

@@ -48,6 +48,10 @@
         "directory": {
           "title": "Directory",
           "body": "Find any employee and open their 360 view."
+        },
+        "joiners": {
+          "title": "New joiners",
+          "body": "Join a new employee with a 90-day plan, set their tasks and follow their progress."
         }
       }
     },
@@ -211,7 +215,9 @@
           "halfDayMinutes": "Half day (minutes)",
           "autoMarkAbsent": "Mark absent automatically at day end",
           "managerCorrectionWindowDays": "Manager correction window (days)",
-          "workdayEnd": "Working day ends at (HH:MM)"
+          "workdayEnd": "Working day ends at (HH:MM)",
+          "lateJoinAllowed": "Allow check-in after the cutoff (with a reason)",
+          "requireDayReport": "Ask for the end-of-day work report before check-out"
         },
         "leave": {
           "approvalChain": "Approval chain",
@@ -274,7 +280,9 @@
         "attendance": {
           "checkInCutoff": "After this time employees cannot check in themselves. HR or a manager can still record attendance.",
           "meetingUrl": "Employees see the Join button only after they are marked present. Leave empty to hide it.",
-          "workdayEnd": "A check-out after this time is recorded as overtime (the extra minutes are shown to HR and managers)."
+          "workdayEnd": "A check-out after this time is recorded as overtime (the extra minutes are shown to HR and managers).",
+          "lateJoinAllowed": "After the cutoff a person can still check in by giving a reason. HR and the Boss get a daily note about late joins.",
+          "requireDayReport": "Before checking out the person says how much of today's work is done. HR and the Boss see it every day."
         }
       },
       "meetingUrlPlaceholder": "https://zoom.us/j/...",
@@ -317,6 +325,63 @@
       "save": "Save policy",
       "saved": "Policy saved",
       "nothingChanged": "Nothing changed"
+    },
+    "joiners": {
+      "eyebrow": "HR",
+      "title": "New joiners",
+      "description": "Join a new employee, give them a 90-day training plan and tasks, and follow how they are doing in the first 90 days.",
+      "join": "Join new employee",
+      "excel": "Download Excel",
+      "exported": "Excel downloaded",
+      "list": "New joiners in their first 90 days",
+      "empty": "No new joiners in the last 90 days",
+      "emptyBody": "Use \"Join new employee\" to add one. Their 90-day progress shows here.",
+      "weeklyHint": "Weekly progress of everyone (tasks, attendance, goals) is in the reports.",
+      "openReports": "Open reports",
+      "manager": "Manager: {name}",
+      "dayOf": "Day {day} of 90",
+      "joinedOn": "Joined {date}",
+      "training": "Training done",
+      "tasks": "Tasks done",
+      "tasksHint": "{done} of {total}",
+      "attendance": "Attendance",
+      "workReports": "Own work report (average)",
+      "goals": "Goal progress",
+      "nextReview": "Next: {what}",
+      "joinedTitle": "{name} has joined",
+      "joinedBody": "The 90-day plan has {items} steps, {tasks} first tasks are set, and reviews are scheduled for day {reviews}. Probation ends on {end}.",
+      "inviteTitle": "Invite link",
+      "inviteBody": "Send this link to {email}. They use it once to set their password.",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "moreTasks": "Set more tasks for them",
+      "dismiss": "Dismiss",
+      "dialog": {
+        "title": "Join new employee",
+        "description": "Creates the account, the HR record, the 90-day training plan with 30, 60 and 90-day reviews, and the first tasks.",
+        "submit": "Join employee",
+        "noOptions": "Could not load the form",
+        "required": "This field is required",
+        "emailBad": "Enter a valid email",
+        "name": "Full name",
+        "email": "Work email",
+        "post": "Post (designation)",
+        "postHint": "For example Sales Executive (Telecaller)",
+        "role": "Role",
+        "manager": "Reports to",
+        "noManager": "No manager",
+        "department": "Department",
+        "joinDate": "Joining date",
+        "template": "Training plan",
+        "templateHint": "Leave on default for the standard 90-day plan.",
+        "defaultTemplate": "Standard 90-day plan",
+        "tasksTitle": "First tasks",
+        "tasksHint": "Tick the tasks to give them on day one. They appear in their task list.",
+        "dueDay": "due day {n}",
+        "moreTasks": "More tasks (one per line)",
+        "moreTasksHint": "Each line becomes a task due on day 14.",
+        "planNote": "The training plan has {n} steps across the first 90 days."
+      }
     }
   }
 }

@@ -170,7 +170,7 @@ Columns: F=FOUNDER_CEO, TL=SALES_TEAM_LEAD, MG=SALES_MANAGER, EX=SALES_EXECUTIVE
 | `hiring:view` | View hiring pipeline | org | org | team | - | - | - | org | - | - | - | - |
 | `hiring:manage` | Manage requisitions/candidates | - | org | team | - | - | - | org | - | - | - | - |
 | `onboarding:view` | View onboarding/training/probation | org | org | team | own | - | - | org | - | - | - | - |
-| `onboarding:manage` | Manage onboarding/probation | - | org | team | - | - | - | org | - | - | - | - |
+| `onboarding:manage` | Manage onboarding/probation | org | org | team | - | - | - | org | - | - | - | - |
 | `succession:view` | View succession bench | org | org | - | - | - | - | org | - | - | - | - |
 | `succession:manage` | Manage succession bench | org | org | - | - | - | - | org | - | - | - | - |
 | `hr:records:view` | View sensitive HR records (employee profiles) | - | - | - | - | - | - | org | - | - | - | - |
@@ -238,6 +238,7 @@ Columns: F=FOUNDER_CEO, TL=SALES_TEAM_LEAD, MG=SALES_MANAGER, EX=SALES_EXECUTIVE
 | `leave:approve` | Approve/reject leave at the manager step | org | team | team | - | - | - | - | - | - | - | - |
 | `leave:approve-hr` | Approve/reject leave at the HR step | org | - | - | - | - | - | org | - | - | - | - |
 | `leave:balance:adjust` | Adjust a leave balance (opening balance, correction); always audited | org | - | - | - | - | - | org | - | - | - | - |
+| `joiners:manage` | Join a new employee: create the account, HR record, the 90-day training plan and first tasks (HR and the Boss) | org | - | - | - | - | - | org | - | - | - | - |
 | `workforce:settings:view` | View workforce policy (leave types, Earned Leave, attendance, goals, payroll) | org | - | - | - | - | - | org | - | - | - | - |
 | `workforce:settings:manage` | Change workforce policy; every change is logged with user and time | org | - | - | - | - | - | org | - | - | - | - |
 | `goals:view` | View goals (own / team / organisation) | org | team | team | own | own | own | org | own | own | own | own |
@@ -415,6 +416,7 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "incentives:recommendation:approve@org",
    "hiring:view@org",
    "onboarding:view@org",
+   "onboarding:manage@org",
    "succession:view@org",
    "succession:manage@org",
    "resources:view@org",
@@ -475,6 +477,7 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "leave:approve@org",
    "leave:approve-hr@org",
    "leave:balance:adjust@org",
+   "joiners:manage@org",
    "workforce:settings:view@org",
    "workforce:settings:manage@org",
    "goals:view@org",
@@ -1026,6 +1029,7 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "leave:view@org",
    "leave:approve-hr@org",
    "leave:balance:adjust@org",
+   "joiners:manage@org",
    "workforce:settings:view@org",
    "workforce:settings:manage@org",
    "goals:view@org",
@@ -1390,6 +1394,7 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
   "leave:approve",
   "leave:approve-hr",
   "leave:balance:adjust",
+  "joiners:manage",
   "workforce:settings:view",
   "workforce:settings:manage",
   "goals:view",

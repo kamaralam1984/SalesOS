@@ -17,3 +17,4 @@ export * from './workforce-hr';
 export * from './workforce-reports';
 export * from './workforce-attendance';
 export * from './workforce-leave';
+export * from './workforce-joiners';
