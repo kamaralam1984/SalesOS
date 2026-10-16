@@ -111,6 +111,33 @@ function productionChecks(env: Record<string, unknown>, ctx: z.RefinementCtx) {
 
 export type Env = z.infer<typeof envSchema> & { corsOrigins: string[]; isProd: boolean; docsEnabled: boolean };
 
+const PRIVATE_LAN_HOST = /^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|[a-z0-9-]+\.local)$/i;
+
+/**
+ * Is this browser Origin trusted for credentialed requests (CORS and the CSRF origin check)?
+ * Always: the explicit CORS_ORIGINS list. Outside production only: plain-http origins on a private LAN address (or *.local) that use the
+ * same port as a listed origin, so a phone on the same Wi-Fi can use the dev server whatever IP the router hands out. Production
+ * (https-only explicit list, validated at boot) never gets this rule, and a public host is never matched.
+ */
+export function isAllowedOrigin(env: Pick<Env, 'corsOrigins' | 'isProd'>, origin: string): boolean {
+  if (env.corsOrigins.includes(origin)) return true;
+  if (env.isProd) return false;
+  let u: URL;
+  try {
+    u = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'http:' || origin !== u.origin || !PRIVATE_LAN_HOST.test(u.hostname)) return false;
+  return env.corsOrigins.some((o) => {
+    try {
+      return new URL(o).port === u.port;
+    } catch {
+      return false;
+    }
+  });
+}
+
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const parsed = envSchema.safeParse(source);
   if (!parsed.success) {

@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { CSRF_HEADER } from '@salesos/shared-types';
 import type { Request } from 'express';
 import { APP_ENV } from '../../config/config.module';
-import type { Env } from '../../config/env';
+import { isAllowedOrigin, type Env } from '../../config/env';
 import { AppError } from '../http/errors';
 import { SessionService } from '../authz/session.service';
 import type { AuthedRequest } from '../authz/principal';
@@ -30,7 +30,7 @@ export class CsrfGuard implements CanActivate {
     if (SAFE.has(req.method)) return true;
 
     const origin = req.headers.origin;
-    if (typeof origin === 'string' && !this.env.corsOrigins.includes(origin)) {
+    if (typeof origin === 'string' && !isAllowedOrigin(this.env, origin)) {
       throw new AppError('CSRF_ORIGIN', 'Origin not allowed', 403);
     }
     if (!req.principal) return true; // public endpoint: no session to protect

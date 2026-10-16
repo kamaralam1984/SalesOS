@@ -5,7 +5,7 @@ import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { APP_ENV } from './config/config.module';
-import type { Env } from './config/env';
+import { isAllowedOrigin, type Env } from './config/env';
 import { requestIdMiddleware } from './common/http/request-id.middleware';
 import { requestContextMiddleware } from './common/security/request-context';
 import { setupSwagger } from './common/swagger';
@@ -77,7 +77,7 @@ export function configureApp(app: INestApplication, opts: { useLogger?: boolean 
 
   // Strict CORS: explicit allow-list only; credentials enabled so wildcard is impossible (validated in env).
   app.enableCors({
-    origin: env.corsOrigins,
+    origin: (origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) => cb(null, !origin || isAllowedOrigin(env, origin)),
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['content-type', CSRF_HEADER, REQUEST_ID_HEADER, 'idempotency-key'],

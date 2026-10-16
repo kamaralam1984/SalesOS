@@ -1,8 +1,15 @@
 import type { NextConfig } from 'next';
+import os from 'node:os';
 import path from 'node:path';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
+/** This machine's current LAN addresses, so a phone on the same Wi-Fi works whatever IP the router gave (re-read on every dev-server start). */
+const lanHosts = Object.values(os.networkInterfaces())
+  .flat()
+  .filter((i): i is os.NetworkInterfaceInfo => Boolean(i) && i!.family === 'IPv4' && !i!.internal)
+  .map((i) => i.address);
 
 const config: NextConfig = {
   // Parallel agents/CI can isolate build output (NEXT_DIST_DIR=.next-agentd) so builds and servers do not clobber each other.
@@ -11,7 +18,7 @@ const config: NextConfig = {
   ...(process.env.NEXT_STANDALONE ? { output: 'standalone' as const, outputFileTracingRoot: path.join(__dirname, '../..') } : {}),
   reactStrictMode: true,
   // Dev only: allow opening the dev server from a phone on the same Wi-Fi (LAN IP).
-  allowedDevOrigins: ['192.168.0.197', '192.168.1.105'],
+  allowedDevOrigins: [...new Set([...lanHosts, ...(process.env.DEV_ALLOWED_ORIGINS ?? '').split(',').map((h) => h.trim()).filter(Boolean)])],
   // Dev only: hide the floating Next.js "N" indicator (it covers the mobile bottom nav on phones).
   devIndicators: false,
   poweredByHeader: false,
