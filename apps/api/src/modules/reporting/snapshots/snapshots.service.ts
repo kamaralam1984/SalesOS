@@ -22,7 +22,7 @@ export class SnapshotService {
     const u = await this.prisma.user.findFirst({ where: { organizationId, isActive: true, roleAssignments: { some: { role: { key: 'FOUNDER_CEO' } } } }, include: { roleAssignments: { include: { role: true } } }, orderBy: { createdAt: 'asc' } });
     if (!u) return null;
     const roles = u.roleAssignments.map((a) => a.role.key as RoleKey);
-    return { userId: u.id, organizationId, email: u.email, name: u.name, managerId: u.managerId, roles, permissions: this.resolver.effective(roles), sessionId: 'scheduler', sessionFamilyId: 'scheduler' };
+    return { userId: u.id, organizationId, email: u.email, name: u.name, managerId: u.managerId, roles, permissions: await this.resolver.effectiveFor(organizationId, u.id, roles), sessionId: 'scheduler', sessionFamilyId: 'scheduler' };
   }
 
   /** Org-wide KPI values for the period containing `asOf` (month-to-date). Idempotent per (kpi, period, asOf). */

@@ -89,7 +89,7 @@ export class SessionService {
       name: user.name,
       managerId: user.managerId,
       roles,
-      permissions: this.resolver.effective(roles),
+      permissions: await this.resolver.effectiveFor(user.organizationId, user.id, roles),
       sessionId: session.id,
       sessionFamilyId: session.familyId,
     };

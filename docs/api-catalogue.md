@@ -410,6 +410,10 @@ All implemented by Agent H (see docs/cx-report.md). Additions beyond the origina
 | POST | /api/v1/xf-tasks/:id/escalate | `xf-tasks:update` | P7 | IMPLEMENTED (verified: apps/api/test/cx). manual escalation (notifies manager + Team Lead) |
 | GET | /api/v1/collaboration/plan-links | `xf-tasks:view` | P7 | IMPLEMENTED (verified: apps/api/test/cx). campaign / webinar / event / lead-gen plans with planned vs actual intake |
 | POST | /api/v1/collaboration/plan-links | `xf-tasks:create` | P7 | IMPLEMENTED (verified: apps/api/test/cx). create plan link |
+| GET | /api/v1/dev-panel/features/summary | `devpanel:features:view` | Dev | IMPLEMENTED (verified: apps/api/test/devpanel/features.spec.ts). roles/users that have Feature-access overrides |
+| GET | /api/v1/dev-panel/features | `devpanel:features:view` | Dev | IMPLEMENTED (verified). every permission for a role or user: default, override, effective scope (`?subjectType=ROLE\|USER&subject=`) |
+| PUT | /api/v1/dev-panel/features | `devpanel:features:manage` | Dev | IMPLEMENTED (verified). batch ON/OFF/DEFAULT switches in one transaction; sensitive grants need `confirmSensitive`; devpanel:* keys, the Developer role and your own access are refused; audited with before/after |
+| POST | /api/v1/dev-panel/features/reset | `devpanel:features:manage` | Dev | IMPLEMENTED (verified). remove every override of one role/user; audited |
 | PATCH | /api/v1/collaboration/plan-links/:id | `xf-tasks:update` | P7 | IMPLEMENTED_UNTESTED. edit plan (title, window, planned leads, sales note, program/campaign/source) or move status PLANNED→ACTIVE→COMPLETED / CANCELLED; closed plans are final (409); audited |
 | GET | /api/v1/cx/insights | `insights:share` | P7 | IMPLEMENTED (verified: apps/api/test/cx). insights shared with my department |
 | POST | /api/v1/cx/insights | `insights:share` | P7 | IMPLEMENTED (verified: apps/api/test/cx). share an insight (minimum data) |

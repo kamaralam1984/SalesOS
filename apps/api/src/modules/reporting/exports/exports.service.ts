@@ -112,7 +112,7 @@ export class ExportsService {
     const u = await this.prisma.user.findFirst({ where: { id: userId, organizationId, isActive: true }, include: { roleAssignments: { include: { role: true } } } });
     if (!u) return null;
     const roles = u.roleAssignments.map((a) => a.role.key as RoleKey);
-    return { userId: u.id, organizationId: u.organizationId, email: u.email, name: u.name, managerId: u.managerId, roles, permissions: this.resolver.effective(roles), sessionId: 'export-runner', sessionFamilyId: 'export-runner' };
+    return { userId: u.id, organizationId: u.organizationId, email: u.email, name: u.name, managerId: u.managerId, roles, permissions: await this.resolver.effectiveFor(u.organizationId, u.id, roles), sessionId: 'export-runner', sessionFamilyId: 'export-runner' };
   }
 
   /**

@@ -52,14 +52,15 @@ export class DevAccessService {
     });
     if (!user) throw notFound('User');
     const roles = [...new Set(user.roleAssignments.map((a) => a.role.key as RoleKey))].sort();
-    const eff = this.resolver.effective(roles);
+    const eff = await this.resolver.effectiveFor(actor.organizationId, user.id, roles);
     const meta = new Map(catalogueEntries().map((e) => [e.key, e]));
     const permissions = [...eff.entries()]
       .map(([key, scope]) => {
         const m = meta.get(key);
         // Which of the user's roles contribute the winning scope (answers "why can this person do X").
         const via = roles.filter((r) => m?.grants[r] === scope);
-        return { key, scope, domain: m?.domain ?? '', sensitive: m?.sensitive ?? false, via };
+        // `custom`: the Developer Panel's Feature access changed this (no role grants it at this scope by default).
+        return { key, scope, domain: m?.domain ?? '', sensitive: m?.sensitive ?? false, via, custom: via.length === 0 };
       })
       .sort((a, b) => a.key.localeCompare(b.key));
     return { user: { id: user.id, name: user.name, email: user.email, isActive: user.isActive }, roles, total: permissions.length, permissions };

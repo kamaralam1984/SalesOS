@@ -15,5 +15,7 @@ export const devpanelPermissions = definePermissions('devpanel', {
   'devpanel:security:view': { description: 'View live sessions, login history and locked accounts', sensitive: true, grants: { DEVELOPER: 'org' } },
   'devpanel:security:manage': { description: 'Kill a session, unlock an account, issue a password-reset link', sensitive: true, grants: { DEVELOPER: 'org' } },
   'devpanel:config:view': { description: 'View feature flags, integrations/backup status and the role matrix', sensitive: true, grants: { DEVELOPER: 'org' } },
+  'devpanel:features:view': { description: 'View which screens and features each role or user has, and the overrides', sensitive: true, grants: { DEVELOPER: 'org' } },
+  'devpanel:features:manage': { description: 'Switch screens and features on or off for a role or a user (Feature access)', sensitive: true, grants: { DEVELOPER: 'org' } },
   'devpanel:maintenance:manage': { description: 'Turn maintenance mode on or off', sensitive: true, grants: { DEVELOPER: 'org' } },
 });

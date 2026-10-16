@@ -1,4 +1,4 @@
-import { ScrollText, Settings2, ShieldCheck, TerminalSquare, UsersRound, UserCog } from 'lucide-react';
+import { ScrollText, Settings2, ShieldCheck, SlidersHorizontal, TerminalSquare, UsersRound, UserCog } from 'lucide-react';
 import type { NavDomain } from './types';
 
 /** Administration (Phase 2). Identity, teams, organisation settings, audit. */
@@ -53,6 +53,15 @@ export const adminNav: NavDomain = {
       permission: 'users:role:assign',
       mobilePriority: null,
       order: 94,
+    },
+    {
+      id: 'admin.features',
+      labelKey: 'adminFeatures',
+      href: '/admin/developer/features',
+      icon: SlidersHorizontal,
+      permission: 'devpanel:features:view',
+      mobilePriority: null,
+      order: 88,
     },
     {
       id: 'admin.developer',

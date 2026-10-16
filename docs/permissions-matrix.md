@@ -278,6 +278,8 @@ Columns: F=FOUNDER_CEO, TL=SALES_TEAM_LEAD, MG=SALES_MANAGER, EX=SALES_EXECUTIVE
 | `devpanel:security:view` | View live sessions, login history and locked accounts | org |
 | `devpanel:security:manage` | Kill a session, unlock an account, issue a password-reset link | org |
 | `devpanel:config:view` | View feature flags, integrations/backup status and the role matrix | org |
+| `devpanel:features:view` | View which screens and features each role or user has, and the overrides | org |
+| `devpanel:features:manage` | Switch screens and features on or off for a role or a user (Feature access) | org |
 | `devpanel:maintenance:manage` | Turn maintenance mode on or off | org |
 
 Also granted to DEVELOPER: `auth:login`, `auth:me:view`, `auth:session:revoke-own`, `audit:view` (org).
@@ -1421,6 +1423,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
   "devpanel:security:view",
   "devpanel:security:manage",
   "devpanel:config:view",
+  "devpanel:features:view",
+  "devpanel:features:manage",
   "devpanel:maintenance:manage"
  ]
 }

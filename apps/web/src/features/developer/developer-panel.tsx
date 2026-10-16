@@ -77,7 +77,7 @@ function Inner() {
   const reduceTabs = useReducedMotion();
   return (
     <>
-      <PageHeader eyebrow={t('eyebrow')} title={t('title')} description={t('description')} actions={<Link href="/dashboard?workspace=1" className="text-sm font-medium text-blue-700 underline-offset-2 hover:underline">{t('workspaceLink')}</Link>} />
+      <PageHeader eyebrow={t('eyebrow')} title={t('title')} description={t('description')} actions={<div className="flex flex-wrap items-center gap-4">{can('devpanel:features:view') && <Link href="/admin/developer/features" className="inline-flex min-h-11 items-center text-sm font-semibold text-gold-700 underline-offset-2 hover:underline">{t('featureAccessLink')}</Link>}<Link href="/dashboard?workspace=1" className="text-sm font-medium text-blue-700 underline-offset-2 hover:underline">{t('workspaceLink')}</Link></div>} />
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="mt-6">
         <TabsList>
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
