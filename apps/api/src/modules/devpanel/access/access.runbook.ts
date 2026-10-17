@@ -25,7 +25,7 @@ export const RUNBOOK: readonly RunbookSection[] = [
       { title: 'Back up the database and record the checksum before touching anything', command: 'scripts/backup.sh' },
       { title: 'Build the images for the release', command: 'docker build -f deploy/docker/api.Dockerfile -t salesos-api:<version> .', note: 'Same for worker and tools images. The web image needs --build-arg NEXT_PUBLIC_API_URL=https://<public-origin>/api/v1.' },
       { title: 'Prove the migrations, then apply them (expand/contract only)', command: 'pnpm migration-check && pnpm db:migrate', note: 'Never run migrate reset or db push --force-reset on real data.' },
-      { title: 'Start the new release alongside, then switch only the SalesOS upstream', command: 'docker compose -p salesos -f docker-compose.prod.yml up -d', note: 'Validate the proxy with nginx -t and reload (never restart) after adding ONE salesos file.' },
+      { title: 'Start the new release alongside, then switch only the Sales OS upstream', command: 'docker compose -p salesos -f docker-compose.prod.yml up -d', note: 'Validate the proxy with nginx -t and reload (never restart) after adding ONE salesos file.' },
       { title: 'Verify', command: 'curl -fsS http://127.0.0.1:4100/api/v1/ready', note: 'Then log in, create a lead, confirm a follow-up reminder fires and the KPI reconciliation check passes. Watch logs for 15 minutes.' },
     ],
   },

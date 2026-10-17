@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** Widgets of the phone home screen. Super admins (Founder, Developer) choose which show, their order and size per role. */
-export const HOME_WIDGETS = ['stats', 'attendance', 'goal', 'onboarding', 'followups', 'quickActions', 'workspace'] as const;
+export const HOME_WIDGETS = ['meetings', 'stats', 'attendance', 'goal', 'onboarding', 'followups', 'quickActions', 'workspace'] as const;
 export type HomeWidgetId = (typeof HOME_WIDGETS)[number];
 /** S = compact (85%), M = normal, L = large (115%): the whole widget, icons and text, scales. */
 export const HOME_WIDGET_SIZES = ['S', 'M', 'L'] as const;
@@ -12,6 +12,7 @@ export type HomeWidgetSize = (typeof HOME_WIDGET_SIZES)[number];
  * Used only to tell the editor which widgets apply to a role; the widgets still hide themselves without the permission.
  */
 export const HOME_WIDGET_META: Record<HomeWidgetId, { requires: readonly string[]; callTeam?: boolean }> = {
+  meetings: { requires: ['meetings:view'] },
   stats: { requires: ['leads:view'] },
   attendance: { requires: ['attendance:self'] },
   goal: { requires: ['goals:view'] },
@@ -36,6 +37,7 @@ export type HomeLayoutInput = z.infer<typeof homeLayoutSchema>;
 
 /** The layout used when nobody has customised a role: the built-in order, all visible, normal size. */
 export const DEFAULT_HOME_WIDGETS: readonly HomeWidgetEntry[] = [
+  { id: 'meetings', visible: true, size: 'M' },
   { id: 'stats', visible: true, size: 'M' },
   { id: 'attendance', visible: true, size: 'M' },
   { id: 'goal', visible: true, size: 'M' },

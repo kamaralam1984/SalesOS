@@ -24,6 +24,7 @@ import { useLocale } from 'next-intl';
 import { HintsToggle } from '@/features/hints/hint-views';
 import { useHints } from '@/features/hints/hints-provider';
 import { ThemeMenu } from '@/components/theme/theme-switcher';
+import { FeatureSearch } from '@/features/search/feature-search';
 import { NotificationBell } from '@/features/notifications/notification-bell';
 
 export function LanguageSwitch() {
@@ -120,6 +121,7 @@ export function TopBar() {
           <BrandMark />
         </Link>
         <div className="flex-1" />
+        <FeatureSearch />
         <HintsToggle />
         <LanguageSwitch />
         <ThemeMenu />

@@ -16,7 +16,7 @@ type ChecklistItem = { title: string; category: 'ONBOARDING' | 'TRAINING' | 'TOO
 /** The organisation's default plan when HR has not made one: what a new sales joiner does across the first 90 days. */
 export const DEFAULT_90_DAY_ITEMS: ChecklistItem[] = [
   { title: 'Welcome, HR paperwork and company introduction', category: 'ONBOARDING', dueDay: 1 },
-  { title: 'Accounts and tools set up (SalesOS, calling, meeting link)', category: 'TOOLS', dueDay: 2 },
+  { title: 'Accounts and tools set up (Sales OS, calling, meeting link)', category: 'TOOLS', dueDay: 2 },
   { title: 'Read the role expectations and acknowledge them', category: 'CULTURE', dueDay: 3 },
   { title: 'Product and programme training (AI Sprint, CBAX, MCA X)', category: 'TRAINING', dueDay: 7 },
   { title: 'Shadow five calls with a senior executive', category: 'TRAINING', dueDay: 10 },

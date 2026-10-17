@@ -52,6 +52,10 @@
         "joiners": {
           "title": "New joiners",
           "body": "Join a new employee with a 90-day plan, set their tasks and follow their progress."
+        },
+        "meetings": {
+          "title": "Zoom meetings",
+          "body": "Announce an extra Zoom meeting and choose who gets the link."
         }
       }
     },

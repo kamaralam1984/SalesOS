@@ -1,6 +1,7 @@
 'use client';
 import { AttendanceCard } from '@/features/work/attendance/attendance-card';
 import { useDayPhase } from '@/features/work/attendance/use-day-phase';
+import { MeetingsCard } from '@/features/mobile/home/meetings-card';
 import { OnboardingCard } from '@/features/mobile/home/onboarding-card';
 import { GoalCard } from '@/features/mobile/home/goal-card';
 
@@ -15,6 +16,7 @@ export function TodayRow() {
     <div className="mb-6 grid max-w-4xl gap-4 md:grid-cols-2">
       <div className={goalFirst ? 'md:order-2' : undefined}><AttendanceCard variant="dashboard" /></div>
       <div className={goalFirst ? 'md:order-1' : undefined}><GoalCard href="/work/goals" /></div>
+      <div className="md:col-span-2 md:order-first empty:hidden"><MeetingsCard /></div>
       <div className="md:col-span-2 md:order-3 empty:hidden"><OnboardingCard /></div>
     </div>
   );

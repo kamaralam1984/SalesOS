@@ -201,7 +201,7 @@ export function StyleGuide() {
       <header className="sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-8">
           <p className="font-display text-lg font-semibold">
-            SalesOS <span className="text-muted">style guide</span>
+            Sales OS <span className="text-muted">style guide</span>
           </p>
           <nav
             aria-label="Sections"
@@ -238,7 +238,7 @@ export function StyleGuide() {
           <PageHeader
             eyebrow="Design system"
             title="Light and dark components"
-            description="Every component and state used across SalesOS. Warm charcoal on champagne ivory; gold for premium emphasis, blue for information and active workflow, green for success and money-in, red for risk only."
+            description="Every component and state used across Sales OS. Warm charcoal on champagne ivory; gold for premium emphasis, blue for information and active workflow, green for success and money-in, red for risk only."
             breadcrumbs={[{ label: 'Dev', href: '/dev/style-guide' }, { label: 'Style guide' }]}
             actions={
               <div className="flex flex-wrap items-center gap-2">

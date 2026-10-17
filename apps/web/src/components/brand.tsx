@@ -46,7 +46,7 @@ export function BrandLockup({ className, compact }: { className?: string; compac
         ))}
       </span>
       <span aria-hidden="true" className="logo-anim__line" />
-      <span className="text-gold-shine mt-1.5 block text-center font-display text-sm font-semibold tracking-[0.3em] text-ink uppercase">SalesOS</span>
+      <span className="text-gold-shine mt-1.5 block text-center font-display text-sm font-semibold tracking-[0.3em] text-ink uppercase">Sales OS</span>
     </span>
   );
 }

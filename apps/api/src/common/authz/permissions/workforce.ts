@@ -17,6 +17,8 @@ export const workforcePermissions = definePermissions('workforce', {
   'attendance:view': { description: 'View attendance (own / team / organisation)', grants: selfGrants({ FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'team', SALES_MANAGER: 'team', HR: 'org' }) },
   'attendance:correct': { description: 'Correct an attendance record with a reason (audited with old/new value)', sensitive: true, grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'team', SALES_MANAGER: 'team', HR: 'org' } },
   'holidays:view': { description: 'View the holiday calendar', grants: everyoneOrg() },
+  'meetings:view': { description: 'See the Zoom meetings the company has announced on the home page', grants: selfGrants({ DEVELOPER: 'own' }) },
+  'meetings:manage': { description: 'Announce, list and cancel company Zoom meetings (HR, Founder, Developer)', grants: { FOUNDER_CEO: 'org', HR: 'org', DEVELOPER: 'org' } },
   'holidays:manage': { description: 'Create/approve/edit holidays and generate suggestions', grants: { FOUNDER_CEO: 'org', HR: 'org' } },
   'leave:apply': { description: 'Apply for / cancel own leave', grants: selfGrants() },
   'leave:view': { description: 'View leave requests and balances (own / team / organisation)', grants: selfGrants({ FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'team', SALES_MANAGER: 'team', HR: 'org' }) },
@@ -45,6 +47,6 @@ export const workforcePermissions = definePermissions('workforce', {
   'payroll:run:view': { description: 'View payroll runs and all payslips', sensitive: true, grants: { FOUNDER_CEO: 'org', FINANCE: 'org', HR: 'org' } },
   'payroll:run:manage': { description: 'Create a payroll run, calculate it from attendance/leave, add adjustment lines before approval', sensitive: true, grants: { FINANCE: 'org', HR: 'org' } },
   'payroll:run:approve': { description: 'Approve or send back a calculated payroll run', sensitive: true, grants: { FOUNDER_CEO: 'org' } },
-  'payroll:run:mark-paid': { description: 'Record that an approved run was paid externally (payout reference); SalesOS never moves money', sensitive: true, grants: { FINANCE: 'org' } },
+  'payroll:run:mark-paid': { description: 'Record that an approved run was paid externally (payout reference); Sales OS never moves money', sensitive: true, grants: { FINANCE: 'org' } },
   'payroll:payslip:view': { description: 'View own payslips', grants: selfGrants() },
 });

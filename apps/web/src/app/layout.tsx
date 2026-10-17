@@ -8,15 +8,15 @@ import { Providers } from '@/components/providers';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: { default: 'CoachEasily SalesOS', template: '%s · CoachEasily SalesOS' },
+  title: { default: 'CoachEasily Sales OS', template: '%s · CoachEasily Sales OS' },
   description: 'Lead ownership, follow-up discipline and sales accountability for CoachEasily.',
-  applicationName: 'SalesOS',
+  applicationName: 'Sales OS',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [{ url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' }, { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }],
     apple: '/icons/apple-touch-icon.png',
   },
-  appleWebApp: { capable: true, title: 'SalesOS', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Sales OS', statusBarStyle: 'default' },
   robots: { index: false, follow: false },
 };
 

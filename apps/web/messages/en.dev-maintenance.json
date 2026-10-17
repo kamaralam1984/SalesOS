@@ -17,7 +17,7 @@
       "formTitleUpdate": "Update the maintenance message",
       "messageLabel": "Message shown to users",
       "messageHint": "3 to 300 characters. Keep it friendly and short.",
-      "messagePlaceholder": "We are upgrading CoachEasily SalesOS and will be back shortly.",
+      "messagePlaceholder": "We are upgrading CoachEasily Sales OS and will be back shortly.",
       "etaLabel": "Expected back (optional)",
       "etaHint": "Must be in the future. Shown to users and used for the retry hint.",
       "etaPast": "The expected time must be in the future.",

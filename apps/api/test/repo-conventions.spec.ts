@@ -30,7 +30,7 @@ describe('schema conventions (BP-DATA-008): UUID keys, UTC timestamps, organisat
   });
   it('every tenant table carries organization_id as a real foreign key to organizations (Restrict)', () => {
     // global (no tenant) or child tables whose tenant is implied by their parent
-    const noOrg = new Set(['Organization', 'Role', 'Permission', 'RolePermission', 'TeamMembership', 'AuthToken', 'ImportError', 'NotificationDeliveryEvent', 'EngagementParticipation']);
+    const noOrg = new Set(['Organization', 'Role', 'Permission', 'RolePermission', 'TeamMembership', 'AuthToken', 'ImportError', 'NotificationDeliveryEvent', 'EngagementParticipation', 'CompanyMeetingJoin']);
     const withOrgColumn = all.filter((m) => /^\s+organizationId\s+String\??\s/m.test(m.body));
     const missingFk = withOrgColumn.filter((m) => !/fields: \[organizationId\], references: \[id\], onDelete: Restrict/.test(m.body)).map((m) => m.name);
     const undeclared = all.filter((m) => !withOrgColumn.includes(m) && !noOrg.has(m.name)).map((m) => m.name);

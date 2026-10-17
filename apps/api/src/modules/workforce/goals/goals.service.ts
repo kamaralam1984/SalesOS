@@ -176,7 +176,7 @@ export class GoalsService {
   async exportXlsx(user: Principal, id: string) {
     const g = await this.get(user, id) as Awaited<ReturnType<GoalsService['get']>> & Record<string, unknown>;
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'CoachEasily SalesOS';
+    wb.creator = 'CoachEasily Sales OS';
     wb.created = new Date();
     const safe = (v: unknown) => (typeof v === 'string' ? neutralise(v) : v ?? '');
     const info = wb.addWorksheet('Goal');

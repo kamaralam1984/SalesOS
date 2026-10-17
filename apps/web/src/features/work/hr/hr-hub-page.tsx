@@ -2,7 +2,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Cake, FileBarChart, Hourglass, Megaphone, Scale, SlidersHorizontal, UserPlus, Users } from 'lucide-react';
+import { Cake, CalendarClock, FileBarChart, Hourglass, Megaphone, Scale, SlidersHorizontal, UserPlus, Users } from 'lucide-react';
 import { PageHeader, Stat } from '@salesos/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/require-permission';
@@ -10,7 +10,7 @@ import { useWorkDashboard } from '@/lib/api/hooks/work-people';
 
 export function HrHubPage() {
   return (
-    <RequirePermission permission={['workforce:settings:view', 'birthdays:view', 'announcements:manage']}>
+    <RequirePermission permission={['workforce:settings:view', 'birthdays:view', 'announcements:manage', 'meetings:manage']}>
       <Inner />
     </RequirePermission>
   );
@@ -18,6 +18,7 @@ export function HrHubPage() {
 
 const TILES = [
   { key: 'policy', href: '/work/hr/policy', perm: 'workforce:settings:view', icon: SlidersHorizontal },
+  { key: 'meetings', href: '/work/hr/meetings', perm: 'meetings:manage', icon: CalendarClock },
   { key: 'balances', href: '/work/hr/balances', perm: 'leave:balance:adjust', icon: Scale },
   { key: 'joiners', href: '/work/hr/joiners', perm: 'joiners:manage', icon: UserPlus },
   { key: 'probation', href: '/work/hr/probation', perm: 'workforce:reports:view', icon: Hourglass },

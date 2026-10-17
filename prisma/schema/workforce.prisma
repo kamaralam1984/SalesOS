@@ -161,6 +161,47 @@ model Holiday {
   @@map("holidays")
 }
 
+/// A Zoom meeting the company announces (HR, Founder, Developer). Shown on every person's home page from the moment it is posted until it ends.
+model CompanyMeeting {
+  id              String               @id @default(uuid()) @db.Uuid
+  organizationId  String               @map("organization_id") @db.Uuid
+  title           String
+  /// https Zoom link only (checked by the API)
+  url             String
+  note            String?
+  startsAt        DateTime             @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime             @map("ends_at") @db.Timestamptz(6)
+  /// who gets the link: everyone, or the union of the listed roles, teams and people
+  audienceAll     Boolean              @default(true) @map("audience_all")
+  audienceRoles   String[]             @default([]) @map("audience_roles")
+  audienceTeamIds String[]             @default([]) @map("audience_team_ids") @db.Uuid
+  audienceUserIds String[]             @default([]) @map("audience_user_ids") @db.Uuid
+  createdById     String               @map("created_by_id") @db.Uuid
+  cancelledAt     DateTime?            @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById   String?              @map("cancelled_by_id") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  organization    Organization         @relation("CompanyMeeting_organizationId", fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy       User                 @relation("CompanyMeeting_createdById", fields: [createdById], references: [id], onDelete: Restrict)
+  cancelledBy     User?                @relation("CompanyMeeting_cancelledById", fields: [cancelledById], references: [id], onDelete: SetNull)
+  joins           CompanyMeetingJoin[]
+
+  @@index([organizationId, endsAt])
+  @@map("company_meetings")
+}
+
+/// Who pressed Join on a company meeting (first press only). Join is recorded for people the meeting was addressed to.
+model CompanyMeetingJoin {
+  id        String         @id @default(uuid()) @db.Uuid
+  meetingId String         @map("meeting_id") @db.Uuid
+  userId    String         @map("user_id") @db.Uuid
+  joinedAt  DateTime       @default(now()) @map("joined_at") @db.Timestamptz(6)
+  meeting   CompanyMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user      User           @relation("CompanyMeetingJoin_userId", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@map("company_meeting_joins")
+}
+
 model AttendanceRecord {
   id              String               @id @default(uuid()) @db.Uuid
   organizationId  String               @map("organization_id") @db.Uuid

@@ -6,6 +6,7 @@ import { FALLBACK_LAYOUT, useMyHomeLayout } from '@/lib/api/hooks/home-layout';
 import { HomeHeader } from './home-header';
 import { StatTiles } from './stat-tiles';
 import { GoalCard } from './goal-card';
+import { MeetingsCard } from './meetings-card';
 import { OnboardingCard } from './onboarding-card';
 import { PriorityFollowUps } from './priority-followups';
 import { QuickActions } from './quick-actions';
@@ -26,6 +27,7 @@ export function MobileHome() {
   const hasCrm = can(['leads:view', 'tasks:view', 'dashboard:salesperson:view']);
   const widgets = layout.source === 'DEFAULT' && working ? workingOrder(layout.widgets) : layout.widgets;
   const body: Record<HomeWidgetId, React.ReactNode> = {
+    meetings: <MeetingsCard />,
     stats: <StatTiles />,
     attendance: <AttendanceCard variant="mobile" />,
     goal: can('goals:view') ? <GoalCard /> : null,

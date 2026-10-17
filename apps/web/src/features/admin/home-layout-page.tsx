@@ -1,14 +1,14 @@
 'use client';
 import * as React from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowDown, ArrowUp, Bell, CalendarCheck, GraduationCap, LayoutGrid, PhoneCall, Phone, Target, type LucideIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp, Bell, CalendarClock, CalendarCheck, GraduationCap, LayoutGrid, PhoneCall, Phone, Target, type LucideIcon } from 'lucide-react';
 import { Alert, Badge, Button, Checkbox, PageHeader, Select, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger, useToast } from '@salesos/ui';
 import { RequirePermission } from '@/features/auth/require-permission';
 import { useHomeLayoutOverview, useResetHomeLayout, useSaveHomeLayout, type RoleHomeLayout } from '@/lib/api/hooks/home-layout';
 import { HOME_WIDGET_SIZES, SIZE_ZOOM, type HomeWidgetEntry, type HomeWidgetId, type HomeWidgetSize } from '@/features/mobile/home/widgets';
 
-const ICON: Record<HomeWidgetId, LucideIcon> = { stats: LayoutGrid, attendance: CalendarCheck, goal: Target, onboarding: GraduationCap, followups: Bell, quickActions: PhoneCall, workspace: Phone };
-const HEIGHT: Record<HomeWidgetId, string> = { stats: 'h-12', attendance: 'h-20', goal: 'h-24', onboarding: 'h-20', followups: 'h-24', quickActions: 'h-16', workspace: 'h-20' };
+const ICON: Record<HomeWidgetId, LucideIcon> = { meetings: CalendarClock, stats: LayoutGrid, attendance: CalendarCheck, goal: Target, onboarding: GraduationCap, followups: Bell, quickActions: PhoneCall, workspace: Phone };
+const HEIGHT: Record<HomeWidgetId, string> = { meetings: 'h-16', stats: 'h-12', attendance: 'h-20', goal: 'h-24', onboarding: 'h-20', followups: 'h-24', quickActions: 'h-16', workspace: 'h-20' };
 
 /** Move the widget at `index` by `delta` places (pure; out-of-range moves are ignored). */
 export function moveWidget(list: readonly HomeWidgetEntry[], index: number, delta: -1 | 1): HomeWidgetEntry[] {

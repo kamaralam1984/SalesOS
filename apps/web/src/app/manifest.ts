@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'CoachEasily SalesOS',
-    short_name: 'SalesOS',
+    name: 'CoachEasily Sales OS',
+    short_name: 'Sales OS',
     description: 'Lead ownership, follow-up discipline and sales accountability.',
     start_url: '/',
     scope: '/',

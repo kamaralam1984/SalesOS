@@ -27,7 +27,7 @@ export class WorkforceExportService {
 
 async function toXlsx(r: BuiltReport, generatedFor: string): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'CoachEasily SalesOS';
+  wb.creator = 'CoachEasily Sales OS';
   wb.created = new Date();
   const ws = wb.addWorksheet('Report', { views: [{ state: 'frozen', ySplit: 1 }] });
   ws.columns = r.columns.map((c) => ({ header: c.label, key: c.key, width: c.type === 'text' ? 28 : 16 }));

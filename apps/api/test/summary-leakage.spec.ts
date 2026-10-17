@@ -157,7 +157,9 @@ describe('sweep: every GET route, every restricted role, ids harvested from the 
         const l = designed ? [] : leaks(res.body.data);
         if (l.length) found.push(`${role} GET ${url}: ${l.slice(0, 3).join(', ')}`);
         // contact details of leads/learners are never part of a minimum-data projection (own profile and the user directory are separate permissions)
-        if (['STUDENT_SUCCESS', 'MARKETING'].includes(role) && !/^\/(auth|users|org|devices|notifications)/.test(url)) {
+        // (a person's own directory profile shows their own work email: that is the "own profile" permission, not a leak)
+        const ownProfile = url.includes(restricted[role]!.user.id);
+        if (['STUDENT_SUCCESS', 'MARKETING'].includes(role) && !ownProfile && !/^\/(auth|users|org|devices|notifications)/.test(url)) {
           const p = piiLeaks(res.body.data);
           if (p.length) pii.push(`${role} GET ${url}: ${p.slice(0, 3).join(', ')}`);
         }

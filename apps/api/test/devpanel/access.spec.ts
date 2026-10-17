@@ -36,7 +36,7 @@ describe('Developer Panel / access as DEVELOPER', () => {
     expect(m.permissions.length).toBe(m.totalPermissions);
     const devKeys: string[] = m.permissions.filter((p: { grants: Record<string, string> }) => p.grants.DEVELOPER).map((p: { key: string }) => p.key);
     expect(devKeys.length).toBe(m.totals.DEVELOPER);
-    const superAdminKeys = ['users:create', 'users:approve', 'users:password:reset', 'home-layout:view', 'home-layout:manage'];
+    const superAdminKeys = ['users:create', 'users:approve', 'users:password:reset', 'home-layout:view', 'home-layout:manage', 'meetings:view', 'meetings:manage'];
     for (const k of devKeys) expect(k.startsWith('devpanel:') || k.startsWith('auth:') || k.startsWith('audit:') || superAdminKeys.includes(k), k).toBe(true);
     const sample = m.permissions.find((p: { key: string }) => p.key === 'devpanel:access');
     expect(sample).toMatchObject({ domain: 'devpanel', sensitive: true });

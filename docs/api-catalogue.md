@@ -621,3 +621,16 @@ State lives in Redis (`<BULLMQ_PREFIX>:devpanel:maintenance`), cached ~2s in mem
 | `POST /users/password-resets/:requestId/dismiss` | `users:password:reset` | |
 | `POST /users/password-resets/direct` | `users:password:reset` | Body `{ email }`; reset link for someone who did not ask. |
 | `POST /auth/password/forgot` | public | Same answer for every email; a real, approved account gets a pending request (no e-mail). |
+
+
+## Company Zoom meetings (workforce)
+
+| Method and path | Permission | Notes |
+|---|---|---|
+| `GET /meetings/active` | `meetings:view` (everyone) | Meetings addressed to the caller that are on now or coming up (max 10), with the Zoom link and the caller's `joinedAt`. |
+| `POST /meetings/:id/join` | `meetings:view` | Records the first Join; 404 unless the meeting is on, not cancelled and addressed to the caller. |
+| `GET /meetings` | `meetings:manage` (Founder, HR, Developer) | Filters: `status`, `q`, `from`, `to` (IST dates), `audience` (EVERYONE/SELECTED), `roleKey`, `teamId`, `userId`. Each row has `audience`, `invitedCount`, `joinedCount`. |
+| `GET /meetings/options` | `meetings:manage` | Roles, teams and people for the audience pickers. |
+| `GET /meetings/:id` | `meetings:manage` | Invited people with who has joined. |
+| `POST /meetings` | `meetings:manage` | `{ title, url (https zoom.us only), startsAt (ISO with offset), durationMinutes (15-480), note?, audience: { everyone, roles[], teamIds[], userIds[] } }`; 400 for non-Zoom links, past/too-far times, unknown teams/people or an audience nobody matches. |
+| `DELETE /meetings/:id` | `meetings:manage` | Cancels (kept in the list as CANCELLED), audited. |

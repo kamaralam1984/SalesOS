@@ -225,7 +225,7 @@ export class RefundsService {
         return { approvedById: user.userId, approvedByRole: c.actorRole, approvedAt: c.now, approvedAmount: round2(approved), approvalReason: b.reason };
       },
       payload: async (r, tx, c) => this.approvedPayload(tx, r, user.userId, c.actorRole),
-      notify: (r) => ({ roles: ['FINANCE'], title: 'Approved refund to process', body: `A refund of ${money(r.approvedAmount ?? r.amount)} INR was approved. Process it outside SalesOS and record the reference.` }),
+      notify: (r) => ({ roles: ['FINANCE'], title: 'Approved refund to process', body: `A refund of ${money(r.approvedAmount ?? r.amount)} INR was approved. Process it outside Sales OS and record the reference.` }),
     });
   }
 

@@ -97,7 +97,7 @@ describe('incentive recommendation workflow', () => {
     expect(ok.body.data).toMatchObject({ status: 'APPROVED', approvedAmount: '50', overrideReason: 'Exceptional enrolment quality' });
   });
 
-  it('hold/release by Finance or Founder; only Finance marks paid; payout never executes in SalesOS', async () => {
+  it('hold/release by Finance or Founder; only Finance marks paid; payout never executes in Sales OS', async () => {
     expect((await trans(A.managerA, recId, { to: 'ON_HOLD', reason: 'refund window open' })).status).toBe(403);
     expect((await trans(A.finance, recId, { to: 'ON_HOLD', reason: 'refund window open' })).body.data.status).toBe('ON_HOLD');
     expect((await A.finance.post(`/incentives/recommendations/${recId}/mark-paid`).send({ reference: 'UTR123' })).status).toBe(409); // held

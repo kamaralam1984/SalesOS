@@ -105,6 +105,7 @@ model Organization {
   processGapRecords                     ProcessGap[]                     @relation("ProcessGap_organizationId")
   workforceSettingRecords               WorkforceSetting[]               @relation("WorkforceSetting_organizationId")
   holidayRecords                        Holiday[]                        @relation("Holiday_organizationId")
+  companyMeetingRecords                 CompanyMeeting[]                 @relation("CompanyMeeting_organizationId")
   attendanceRecordRecords               AttendanceRecord[]               @relation("AttendanceRecord_organizationId")
   attendanceCorrectionRecords           AttendanceCorrection[]           @relation("AttendanceCorrection_organizationId")
   leaveRequestRecords                   LeaveRequest[]                   @relation("LeaveRequest_organizationId")
@@ -233,6 +234,9 @@ model User {
   approvedUsers        User[]                 @relation("UserApprovedBy")
   resetRequests        PasswordResetRequest[] @relation("ResetRequestUser")
   resetRequestsHandled PasswordResetRequest[] @relation("ResetRequestHandler")
+  meetingsCreated      CompanyMeeting[]       @relation("CompanyMeeting_createdById")
+  meetingsCancelled    CompanyMeeting[]       @relation("CompanyMeeting_cancelledById")
+  meetingJoins         CompanyMeetingJoin[]   @relation("CompanyMeetingJoin_userId")
 
   roleAssignments   UserRoleAssignment[] @relation("AssignmentUser")
   assignedRoles     UserRoleAssignment[] @relation("AssignmentBy")

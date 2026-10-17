@@ -1,5 +1,5 @@
 /** Phone home widgets. Mirrors packages/validation/src/home-layout.ts (the API is the authority and cleans whatever is stored). */
-export const HOME_WIDGETS = ['stats', 'attendance', 'goal', 'onboarding', 'followups', 'quickActions', 'workspace'] as const;
+export const HOME_WIDGETS = ['meetings', 'stats', 'attendance', 'goal', 'onboarding', 'followups', 'quickActions', 'workspace'] as const;
 export type HomeWidgetId = (typeof HOME_WIDGETS)[number];
 export const HOME_WIDGET_SIZES = ['S', 'M', 'L'] as const;
 export type HomeWidgetSize = (typeof HOME_WIDGET_SIZES)[number];
@@ -15,7 +15,7 @@ export const SIZE_ZOOM: Record<HomeWidgetSize, number> = { S: 0.85, M: 1, L: 1.1
  * Applies only to the built-in layout; a layout set by the Founder or Developer is shown exactly as set.
  */
 export function workingOrder(widgets: readonly HomeWidgetEntry[]): HomeWidgetEntry[] {
-  const first: HomeWidgetId[] = ['stats', 'followups', 'quickActions', 'goal', 'attendance', 'onboarding', 'workspace'];
+  const first: HomeWidgetId[] = ['meetings', 'stats', 'followups', 'quickActions', 'goal', 'attendance', 'onboarding', 'workspace'];
   const rank = (id: HomeWidgetId) => first.indexOf(id);
   return [...widgets].sort((a, b) => rank(a.id) - rank(b.id));
 }

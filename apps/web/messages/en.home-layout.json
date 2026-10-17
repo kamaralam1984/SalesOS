@@ -28,6 +28,7 @@
     "retry": "Try again",
     "noAccess": "Only the Founder and the Developer can change home layouts.",
     "widget": {
+      "meetings": "Zoom meetings",
       "stats": "Quick numbers",
       "attendance": "Attendance",
       "goal": "45-day goal",

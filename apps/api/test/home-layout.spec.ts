@@ -26,7 +26,7 @@ describe('home layout per role', () => {
     const r = await execA1.get('/home-layout');
     expect(r.status).toBe(200);
     expect(r.body.data.source).toBe('DEFAULT');
-    expect(r.body.data.widgets.map((w: { id: string }) => w.id)).toEqual(['stats', 'attendance', 'goal', 'onboarding', 'followups', 'quickActions', 'workspace']);
+    expect(r.body.data.widgets.map((w: { id: string }) => w.id)).toEqual(['meetings', 'stats', 'attendance', 'goal', 'onboarding', 'followups', 'quickActions', 'workspace']);
   });
 
   it('only Founder / Developer can see or change layouts for roles', async () => {
@@ -52,7 +52,7 @@ describe('home layout per role', () => {
     expect(mine.source).toBe('ROLE');
     expect(mine.role).toBe('SALES_EXECUTIVE');
     expect(mine.widgets.slice(0, 3)).toEqual(layout);
-    expect(mine.widgets.map((w: { id: string }) => w.id)).toHaveLength(7);
+    expect(mine.widgets.map((w: { id: string }) => w.id)).toHaveLength(8);
     expect((await managerA.get('/home-layout')).body.data.source).toBe('DEFAULT');
     expect(await t.prisma.auditLog.count({ where: { action: 'home_layout.saved', actorId: fx.founder.id } })).toBeGreaterThanOrEqual(1);
   });

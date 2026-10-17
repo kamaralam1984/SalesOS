@@ -63,9 +63,9 @@
     "skipToContent": "Skip to main content",
     "primaryNav": "Primary navigation",
     "mobileNav": "Main navigation",
-    "home": "SalesOS home",
+    "home": "Sales OS home",
     "phaseShort": "Phase {phase}",
-    "version": "SalesOS",
+    "version": "Sales OS",
     "more": "More",
     "moreTitle": "All sections",
     "close": "Close",
@@ -199,7 +199,7 @@
     "pointAudit": "Sensitive actions are recorded, including those by leadership.",
     "footnote": "Private to CoachEasily. Access is by invitation only.",
     "loginTitle": "Sign in",
-    "loginSubtitle": "Welcome back. Sign in to continue to SalesOS.",
+    "loginSubtitle": "Welcome back. Sign in to continue to Sales OS.",
     "invitePrompt": "Access is by invitation only. Ask your administrator if you need an account.",
     "email": "Work email",
     "password": "Password",
@@ -253,7 +253,7 @@
     "resetTitle": "Choose a new password",
     "resetSubtitle": "Pick a strong password you do not use elsewhere.",
     "resetSubmit": "Update password",
-    "inviteTitle": "Welcome to SalesOS",
+    "inviteTitle": "Welcome to Sales OS",
     "inviteSubtitle": "Set a password to activate your account.",
     "inviteSubmit": "Activate account",
     "newPassword": "New password",
@@ -300,7 +300,7 @@
   },
   "admin": {
     "eyebrow": "Administration",
-    "indexDescription": "Manage who can use SalesOS, how teams are organised and how the organisation is configured.",
+    "indexDescription": "Manage who can use Sales OS, how teams are organised and how the organisation is configured.",
     "open": "Open",
     "cards": {
       "adminUsers": "Invite people, assign roles, and deactivate or reactivate accounts.",
@@ -423,7 +423,7 @@
     "settings": {
       "eyebrow": "Administration",
       "title": "Organisation settings",
-      "description": "Defaults that shape how teams, time and security behave across SalesOS. Changes are audited.",
+      "description": "Defaults that shape how teams, time and security behave across Sales OS. Changes are audited.",
       "saved": "Settings saved",
       "readOnly": "You can view these settings but not change them.",
       "teamsSection": "Teams",
@@ -708,7 +708,7 @@
       "queueTest": "Queue test message",
       "testTo": "Recipient (email, or phone for WhatsApp/SMS)",
       "testBody": "Message",
-      "testBodyDefault": "Test message from SalesOS",
+      "testBodyDefault": "Test message from Sales OS",
       "testQueued": "Test message queued",
       "testSandboxNote": "Sandbox: the message is recorded and never reaches a real person.",
       "testRealNote": "This sends a real message and needs recorded consent from the recipient."
@@ -994,7 +994,7 @@
     "eyebrow": "People",
     "title": "Incentives",
     "description": "Versioned policy, recommendations and the approval workflow. Nothing here pays anyone.",
-    "recommendationOnly": "This is a recommendation workflow only. Payout is executed outside SalesOS.",
+    "recommendationOnly": "This is a recommendation workflow only. Payout is executed outside Sales OS.",
     "tabs": {
       "recommendations": "Recommendations",
       "policy": "Policy",
@@ -1228,7 +1228,7 @@
       },
       "markPaid": {
         "title": "Mark as paid?",
-        "body": "Record that the payout was made outside SalesOS. This cannot be undone; later refunds can only create clawback proposals."
+        "body": "Record that the payout was made outside Sales OS. This cannot be undone; later refunds can only create clawback proposals."
       },
       "adjust": {
         "title": "Apply the adjustment?",
@@ -2517,11 +2517,11 @@
       "newEndDate": "New end date",
       "finalReview": "Final review",
       "recommendedAction": "Recommended action",
-      "recommendedHint": "SalesOS does not handle termination or payroll; HR follows up outside the system.",
+      "recommendedHint": "Sales OS does not handle termination or payroll; HR follows up outside the system.",
       "evidence": "Evidence (optional)"
     },
     "auditNote": "This action is recorded in the audit log.",
-    "outsideNote": "The outcome is followed up by HR outside SalesOS.",
+    "outsideNote": "The outcome is followed up by HR outside Sales OS.",
     "tr": {
       "submit": {
         "title": "Submit for approval?",
@@ -2543,7 +2543,7 @@
       },
       "notImproved": {
         "title": "Complete: not improved",
-        "body": "The plan closes and HR is notified. Any employment outcome is handled outside SalesOS. This cannot be undone.",
+        "body": "The plan closes and HR is notified. Any employment outcome is handled outside Sales OS. This cannot be undone.",
         "action": "Complete as not improved",
         "done": "Plan completed"
       },
@@ -4513,7 +4513,7 @@
     "refundRequest": {
       "title": "Request a refund",
       "description": "For {name}. A reviewer and then the Founder or Finance decide; nothing is paid out automatically.",
-      "notAuto": "No automatic refund. Finance pays out outside SalesOS and records the reference here.",
+      "notAuto": "No automatic refund. Finance pays out outside Sales OS and records the reference here.",
       "refundable": "Refundable now: {amount} (verified collections minus refunds already requested or paid).",
       "amount": "Refund amount (INR)",
       "amountInvalid": "Enter an amount above zero, up to {max}",
@@ -4637,7 +4637,7 @@
     "refunds": {
       "title": "Refunds",
       "description": "Each refund moves through requested, reviewed, approved or rejected, processed and reconciled, with who did it and when.",
-      "flow": "Requested is not approved, and approved is not paid. The Founder or Finance approves, and Finance records the payout made outside SalesOS.",
+      "flow": "Requested is not approved, and approved is not paid. The Founder or Finance approves, and Finance records the payout made outside Sales OS.",
       "filter": "Filter by status",
       "filterAll": "All",
       "filterREQUESTED": "Requested",
@@ -4690,7 +4690,7 @@
       "helpreject": "The requester is told why. This is final.",
       "helpwithdraw": "Only the requester or a Team Lead can withdraw a request that is not yet decided.",
       "helpcancel": "Cancel an approved refund that has not been paid out.",
-      "helpprocess": "Record that Finance paid the refund outside SalesOS. Net collections drop only now.",
+      "helpprocess": "Record that Finance paid the refund outside Sales OS. Net collections drop only now.",
       "helpreconcile": "Match the payout with the bank statement. This locks the refund.",
       "donereview": "Review recorded",
       "doneapprove": "Refund approved",
@@ -5838,7 +5838,7 @@
         "first": "Download a file before it expires. Large exports are prepared in the background."
       },
       "adminIndex": {
-        "what": "Manage who can use SalesOS, how teams are organised and how the organisation is configured.",
+        "what": "Manage who can use Sales OS, how teams are organised and how the organisation is configured.",
         "first": "Open Users to invite or change access, or Teams to organise managers and executives."
       },
       "adminUsers": {

@@ -34,11 +34,12 @@ export const workNav: NavDomain = {
     { id: 'work.directory', labelKey: 'workDirectory', href: '/work/directory', icon: Users, permission: 'directory:view', mobilePriority: null, order: 33 },
     { id: 'work.orgChart', labelKey: 'workOrgChart', href: '/work/org-chart', icon: Network, permission: 'directory:view', mobilePriority: null, order: 34 },
     {
-      id: 'work.hr', labelKey: 'workHr', href: '/work/hr', icon: CalendarDays, permission: ['workforce:settings:view', 'birthdays:view'], mobilePriority: null, order: 35,
+      id: 'work.hr', labelKey: 'workHr', href: '/work/hr', icon: CalendarDays, permission: ['workforce:settings:view', 'birthdays:view', 'meetings:manage'], mobilePriority: null, order: 35,
       children: [
         { id: 'work.hr.policy', labelKey: 'workHrPolicy', href: '/work/hr/policy', permission: 'workforce:settings:view' },
         { id: 'work.hr.balances', labelKey: 'workHrBalances', href: '/work/hr/balances', permission: 'leave:balance:adjust' },
         { id: 'work.hr.birthdays', labelKey: 'workHrBirthdays', href: '/work/hr/birthdays', permission: 'birthdays:view' },
+        { id: 'work.hr.meetings', labelKey: 'workHrMeetings', href: '/work/hr/meetings', permission: 'meetings:manage' },
         { id: 'work.hr.joiners', labelKey: 'workHrJoiners', href: '/work/hr/joiners', permission: 'joiners:manage' },
         { id: 'work.hr.probation', labelKey: 'workHrProbation', href: '/work/hr/probation', permission: 'workforce:settings:view' },
         { id: 'work.hr.announcements', labelKey: 'workHrAnnouncements', href: '/work/hr/announcements', permission: 'announcements:manage' },

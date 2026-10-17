@@ -26,8 +26,8 @@ import { DEFAULT_HOME_WIDGETS } from '@/features/mobile/home/widgets';
 const overview = {
   widgets: [],
   roles: [
-    { role: 'SALES_EXECUTIVE', customised: false, widgets: DEFAULT_HOME_WIDGETS, applicable: ['stats', 'attendance', 'goal', 'onboarding', 'followups', 'quickActions', 'workspace'] },
-    { role: 'HR', customised: false, widgets: DEFAULT_HOME_WIDGETS, applicable: ['attendance', 'goal', 'onboarding', 'workspace'] },
+    { role: 'SALES_EXECUTIVE', customised: false, widgets: DEFAULT_HOME_WIDGETS, applicable: ['meetings', 'stats', 'attendance', 'goal', 'onboarding', 'followups', 'quickActions', 'workspace'] },
+    { role: 'HR', customised: false, widgets: DEFAULT_HOME_WIDGETS, applicable: ['meetings', 'attendance', 'goal', 'onboarding', 'workspace'] },
   ],
 };
 
@@ -46,8 +46,8 @@ beforeEach(() => { get.mockReset(); put.mockReset(); auth.perms = { 'home-layout
 describe('moveWidget', () => {
   const l = DEFAULT_HOME_WIDGETS;
   it('moves up and down, and ignores moves past the ends', () => {
-    expect(moveWidget(l, 1, -1).map((w) => w.id).slice(0, 2)).toEqual(['attendance', 'stats']);
-    expect(moveWidget(l, 0, 1).map((w) => w.id).slice(0, 2)).toEqual(['attendance', 'stats']);
+    expect(moveWidget(l, 1, -1).map((w) => w.id).slice(0, 2)).toEqual(['stats', 'meetings']);
+    expect(moveWidget(l, 0, 1).map((w) => w.id).slice(0, 2)).toEqual(['stats', 'meetings']);
     expect(moveWidget(l, 0, -1)).toEqual([...l]);
     expect(moveWidget(l, l.length - 1, 1)).toEqual([...l]);
   });
@@ -65,7 +65,7 @@ describe('home layout page', () => {
     put.mockResolvedValue({ data: { role: 'SALES_EXECUTIVE', customised: true, widgets: [], applicable: [] } });
     renderWithProviders(<HomeLayoutPage />);
     const list = await screen.findByRole('list');
-    expect(within(list).getAllByRole('listitem')).toHaveLength(7);
+    expect(within(list).getAllByRole('listitem')).toHaveLength(8);
     fireEvent.click(screen.getByRole('button', { name: 'Move up: Attendance' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Show: Call buttons' }));
     const goalSize = screen.getByRole('group', { name: 'Size: 45-day goal' });
@@ -75,7 +75,7 @@ describe('home layout page', () => {
     await waitFor(() => expect(put).toHaveBeenCalled());
     const [path, body] = put.mock.calls[0] as [string, { widgets: Array<{ id: string; visible: boolean; size: string }> }];
     expect(path).toBe('/home-layout/roles/SALES_EXECUTIVE');
-    expect(body.widgets.map((w) => w.id).slice(0, 2)).toEqual(['attendance', 'stats']);
+    expect(body.widgets.map((w) => w.id).slice(0, 2)).toEqual(['meetings', 'attendance']);
     expect(body.widgets.find((w) => w.id === 'quickActions')?.visible).toBe(false);
     expect(body.widgets.find((w) => w.id === 'goal')?.size).toBe('L');
   });

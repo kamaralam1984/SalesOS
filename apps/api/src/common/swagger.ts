@@ -3,7 +3,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 export function setupSwagger(app: INestApplication) {
   const config = new DocumentBuilder()
-    .setTitle('CoachEasily SalesOS API')
+    .setTitle('CoachEasily Sales OS API')
     .setDescription(
       'All responses use the envelope { data, meta, error }. Cookie session auth; send x-csrf-token on unsafe methods.',
     )

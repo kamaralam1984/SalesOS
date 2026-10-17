@@ -23,6 +23,7 @@
     "sections": {
       "work": "Work"
     },
-    "workHrJoiners": "New joiners"
+    "workHrJoiners": "New joiners",
+    "workHrMeetings": "Zoom meetings"
   }
 }

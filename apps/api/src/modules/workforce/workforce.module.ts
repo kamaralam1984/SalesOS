@@ -5,6 +5,7 @@ import { EarnedLeaveModule } from './earned-leave/earned-leave.module';
 import { GoalsModule } from './goals/goals.module';
 import { HolidaysModule } from './holidays/holidays.module';
 import { HrModule } from './hr/hr.module';
+import { MeetingsModule } from './meetings/meetings.module';
 import { LeaveModule } from './leave/leave.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { ReportsModule } from './reports/reports.module';
@@ -16,7 +17,7 @@ import { TasksModule } from './tasks/tasks.module';
 /** Workforce domain (DEC-048): attendance, holidays, leave, Earned Leave, goals, work tasks, payroll, directory/org chart, HR automation, reports. */
 @Global()
 @Module({
-  imports: [AttendanceModule, HolidaysModule, LeaveModule, EarnedLeaveModule, GoalsModule, TasksModule, PayrollModule, DirectoryModule, HrModule, ReportsModule],
+  imports: [AttendanceModule, HolidaysModule, LeaveModule, EarnedLeaveModule, GoalsModule, TasksModule, PayrollModule, DirectoryModule, HrModule, ReportsModule, MeetingsModule],
   controllers: [WorkforceSettingsController],
   providers: [WorkforceConfigService, WorkforceSettingsService],
   exports: [WorkforceConfigService, WorkforceSettingsService],

@@ -1,0 +1,162 @@
+{
+  "search": {
+    "open": "Search",
+    "title": "Find a feature",
+    "placeholder": "Type a feature, e.g. joining date, attendance, Zoom link",
+    "hint": "Type what you want to do. Use ↑ ↓ and Enter, or tap a result.",
+    "empty": "No match. Try another word such as attendance, leave, leads or joining date.",
+    "popular": "Popular",
+    "results": "Results",
+    "close": "Close",
+    "inNav": "Page",
+    "shortcut": "Ctrl K",
+    "sections": {
+      "work": "My Work",
+      "people": "People",
+      "crm": "CRM",
+      "admin": "Administration"
+    },
+    "features": {
+      "joiningDate": {
+        "title": "Joining date and HR details",
+        "description": "Set an employee's joining date, probation end, position and other HR details."
+      },
+      "newJoiner": {
+        "title": "Join a new employee",
+        "description": "Create the account, the 90-day training plan, reviews and first tasks in one step."
+      },
+      "attendance": {
+        "title": "Attendance",
+        "description": "Check in and out, see late minutes, overtime and your month."
+      },
+      "leave": {
+        "title": "Apply for leave",
+        "description": "Apply for leave and see your leave balance."
+      },
+      "leaveApprovals": {
+        "title": "Leave approvals",
+        "description": "Approve or return leave requests of your team."
+      },
+      "zoomLink": {
+        "title": "Zoom meeting link",
+        "description": "Set the one Zoom link employees see after they check in."
+      },
+      "workforcePolicy": {
+        "title": "Workforce policy",
+        "description": "Attendance times, leave types, goals and probation rules for the whole company."
+      },
+      "leaveBalances": {
+        "title": "Leave balances",
+        "description": "Opening balances and corrections for each employee."
+      },
+      "probation": {
+        "title": "Probation",
+        "description": "Track probation end dates and confirm, extend or review."
+      },
+      "birthdays": {
+        "title": "Birthdays",
+        "description": "Upcoming birthdays of the team."
+      },
+      "announcements": {
+        "title": "Announcements",
+        "description": "Post a notice that everyone sees on My Work."
+      },
+      "holidays": {
+        "title": "Holidays",
+        "description": "Company holiday calendar and weekly offs."
+      },
+      "payslips": {
+        "title": "Payslips",
+        "description": "Your salary slips."
+      },
+      "goals": {
+        "title": "Goals",
+        "description": "Your 45-day goals, progress and milestones."
+      },
+      "workTasks": {
+        "title": "Tasks",
+        "description": "Tasks assigned to you and by you."
+      },
+      "directory": {
+        "title": "Team directory",
+        "description": "Find people, their roles and managers."
+      },
+      "reports": {
+        "title": "Work reports",
+        "description": "Daily and weekly reports, new-joiner progress and Excel downloads."
+      },
+      "kpis": {
+        "title": "KPIs and KRAs",
+        "description": "Assign weekly targets and fill scorecards."
+      },
+      "reviews": {
+        "title": "Performance reviews",
+        "description": "Monthly reviews and ratings."
+      },
+      "hiring": {
+        "title": "Hiring and openings",
+        "description": "Create an opening (pick a role or add your own), track candidates and interviews."
+      },
+      "onboarding": {
+        "title": "Onboarding and templates",
+        "description": "90-day plans, training templates and role expectations."
+      },
+      "incentives": {
+        "title": "Incentives",
+        "description": "Incentive policy, recommendations and approvals."
+      },
+      "coaching": {
+        "title": "Coaching log",
+        "description": "Record coaching sessions and action items."
+      },
+      "leads": {
+        "title": "Leads",
+        "description": "Search, filter and work every lead you may see; add a new lead."
+      },
+      "followUps": {
+        "title": "Follow-ups and tasks",
+        "description": "Your follow-ups with due dates and call buttons."
+      },
+      "overdue": {
+        "title": "Overdue follow-ups",
+        "description": "Follow-ups that are late."
+      },
+      "importLeads": {
+        "title": "Import leads",
+        "description": "Upload a CSV or Excel file of leads."
+      },
+      "events": {
+        "title": "Webinars, demos and events",
+        "description": "Webinars, demos and events with attendance and follow-up."
+      },
+      "users": {
+        "title": "Users",
+        "description": "See users, their roles, status and teams."
+      },
+      "approvals": {
+        "title": "Approvals and password reset",
+        "description": "Approve new accounts and issue one-time password-reset links."
+      },
+      "homeLayout": {
+        "title": "Home layout",
+        "description": "Choose what each role sees on its home screen, in what order and size."
+      },
+      "roles": {
+        "title": "Roles and access",
+        "description": "Who has which role and access."
+      },
+      "audit": {
+        "title": "Audit log",
+        "description": "Who changed what and when."
+      },
+      "orgSettings": {
+        "title": "Organisation settings",
+        "description": "Company-wide settings such as team size limit and timezone."
+      },
+      "meetings": {
+        "title": "Zoom meetings",
+        "description": "Announce an extra Zoom meeting, choose who gets the link and see who joined."
+      }
+    }
+  }
+}
