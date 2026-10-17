@@ -240,16 +240,30 @@ export function useCrmStream(enabled = true, deps: StreamDeps = {}) {
     let retry: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
 
+    // Live events refresh the CRM data that changes (leads, tasks, notifications). The lookups that rarely change (lead meta, saved views) are left alone,
+    // otherwise every event re-fetched them too and a busy office exceeded the API rate limit.
+    const STATIC_KEYS = new Set(['meta', 'views']);
     const touch = () => {
       setLastEventAt(Date.now());
-      void qc.invalidateQueries({ queryKey: ['crm'] });
+      void qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'crm' && !STATIC_KEYS.has(q.queryKey[1] as string) });
+    };
+    // The poll endpoint looks back over the last minute, so it repeats events it already returned: only react to ones not seen before.
+    const seen = new Set<string>();
+    const isNew = (e: { type: string; data?: Record<string, unknown> }) => {
+      if (e.type === 'exceptions') return false;
+      const d = e.data ?? {};
+      const key = `${e.type}:${String(d.id ?? '')}:${String(d.updatedAt ?? d.status ?? '')}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      if (seen.size > 2000) seen.delete(seen.values().next().value as string);
+      return true;
     };
     const poll = async () => {
       try {
         const since = cursor.current ?? new Date(Date.now() - 60_000).toISOString();
-        const r = await apiRequest<{ cursor: string; events: { type: string }[] }>('/stream/poll', { query: { since }, skipUnauthorizedHandler: true });
+        const r = await apiRequest<{ cursor: string; events: { type: string; data?: Record<string, unknown> }[] }>('/stream/poll', { query: { since }, skipUnauthorizedHandler: true });
         cursor.current = r.data.cursor;
-        if (r.data.events.some((e) => e.type !== 'exceptions')) touch();
+        if (r.data.events.filter(isNew).length > 0) touch();
       } catch {
         /* offline / forbidden: next tick retries */
       }
