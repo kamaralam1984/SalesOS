@@ -67,3 +67,23 @@ export function safeMeetingLink(url: string | null | undefined): { href: string;
     return null;
   }
 }
+
+/** How long the Zoom button stays after the person pressed it. */
+export const MEETING_VISIBLE_MINUTES = 30;
+export const DEFAULT_CHECK_OUT_FROM = '18:30';
+
+export type DayPhase = 'CHECK_IN' | 'MEETING' | 'WORKING' | 'CHECK_OUT' | 'DONE';
+
+/**
+ * Which part of the day the attendance card is in, so the Zoom, Check-out and the widgets around them can adjust:
+ * CHECK_IN (not marked) → MEETING (marked, Zoom shown until 30 min after the press) → WORKING (compact) → CHECK_OUT (from 18:30) → DONE.
+ */
+export function dayPhase(a: { checkedIn: boolean; checkedOut: boolean; canCheckOut: boolean; hasMeeting: boolean; meetingJoinedAt?: string | null; checkOutFrom?: string; day: string; now: Date }): DayPhase {
+  if (a.checkedOut) return 'DONE';
+  if (!a.checkedIn) return 'CHECK_IN';
+  const from = istTimeToIso(a.day, a.checkOutFrom ?? DEFAULT_CHECK_OUT_FROM);
+  if (a.canCheckOut && from && a.now.getTime() >= new Date(from).getTime()) return 'CHECK_OUT';
+  const pressed = a.meetingJoinedAt ? new Date(a.meetingJoinedAt).getTime() : null;
+  const expired = pressed !== null && a.now.getTime() >= pressed + MEETING_VISIBLE_MINUTES * 60_000;
+  return a.hasMeeting && !expired ? 'MEETING' : 'WORKING';
+}

@@ -148,7 +148,7 @@ export class AttendanceService {
       /** minutes past the late time right now, for someone who has not checked in on a working day (null otherwise) */
       lateByMinutes: !todays && kind === 'WORKING' ? lateSoFarMinutes(config, now) : null,
       meeting,
-      policy: { lateAfter: config.attendance.lateAfter, checkInCutoff: config.attendance.checkInCutoff, workdayEnd: config.attendance.workdayEnd, fullDayMinutes: config.attendance.fullDayMinutes, selfCheckIn: config.attendance.selfCheckIn, lateJoinAllowed: config.attendance.lateJoinAllowed, requireDayReport: config.attendance.requireDayReport },
+      policy: { lateAfter: config.attendance.lateAfter, checkInCutoff: config.attendance.checkInCutoff, workdayEnd: config.attendance.workdayEnd, checkOutFrom: config.attendance.checkOutFrom ?? '18:30', fullDayMinutes: config.attendance.fullDayMinutes, selfCheckIn: config.attendance.selfCheckIn, lateJoinAllowed: config.attendance.lateJoinAllowed, requireDayReport: config.attendance.requireDayReport },
     };
   }
 

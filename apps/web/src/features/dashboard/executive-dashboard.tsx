@@ -9,6 +9,8 @@ import { formatDay, formatTime } from './format';
 import { KpiTile, TileGrid } from './kpi-tile';
 import { PanelBoundary, PipelineCard, type PipelineStage, TargetTiles } from './panels';
 import { QueryBoundary, Section } from './query-boundary';
+import { useAuth } from '@/features/auth/auth-provider';
+import { PriorityFollowUps } from '@/features/mobile/home/priority-followups';
 import { Hint } from '@/features/hints/hint-views';
 
 const ids = (...x: string[]) => x;
@@ -19,10 +21,13 @@ export function ExecutiveDashboard() {
   const lc = useLocale();
   const filters = useAnalyticsFilters({ period: 'MONTH' });
   const q = useDashboard('salesperson', filters.query);
+  const { can } = useAuth();
   return (
     <>
       <PageHeader eyebrow={t('eyebrow')} title={t('title')} description={t('description')} />
       <TodayRow />
+      {/* calling system for the telecaller: today's follow-ups with call buttons */}
+      {can('tasks:view') && <div className="mb-6 max-w-4xl"><PriorityFollowUps /></div>}
       <AnalyticsFilterBar filters={filters} target="executive" show={{ team: false, program: true, source: true, owner: false }} />
       <QueryBoundary q={q}>
         {(d, fetching) => {

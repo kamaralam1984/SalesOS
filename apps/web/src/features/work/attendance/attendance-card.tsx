@@ -10,6 +10,7 @@ import { useAttendanceToday, useCheckIn, useCheckOut, type AttendanceStatus } fr
 import { formatMinutes, istTimeToIso, safeMeetingLink, statusTone } from './attendance-logic';
 import { MeetingButton } from './meeting-button';
 import { useWhen } from './format';
+import { useDayPhase } from './use-day-phase';
 import { DayReportDialog, LateJoinDialog } from './day-dialogs';
 
 type ChipKey = AttendanceStatus | 'NOT_CHECKED_IN';
@@ -30,6 +31,7 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
   const t = useTranslations('dashAttendance');
   const w = useWhen();
   const q = useAttendanceToday();
+  const phase = useDayPhase();
   const checkIn = useCheckIn();
   const checkOut = useCheckOut();
   const [lateMode, setLateMode] = React.useState<'OFFICE' | 'WFH' | null>(null);
@@ -107,7 +109,7 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
         </div>
       )}
 
-      {meeting && (
+      {meeting && phase === 'MEETING' && (
         <div className="enter-up mt-3">
           <MeetingButton
             href={meeting.href}
@@ -118,7 +120,7 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
         </div>
       )}
 
-      {(showCheckIn || d.can.checkOut) && (
+      {(showCheckIn || phase === 'CHECK_OUT') && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           {showCheckIn && (
             <>
@@ -135,8 +137,8 @@ function Card({ variant }: { variant: 'dashboard' | 'mobile' }) {
               </Button>
             </>
           )}
-          {d.can.checkOut && (
-            <Button className="col-span-2 min-h-11" variant="secondary" leadingIcon={<LogOut aria-hidden="true" />} loading={checkOut.isPending} onClick={() => (d.policy.requireDayReport ? setReportOpen(true) : checkOut.mutate())}>
+          {phase === 'CHECK_OUT' && (
+            <Button className="enter-up col-span-2 min-h-11" variant="secondary" leadingIcon={<LogOut aria-hidden="true" />} loading={checkOut.isPending} onClick={() => (d.policy.requireDayReport ? setReportOpen(true) : checkOut.mutate())}>
               {t('checkOut')}
             </Button>
           )}

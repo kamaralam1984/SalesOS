@@ -23,7 +23,7 @@ export interface AttendanceRecord {
 }
 export interface AttendanceToday {
   date: string; timezone: string; dayKind: DayKind; holiday: { name: string; kind: string } | null; record: AttendanceRecord | null;
-  can: { checkIn: boolean; checkOut: boolean }; policy: { lateAfter: string; fullDayMinutes: number; selfCheckIn: boolean; checkInCutoff?: string; workdayEnd?: string; lateJoinAllowed?: boolean; requireDayReport?: boolean };
+  can: { checkIn: boolean; checkOut: boolean }; policy: { lateAfter: string; fullDayMinutes: number; selfCheckIn: boolean; checkInCutoff?: string; workdayEnd?: string; checkOutFrom?: string; lateJoinAllowed?: boolean; requireDayReport?: boolean };
   /** Minutes past the late time right now when the user has not checked in on a working day (null otherwise). */
   lateByMinutes?: number | null;
   /** Cutoff passed and no record today. */

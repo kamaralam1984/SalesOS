@@ -37,6 +37,8 @@ export const workforceConfigSchema = z.object({
     checkInCutoff: hhmm,
     /** end of the working day (local time). A check-out after it is recorded as overtime (minutes beyond this time) */
     workdayEnd: hhmm,
+    /** the Check-out button appears from this local time (default 18:30); before it the card shows the working state */
+    checkOutFrom: hhmm.optional(),
     /** after the cutoff a person may still check in, with a reason; HR and the Boss are told (false = only HR / a manager can record it) */
     lateJoinAllowed: z.boolean(),
     /** check-out needs the end-of-day report (how much of today's work is done) */

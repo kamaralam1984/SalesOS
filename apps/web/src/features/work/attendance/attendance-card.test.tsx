@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -44,11 +44,16 @@ const today = (over: Partial<AttendanceToday> = {}): AttendanceToday => ({
 const present = { id: 'r1', userId: 'me', date: '2026-10-15', status: 'PRESENT' as const, checkInAt: '2026-10-15T03:40:00Z', checkOutAt: null, workMinutes: null, source: 'SELF' as const, note: null, version: 1 };
 
 describe('AttendanceCard', () => {
+  const clock = (hhmm: string) => vi.setSystemTime(new Date(`2026-10-15T${hhmm}:00+05:30`));
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    clock('10:30');
     h.auth = makeAuth({ 'attendance:self': 'own' }, ['SALES_EXECUTIVE'], 'me');
     h.get.mockReset();
     h.post.mockReset();
   });
+
+  afterEach(() => vi.useRealTimers());
 
   it('shows not-checked-in with check-in buttons and the closing hint', async () => {
     h.get.mockResolvedValue(one(today()));
@@ -67,15 +72,38 @@ describe('AttendanceCard', () => {
     expect(screen.queryByRole('button', { name: /Check in/ })).toBeNull();
   });
 
-  it('shows present with check-out and a safe Zoom link', async () => {
+  it('after check-in shows a safe Zoom link instead of the check-in buttons (no check-out yet)', async () => {
     h.get.mockResolvedValue(one(today({ record: present, can: { checkIn: false, checkOut: true }, meeting: { url: 'https://zoom.us/j/123' } })));
     renderCard();
     expect(await screen.findByText('Present')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Check out/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Check out/ })).toBeNull();
     const a = screen.getByRole('link', { name: /Join Zoom meeting/ });
     expect(a.getAttribute('href')).toBe('https://zoom.us/j/123');
     expect(a.getAttribute('target')).toBe('_blank');
     expect(a.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('Zoom disappears 30 minutes after it was pressed', async () => {
+    clock('11:05');
+    h.get.mockResolvedValue(one(today({ record: { ...present, meetingJoinedAt: '2026-10-15T05:00:00Z' }, can: { checkIn: false, checkOut: true }, meeting: { url: 'https://zoom.us/j/123' } })));
+    renderCard();
+    expect(await screen.findByText('Present')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Join Zoom meeting/ })).toBeNull();
+  });
+
+  it('Check-out stays hidden before 18:30', async () => {
+    clock('18:29');
+    h.get.mockResolvedValue(one(today({ record: present, can: { checkIn: false, checkOut: true } })));
+    renderCard();
+    expect(await screen.findByText('Present')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Check out/ })).toBeNull();
+  });
+
+  it('Check-out appears at 18:30', async () => {
+    clock('18:30');
+    h.get.mockResolvedValue(one(today({ record: present, can: { checkIn: false, checkOut: true } })));
+    renderCard();
+    expect(await screen.findByRole('button', { name: /Check out/ })).toBeTruthy();
   });
 
   it('renders nothing without attendance:self and does not fetch', () => {
@@ -134,6 +162,7 @@ describe('AttendanceCard', () => {
   });
 
   it('check-out asks how much of today\'s work is done (and a note when it is not everything) and sends both', async () => {
+    clock('18:45');
     h.get.mockResolvedValue(one(today({ record: present, can: { checkIn: false, checkOut: true }, policy: { lateAfter: '10:15', fullDayMinutes: 480, selfCheckIn: true, checkInCutoff: '11:00', requireDayReport: true } })));
     h.post.mockResolvedValue(one({ ...present, checkOutAt: '2026-10-15T13:00:00Z' }));
     renderCard();

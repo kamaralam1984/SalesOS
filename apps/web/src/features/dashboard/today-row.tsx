@@ -1,13 +1,19 @@
 'use client';
 import { AttendanceCard } from '@/features/work/attendance/attendance-card';
+import { useDayPhase } from '@/features/work/attendance/use-day-phase';
 import { GoalCard } from '@/features/mobile/home/goal-card';
 
-/** Today's attendance and the current 45-day goal, side by side at the top of every desktop dashboard. Each card hides itself without its permission. */
+/**
+ * Today's attendance and the current 45-day goal at the top of every desktop dashboard. Each card hides itself without its permission.
+ * While the person is working (Zoom gone, before check-out) the goal comes first; at check-out time attendance returns to the front.
+ */
 export function TodayRow() {
+  const phase = useDayPhase();
+  const goalFirst = phase === 'WORKING';
   return (
     <div className="mb-6 grid max-w-4xl gap-4 md:grid-cols-2">
-      <AttendanceCard variant="dashboard" />
-      <GoalCard href="/work/goals" />
+      <div className={goalFirst ? 'md:order-2' : undefined}><AttendanceCard variant="dashboard" /></div>
+      <div className={goalFirst ? 'md:order-1' : undefined}><GoalCard href="/work/goals" /></div>
     </div>
   );
 }
