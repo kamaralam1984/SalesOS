@@ -87,14 +87,17 @@ describe('joining a new employee (HR and the Boss)', () => {
     tasks: [{ title: 'Complete product training', dueDay: 7, priority: 'HIGH' }, { title: 'Log your first 20 follow-up calls', dueDay: 21 }], ...over,
   });
 
-  it('HR joins an employee in one step: account with an invite link, HR record, 90-day plan with 30/60/90 reviews and the first tasks', async () => {
+  it('HR joins an employee in one step: a pending account (the link comes when someone else approves it), HR record, 90-day plan with 30/60/90 reviews and the first tasks', async () => {
     const res = await hr.post('/workforce/hr/joiners').send(body({ joinDate: today }));
     expect(res.status, JSON.stringify(res.body)).toBe(201);
     const d = res.body.data;
     expect(d).toMatchObject({ planItems: 12, reviewDays: [30, 60, 90], tasks: 2, positionTitle: 'Sales Executive (Telecaller)' });
-    expect(d.invite.link).toContain('invite/accept?token=');
+    expect(d.pendingApproval).toBe(true);
+    expect(d.invite).toBeNull();
     const user = await t.prisma.user.findUniqueOrThrow({ where: { id: d.userId }, include: { roleAssignments: { include: { role: true } } } });
     expect(user.managerId).toBe(fx.managerA.id);
+    expect(user.approvalStatus).toBe('PENDING');
+    expect(user.createdById).toBe(fx.hr.id);
     expect(user.roleAssignments.map((r) => r.role.key)).toEqual(['SALES_EXECUTIVE']);
     const profile = await t.prisma.employeeProfile.findUniqueOrThrow({ where: { userId: d.userId } });
     expect(profile.positionTitle).toBe('Sales Executive (Telecaller)');

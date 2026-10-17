@@ -84,6 +84,16 @@ export class UsersService {
     }
   }
 
+  /** Creating an account: Founder and Developer may give any role except DEVELOPER; HR may give ordinary employee roles only. */
+  private assertCanCreateWith(actor: Principal, roles: RoleKey[]) {
+    if (roles.includes('DEVELOPER')) throw forbidden('The Developer role is managed only from the Developer Panel');
+    const hrAssignable: RoleKey[] = ['SALES_MANAGER', 'SALES_EXECUTIVE', 'MARKETING', 'COMMUNITY', 'OPERATIONS', 'STUDENT_SUCCESS'];
+    const broad = this.access.has(actor, 'users:role:assign-sensitive') || this.access.has(actor, 'devpanel:access');
+    if (!broad && roles.some((r) => !hrAssignable.includes(r))) {
+      throw forbidden('Only the Founder or the Developer can give this role; HR can create sales managers, executives and the support groups');
+    }
+  }
+
   private async softLimitWarnings(organizationId: string, managerId: string | null | undefined, client: Pick<Tx, 'user' | 'organization'> = this.prisma) {
     if (!managerId) return [];
     const [limit, count] = await Promise.all([
@@ -112,7 +122,7 @@ export class UsersService {
 
   async create(actor: Principal, dto: CreateDto) {
     this.assertRoleSet(dto.roles);
-    this.assertCanAssign(actor, dto.roles);
+    this.assertCanCreateWith(actor, dto.roles);
     if (dto.managerId) await this.assertValidManager(actor.organizationId, dto.managerId);
     if (dto.teamIds?.length) {
       const n = await this.prisma.team.count({ where: { id: { in: dto.teamIds }, organizationId: actor.organizationId } });
@@ -124,7 +134,7 @@ export class UsersService {
 
     const created = await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
-        data: { organizationId: actor.organizationId, email: dto.email, name: dto.name, managerId: dto.managerId ?? null, department: dto.department?.trim() || null },
+        data: { organizationId: actor.organizationId, email: dto.email, name: dto.name, managerId: dto.managerId ?? null, department: dto.department?.trim() || null, approvalStatus: 'PENDING', createdById: actor.userId },
       });
       await tx.userRoleAssignment.createMany({
         data: roleIds.map((roleId) => ({ organizationId: actor.organizationId, userId: user.id, roleId, assignedById: actor.userId })),
@@ -132,7 +142,7 @@ export class UsersService {
       if (dto.teamIds?.length) {
         await tx.teamMembership.createMany({ data: [...new Set(dto.teamIds)].map((teamId) => ({ teamId, userId: user.id })) });
       }
-      await this.auth.issueToken(user, 'INVITE', tx);
+      // No invite yet: the account is PENDING until another approver lets it in (AccountAccessService.approve issues the link).
       await this.outbox.publish(tx, {
         eventType: IDENTITY_EVENTS.USER_CREATED,
         aggregateType: 'user',
@@ -170,9 +180,10 @@ export class UsersService {
     const roleIds = await Promise.all(dto.roles.map((r) => this.roles.idFor(r)));
     const existing = await tx.user.findUnique({ where: { email: dto.email } });
     if (existing) throw conflict('EMAIL_TAKEN', 'A user with this email already exists');
-    const user = await tx.user.create({ data: { organizationId: actor.organizationId, email: dto.email, name: dto.name, managerId: dto.managerId ?? null, department: dto.department?.trim() || null } });
+    const user = await tx.user.create({ data: { organizationId: actor.organizationId, email: dto.email, name: dto.name, managerId: dto.managerId ?? null, department: dto.department?.trim() || null, approvalStatus: 'PENDING', createdById: actor.userId } });
     await tx.userRoleAssignment.createMany({ data: roleIds.map((roleId) => ({ organizationId: actor.organizationId, userId: user.id, roleId, assignedById: actor.userId })) });
-    const invite = await this.auth.issueToken(user, 'INVITE', tx, { sendEmail: false });
+    // No invite yet: the account is PENDING until someone other than the creator approves it, which is when the link is issued.
+    const invite = null;
     await this.outbox.publish(tx, {
       eventType: IDENTITY_EVENTS.USER_CREATED, aggregateType: 'user', aggregateId: user.id, organizationId: actor.organizationId,
       payload: { userId: user.id, organizationId: actor.organizationId, createdById: actor.userId },
@@ -206,24 +217,6 @@ export class UsersService {
     });
     const warnings = await this.softLimitWarnings(actor.organizationId, updated.managerId);
     return new ApiResult(toUserDto(updated), { warnings });
-  }
-
-  /**
-   * Manual invite link for when no email provider is enabled (DEC-013). Returns a fresh single-use link ONCE (never stored in clear
-   * text, never audited); older outstanding links are invalidated. Only for active users who have not set a password yet, and the
-   * actor must be allowed to assign every role the user holds (so Admin cannot take over a Finance/HR/Founder account).
-   */
-  async issueInviteLink(actor: Principal, id: string) {
-    const target = await this.loadTarget(actor, id, 'users:update');
-    if (!target.isActive) throw conflict('USER_INACTIVE', 'User is deactivated');
-    if (target.passwordHash) throw conflict('ALREADY_ACCEPTED', 'This user has already set a password; use password reset instead');
-    this.assertCanAssign(actor, target.roleAssignments.map((a) => a.role.key as RoleKey));
-    const issued = await this.prisma.$transaction(async (tx) => {
-      const r = await this.auth.issueToken(target, 'INVITE', tx, { sendEmail: false });
-      await this.audit.recordTx(tx, { organizationId: actor.organizationId, actorId: actor.userId, action: AUDIT_ACTIONS.INVITE_LINK_ISSUED, entityType: 'user', entityId: id, metadata: { expiresAt: r.expiresAt.toISOString() } });
-      return r;
-    });
-    return { link: issued.link, expiresAt: issued.expiresAt };
   }
 
   async deactivate(actor: Principal, id: string, reason?: string) {

@@ -3,6 +3,7 @@ import { EMAIL_PROVIDER, OutboxEmailProvider } from '../../common/outbox/email.p
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { UsersController } from './users/users.controller';
+import { AccountAccessService } from './users/account-access.service';
 import { UsersService } from './users/users.service';
 import { TeamsController } from './teams/teams.controller';
 import { TeamsService } from './teams/teams.service';
@@ -18,7 +19,7 @@ import { RolesService } from './roles.service';
 @Module({
   controllers: [AuthController, UsersController, TeamsController, OrgController, AuditController, PermissionsController, DelegationsController],
   providers: [
-    AuthService, UsersService, TeamsService, OrgService, PasswordService, RolesService,
+    AuthService, UsersService, AccountAccessService, TeamsService, OrgService, PasswordService, RolesService,
     { provide: EMAIL_PROVIDER, useClass: OutboxEmailProvider },
   ],
   exports: [PasswordService, RolesService, OrgService, UsersService],

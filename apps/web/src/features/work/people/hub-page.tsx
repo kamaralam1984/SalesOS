@@ -1,4 +1,5 @@
 'use client';
+import { HrToolLinks } from '../hr/hr-hub-page';
 import * as React from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -24,6 +25,7 @@ function Inner() {
   return (
     <>
       <PageHeader eyebrow={t('hub.eyebrow')} title={t('hub.title')} description={d ? t(`hub.description.${d.scopeLevel}` as never) : t('hub.description.own')} actions={d ? <span className="text-sm text-muted">{t('hub.asOf', { date: dates.date(d.today) })}</span> : undefined} />
+      <HrToolLinks />
       <QueryState query={q} isEmpty={!d} emptyTitle={t('hub.empty')}>
         {d && (
           <div className="enter-up space-y-8">

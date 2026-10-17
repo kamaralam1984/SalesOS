@@ -11,24 +11,28 @@ beforeAll(async () => {
 afterAll(async () => { await t.close(); });
 
 describe('users', () => {
-  it('admin creates a user: invite token issued, roles audited, outbox event written', async () => {
+  it('Founder creates a user: the account is PENDING (no invite, no login), roles audited, outbox event written; Admin cannot create', async () => {
+    const founder = await loginAgent(t.app, fx.founder);
     const admin = await loginAgent(t.app, fx.admin);
     const email = `new-${Date.now()}@test.salesos.local`;
-    const res = await admin.post('/users').send({ email: email.toUpperCase(), name: 'New Person', roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
+    expect((await admin.post('/users').send({ email, name: 'New Person', roles: ['SALES_EXECUTIVE'] })).status).toBe(403);
+    const res = await founder.post('/users').send({ email: email.toUpperCase(), name: 'New Person', roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
     expect(res.status).toBe(201);
-    expect(res.body.data).toMatchObject({ email, isActive: true, hasPassword: false, roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
+    expect(res.body.data).toMatchObject({ email, isActive: true, hasPassword: false, approvalStatus: 'PENDING', roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
     expect(res.body.data.passwordHash).toBeUndefined();
+    expect(await t.prisma.authToken.count({ where: { userId: res.body.data.id } })).toBe(0);
     const audit = await t.prisma.auditLog.findFirst({ where: { entityId: res.body.data.id, action: 'user.created' } });
-    expect(audit?.actorId).toBe(fx.admin.id);
+    expect(audit?.actorId).toBe(fx.founder.id);
     expect(await t.prisma.outboxEvent.count({ where: { aggregateId: res.body.data.id, eventType: 'user.created' } })).toBe(1);
-    expect((await admin.post('/users').send({ email, name: 'Dup', roles: ['SALES_EXECUTIVE'] })).status).toBe(409);
+    expect((await founder.post('/users').send({ email, name: 'Dup', roles: ['SALES_EXECUTIVE'] })).status).toBe(409);
   });
 
   it('validates input (bad email, empty roles, unknown role, oversize page)', async () => {
+    const founder = await loginAgent(t.app, fx.founder);
     const admin = await loginAgent(t.app, fx.admin);
-    expect((await admin.post('/users').send({ email: 'bad', name: 'x', roles: ['SALES_EXECUTIVE'] })).status).toBe(400);
-    expect((await admin.post('/users').send({ email: 'a@b.co', name: 'x', roles: [] })).status).toBe(400);
-    expect((await admin.post('/users').send({ email: 'a@b.co', name: 'x', roles: ['GOD_MODE'] })).status).toBe(400);
+    expect((await founder.post('/users').send({ email: 'bad', name: 'x', roles: ['SALES_EXECUTIVE'] })).status).toBe(400);
+    expect((await founder.post('/users').send({ email: 'a@b.co', name: 'x', roles: [] })).status).toBe(400);
+    expect((await founder.post('/users').send({ email: 'a@b.co', name: 'x', roles: ['GOD_MODE'] })).status).toBe(400);
     expect((await admin.get('/users?limit=1000')).status).toBe(400);
     expect((await admin.get('/users/not-a-uuid')).status).toBe(400);
   });
@@ -70,7 +74,8 @@ describe('users', () => {
     expect((await admin.patch(`/users/${fx.execA1.id}`).send({ managerId: null, unknownField: 1 })).status).toBe(400); // strict
 
     await admin.patch('/org/settings').send({ teamSoftLimit: 2 });
-    const res = await admin.post('/users').send({ email: `soft-${Date.now()}@test.salesos.local`, name: 'Third report', roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
+    const founder = await loginAgent(t.app, fx.founder);
+    const res = await founder.post('/users').send({ email: `soft-${Date.now()}@test.salesos.local`, name: 'Third report', roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
     expect(res.status).toBe(201); // warn, never block
     expect(res.body.meta.warnings[0]).toMatch(/MANAGER_REPORTS_ABOVE_SOFT_LIMIT/);
     await admin.patch('/org/settings').send({ teamSoftLimit: 5 });

@@ -59,3 +59,29 @@ function Inner() {
     </>
   );
 }
+
+/**
+ * Short list of the HR tools the person may open (Policy with the Zoom link, joiners, balances, announcements...).
+ * Shown at the top of My Work so phones, which have no sidebar, can reach them. Renders nothing without any HR permission.
+ */
+export function HrToolLinks() {
+  const t = useTranslations('workHr');
+  const { can } = useAuth();
+  const tiles = TILES.filter((x) => can(x.perm) && x.key !== 'directory' && x.key !== 'reports');
+  if (tiles.length === 0) return null;
+  return (
+    <nav aria-label={t('hub.tools')} className="mb-6">
+      <h2 className="mb-2 font-display text-xl font-semibold text-ink">{t('hub.title')}</h2>
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        {tiles.map((x) => (
+          <li key={x.key}>
+            <Link href={x.href} className="flex min-h-14 items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink hover-lift focus-visible:outline-2 focus-visible:outline-focus">
+              <x.icon aria-hidden="true" className="size-5 shrink-0 text-gold-700" />
+              {t(`hub.tiles.${x.key}.title` as never)}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}

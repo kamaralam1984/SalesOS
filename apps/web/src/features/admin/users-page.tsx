@@ -114,7 +114,11 @@ function UsersInner() {
       id: 'status',
       header: t('colStatus'),
       cell: (u) =>
-        u.isActive ? (
+        u.approvalStatus === 'PENDING' ? (
+          <StatusBadge status="warning">{t('pendingApproval')}</StatusBadge>
+        ) : u.approvalStatus === 'REJECTED' ? (
+          <StatusBadge status="danger">{t('rejectedAccount')}</StatusBadge>
+        ) : u.isActive ? (
           <StatusBadge status="success">{t('active')}</StatusBadge>
         ) : (
           <StatusBadge status="neutral">{t('inactive')}</StatusBadge>
@@ -212,7 +216,7 @@ function UsersInner() {
                 {t('roles')}
               </Button>
             </Can>
-            {u.isActive && u.hasPassword === false && (
+            {u.isActive && u.hasPassword === false && u.approvalStatus !== 'PENDING' && u.approvalStatus !== 'REJECTED' && (
               <Can permission="users:create">
                 <Button size="sm" variant="ghost" leadingIcon={<Link2 className="size-4" aria-hidden="true" />} onClick={() => setLinkTarget(u)}>
                   {t('inviteLink')}

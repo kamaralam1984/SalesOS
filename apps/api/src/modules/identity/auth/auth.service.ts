@@ -39,9 +39,10 @@ export class AuthService {
     const locked = !!user.lockedUntil && user.lockedUntil > now;
     const passwordOk = await this.passwords.verify(user.passwordHash, password);
 
-    if (locked || !user.isActive || !passwordOk) {
-      const reason = locked ? 'locked' : !user.isActive ? 'inactive' : 'bad_password';
-      await this.recordFailure(user, reason, locked || !user.isActive);
+    const approved = user.approvalStatus === 'APPROVED';
+    if (locked || !user.isActive || !approved || !passwordOk) {
+      const reason = locked ? 'locked' : !user.isActive ? 'inactive' : !approved ? 'not_approved' : 'bad_password';
+      await this.recordFailure(user, reason, locked || !user.isActive || !approved);
       throw INVALID_CREDENTIALS();
     }
 
@@ -164,13 +165,16 @@ export class AuthService {
   /**
    * Always resolves with the same answer AND (approximately) the same latency: both branches burn one argon2 verify and the
    * whole call is padded to a floor, so neither the body nor the response time reveals whether the email has an account.
+   * There is no e-mail: a known, active, approved account gets a PENDING request that HR / the Founder / the Developer sees and answers with a one-time link.
    */
   async forgotPassword(email: string) {
     const started = Date.now();
     const user = await this.prisma.user.findUnique({ where: { email } });
     await this.passwords.verifyDummy('x'); // same CPU burn on both paths
-    if (user && user.isActive) {
-      await this.issueToken(user, 'PASSWORD_RESET');
+    if (user && user.isActive && user.approvalStatus === 'APPROVED') {
+      const open = await this.prisma.passwordResetRequest.findFirst({ where: { userId: user.id, status: 'PENDING' } });
+      if (open) await this.prisma.passwordResetRequest.update({ where: { id: open.id }, data: { requestedAt: new Date() } });
+      else await this.prisma.passwordResetRequest.create({ data: { organizationId: user.organizationId, userId: user.id } });
       await this.audit.record({
         organizationId: user.organizationId,
         actorId: user.id,
@@ -225,7 +229,7 @@ export class AuthService {
       if (claimed.count !== 1) throw INVALID_TOKEN();
       const token = await tx.authToken.findUniqueOrThrow({ where: { tokenHash } });
       const user = await tx.user.findUniqueOrThrow({ where: { id: token.userId } });
-      if (!user.isActive) throw INVALID_TOKEN();
+      if (!user.isActive || user.approvalStatus !== 'APPROVED') throw INVALID_TOKEN();
       const weak = passwordWeakness(newPassword, [user.email.split('@')[0]!, user.name]);
       if (weak) throw new AppError('WEAK_PASSWORD', weak, 400);
       await tx.user.update({

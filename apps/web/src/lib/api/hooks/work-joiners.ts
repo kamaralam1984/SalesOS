@@ -16,7 +16,8 @@ export interface NewJoinerInput {
 }
 export interface JoinedEmployee {
   userId: string; name: string; email: string; positionTitle: string; joinDate: string; probationEnd: string; planId: string; planItems: number; reviewDays: number[]; tasks: number;
-  invite: { link: string; expiresAt: string }; warnings: string[];
+  /** the account waits for someone other than the creator to approve it; the link is issued then (Admin → Approvals) */
+  pendingApproval: true; invite: null; warnings: string[];
 }
 
 export const useJoinerOptions = (enabled = true) =>

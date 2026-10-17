@@ -2,7 +2,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Copy, Download, UserPlus } from 'lucide-react';
+import { Download, UserPlus } from 'lucide-react';
 import { Alert, Badge, Button, Dialog, DialogContent, FormField, Input, PageHeader, Panel, Select, Textarea, useToast } from '@salesos/ui';
 import { RequirePermission } from '@/features/auth/require-permission';
 import { MutationAlert, QueryState } from '@/features/people/hub/shared';
@@ -98,15 +98,13 @@ function Meter({ label, value, hint }: { label: string; value: number | null; hi
 
 function JoinedPanel({ j, onClose }: { j: JoinedEmployee; onClose: () => void }) {
   const t = useTranslations('workHr');
-  const { toast } = useToast();
   return (
     <Panel accent="gold" title={t('joiners.joinedTitle', { name: j.name })} className="mb-4">
       <p className="text-sm text-ink">{t('joiners.joinedBody', { items: j.planItems, tasks: j.tasks, reviews: j.reviewDays.join(', '), end: j.probationEnd })}</p>
-      <div className="mt-3 rounded-lg border border-line bg-ivory-50 p-3">
-        <p className="text-sm font-medium text-ink">{t('joiners.inviteTitle')}</p>
-        <p className="text-xs text-muted">{t('joiners.inviteBody', { email: j.email })}</p>
-        <code className="mt-2 block break-all rounded bg-surface p-2 text-xs text-ink">{j.invite.link}</code>
-        <Button className="mt-2" size="sm" variant="secondary" leadingIcon={<Copy aria-hidden="true" />} onClick={() => { void navigator.clipboard?.writeText(j.invite.link); toast({ tone: 'success', title: t('joiners.copied') }); }}>{t('joiners.copy')}</Button>
+      <div className="mt-3 rounded-lg border border-gold-300 bg-gold-50 p-3" role="status">
+        <p className="text-sm font-medium text-ink">{t('joiners.pendingTitle')}</p>
+        <p className="text-xs text-muted">{t('joiners.pendingBody', { name: j.name })}</p>
+        <Link className="mt-2 inline-block text-sm text-blue-700 underline" href="/admin/approvals">{t('joiners.openApprovals')}</Link>
       </div>
       {j.warnings.length > 0 && <Alert tone="warning" className="mt-3">{j.warnings.join(' ')}</Alert>}
       <div className="mt-3 flex flex-wrap gap-2">

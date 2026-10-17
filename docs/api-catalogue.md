@@ -605,3 +605,19 @@ State lives in Redis (`<BULLMQ_PREFIX>:devpanel:maintenance`), cached ~2s in mem
 | POST | `/api/v1/dev-panel/maintenance/enable` | `devpanel:access` + `devpanel:maintenance:manage` | body `{message (3-300), eta? (future ISO)}`; idempotent (re-enable updates message); audit `devpanel.maintenance_enabled` |
 | POST | `/api/v1/dev-panel/maintenance/disable` | same | audit `devpanel.maintenance_disabled` |
 | GET | `/api/v1/maintenance/status` | public, rate limited | `{enabled, message, eta}` only, no actor info |
+
+
+## Account approval and password reset (identity)
+
+| Method and path | Permission | Notes |
+|---|---|---|
+| `POST /users` | `users:create` (Founder, HR, Developer) | Creates the account as PENDING; no invite, no login. HR may give employee roles only. |
+| `GET /users/pending` | `users:approve` | Accounts waiting for approval; `canApprove` is false for the creator (while another approver exists) and for leadership accounts when the caller is HR. |
+| `POST /users/:id/approve` | `users:approve` | Creator cannot approve (403 `SELF_APPROVAL`) unless there is no other approver. Returns `{ invite: { link, expiresAt } }` once. |
+| `POST /users/:id/reject` | `users:approve` | Body `{ reason? }`. Account is closed. |
+| `POST /users/:id/invite-link` | `users:create` | Re-issue the invite for an APPROVED account that has no password yet (409 while pending/rejected). |
+| `GET /users/password-resets` | `users:password:reset` | Pending "forgot password" requests. |
+| `POST /users/password-resets/:requestId/issue` | `users:password:reset` | One-time reset link, returned once. |
+| `POST /users/password-resets/:requestId/dismiss` | `users:password:reset` | |
+| `POST /users/password-resets/direct` | `users:password:reset` | Body `{ email }`; reset link for someone who did not ask. |
+| `POST /auth/password/forgot` | public | Same answer for every email; a real, approved account gets a pending request (no e-mail). |

@@ -4,6 +4,9 @@ All notable changes. Format: Keep a Changelog; versions TBD (pre-release).
 
 ## [Unreleased]
 ### Added
+- Account approval: only HR, the Founder (CEO) and the Developer create users; a new account is PENDING (no login, no invite link) until someone other than its creator approves it (a single-owner company may self-approve while no other approver exists; audited). Approving returns a one-time invite link once. Reject closes the account. Admin no longer creates users. New `/admin/approvals` page; API `GET /users/pending`, `POST /users/:id/approve|reject`; permissions `users:approve`, `users:password:reset`; migration `20261017120000_user_approval` (existing users stay APPROVED).
+- Password reset by request: "Forgot password" now leaves a request for HR / Founder / Developer, who issue a one-time link (`GET /users/password-resets`, `POST /users/password-resets/:id/issue|dismiss`, `POST /users/password-resets/direct`). No reset e-mail is sent. HR cannot reset or approve Founder/HR/Finance/Admin accounts.
+- HR tools (Workforce policy with the Zoom link, joiners, balances, announcements) are linked at the top of My Work so phones can reach them.
 - Animated CoachEasily logo (transparent gold logo and flame mark; light sweep, drawing gold line, sparkles, flame flicker; no glow) in login, sidebar, top bar and mobile header; app icons, favicon and apple-touch icon regenerated from the flame mark. `/brand/` is public.
 - Home layout per role: Founder and Developer choose which widgets each role sees on the phone home, their order and size (S/M/L), with a phone-shaped layout preview for every role (`/admin/home-layout`, `GET/PUT/DELETE /home-layout/roles`; permissions `home-layout:view`, `home-layout:manage`).
 - Scorecards fill `actual` from the KPI engine for inputs linked to a KPI dictionary key (source PHASE5); typed values are kept; no number shows the reason, never 0.

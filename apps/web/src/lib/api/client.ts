@@ -167,8 +167,53 @@ async function rawFetch(path: string, opts: RequestOptions): Promise<ApiResult<u
   return { data: env?.data ?? null, meta: { requestId, ...(env?.meta ?? {}) } };
 }
 
+/**
+ * GET storm guard. Identical GETs that are in flight at the same time share ONE request, and an identical GET repeated within a second
+ * gets the previous answer. A page that refetches in a tight loop then costs one request a second instead of hundreds (the proxy limit is
+ * per IP, so one runaway tab used to lock a whole office out with "Too many requests"). Any write clears the cache so a save is never
+ * followed by a stale read. Errors are never cached. Off under test so mocked fetch counts stay exact.
+ */
+const GET_COOLDOWN_MS = 1000;
+const dedupeOn = typeof process === 'undefined' || process.env.NODE_ENV !== 'test';
+const inflightGets = new Map<string, Promise<ApiResult<unknown>>>();
+const recentGets = new Map<string, { at: number; result: ApiResult<unknown> }>();
+export function clearGetCache(): void {
+  inflightGets.clear();
+  recentGets.clear();
+}
+
 /** Typed request returning the envelope's data + meta. Throws ApiError. */
 export async function apiRequest<T>(
+  path: string,
+  opts: RequestOptions = {},
+): Promise<ApiResult<T>> {
+  const method = opts.method ?? 'GET';
+  if (method !== 'GET') {
+    clearGetCache();
+    try {
+      return await execute<T>(path, opts);
+    } finally {
+      clearGetCache();
+    }
+  }
+  if (!dedupeOn || opts.signal) return execute<T>(path, opts);
+  const key = buildUrl(path, opts.query);
+  const hit = recentGets.get(key);
+  if (hit && Date.now() - hit.at < GET_COOLDOWN_MS) return hit.result as ApiResult<T>;
+  const running = inflightGets.get(key);
+  if (running) return running as Promise<ApiResult<T>>;
+  const p = execute<T>(path, opts)
+    .then((result) => {
+      recentGets.set(key, { at: Date.now(), result });
+      if (recentGets.size > 200) recentGets.delete(recentGets.keys().next().value as string);
+      return result;
+    })
+    .finally(() => inflightGets.delete(key));
+  inflightGets.set(key, p as Promise<ApiResult<unknown>>);
+  return p;
+}
+
+async function execute<T>(
   path: string,
   opts: RequestOptions = {},
 ): Promise<ApiResult<T>> {

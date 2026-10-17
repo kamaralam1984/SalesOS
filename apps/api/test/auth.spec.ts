@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { API, anonymous, buildOrgFixture, createTestApp, createUser, latestEmailToken, loginAgent, TEST_PASSWORD, type OrgFixture, type TestApp } from './helpers';
+import { API, anonymous, buildOrgFixture, createTestApp, createUser, loginAgent, TEST_PASSWORD, type OrgFixture, type TestApp } from './helpers';
 
 let t: TestApp;
 let fx: OrgFixture;
@@ -164,6 +164,9 @@ describe('CSRF', () => {
   });
 });
 
+/** The raw token inside a link handed out to an approver. */
+const tokenOf = (link: string) => new URL(link).searchParams.get('token') as string;
+
 describe('password reset + invite (hashed, single-use, expiring)', () => {
   it('forgot is generic for unknown emails and creates no token', async () => {
     const before = await t.prisma.authToken.count();
@@ -172,14 +175,30 @@ describe('password reset + invite (hashed, single-use, expiring)', () => {
     expect(await t.prisma.authToken.count()).toBe(before);
   });
 
-  it('reset flow: token works once, revokes sessions, old password stops working', async () => {
+  it('forgot for a real account leaves a pending request for HR / Founder / Developer and still creates no token', async () => {
+    const u = await createUser(t.prisma, fx.org, { roles: ['SALES_EXECUTIVE'] });
+    const tokens = await t.prisma.authToken.count();
+    expect((await anon().post('/auth/password/forgot').send({ email: u.email })).status).toBe(200);
+    expect((await anon().post('/auth/password/forgot').send({ email: u.email })).status).toBe(200);
+    expect(await t.prisma.authToken.count()).toBe(tokens);
+    expect(await t.prisma.passwordResetRequest.count({ where: { userId: u.id, status: 'PENDING' } })).toBe(1); // asking twice keeps one open request
+  });
+
+  it('reset flow: an approver issues the link, it works once, revokes sessions, old password stops working', async () => {
     const u = await createUser(t.prisma, fx.org, { roles: ['SALES_EXECUTIVE'] });
     const a = await loginAgent(t.app, u);
+    const founder = await loginAgent(t.app, fx.founder);
     expect((await anon().post('/auth/password/forgot').send({ email: u.email })).status).toBe(200);
-    const token = await latestEmailToken(t.prisma, u.email);
+    const list = await founder.get('/users/password-resets');
+    const reqRow = list.body.data.find((r: { userId: string }) => r.userId === u.id);
+    expect(reqRow).toBeTruthy();
+    const issued = await founder.post(`/users/password-resets/${reqRow.id}/issue`).send({});
+    expect(issued.status).toBe(201);
+    const token = tokenOf(issued.body.data.link);
     const stored = await t.prisma.authToken.findFirstOrThrow({ where: { userId: u.id, purpose: 'PASSWORD_RESET', usedAt: null } });
     expect(stored.tokenHash).not.toBe(token);
     expect(stored.tokenHash).toMatch(/^[0-9a-f]{64}$/);
+    expect((await founder.get('/users/password-resets')).body.data.some((r: { id: string }) => r.id === reqRow.id)).toBe(false);
 
     const weak = await anon().post('/auth/password/reset').send({ token, password: 'short' });
     expect(weak.status).toBe(400);
@@ -194,30 +213,38 @@ describe('password reset + invite (hashed, single-use, expiring)', () => {
 
   it('expired tokens are refused', async () => {
     const u = await createUser(t.prisma, fx.org, { roles: ['SALES_EXECUTIVE'] });
-    await anon().post('/auth/password/forgot').send({ email: u.email });
-    const token = await latestEmailToken(t.prisma, u.email);
+    const founder = await loginAgent(t.app, fx.founder);
+    const token = tokenOf((await founder.post('/users/password-resets/direct').send({ email: u.email })).body.data.link);
     await t.prisma.authToken.updateMany({ where: { userId: u.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
     const res = await anon().post('/auth/password/reset').send({ token, password: 'Another-Passw0rd!' });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('INVALID_TOKEN');
   });
 
-  it('a new reset request invalidates the previous token', async () => {
+  it('a new reset link invalidates the previous one', async () => {
     const u = await createUser(t.prisma, fx.org, { roles: ['SALES_EXECUTIVE'] });
-    await anon().post('/auth/password/forgot').send({ email: u.email });
-    const first = await latestEmailToken(t.prisma, u.email);
-    await anon().post('/auth/password/forgot').send({ email: u.email });
+    const founder = await loginAgent(t.app, fx.founder);
+    const first = tokenOf((await founder.post('/users/password-resets/direct').send({ email: u.email })).body.data.link);
+    await founder.post('/users/password-resets/direct').send({ email: u.email });
     const res = await anon().post('/auth/password/reset').send({ token: first, password: 'Another-Passw0rd!' });
     expect(res.status).toBe(400);
   });
 
-  it('invite: user without password cannot log in until accepting', async () => {
+  it('invite: a new account cannot log in or get a link until someone other than its creator approves it', async () => {
     const founder = await loginAgent(t.app, fx.founder);
+    const hr = await loginAgent(t.app, fx.hr);
     const email = `invitee-${Date.now()}@test.salesos.local`;
     const created = await founder.post('/users').send({ email, name: '[TEST] Invitee', roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
     expect(created.status).toBe(201);
+    expect(created.body.data.approvalStatus).toBe('PENDING');
+    expect(await t.prisma.authToken.count({ where: { user: { email } } })).toBe(0);
     expect((await anon().post('/auth/login').send({ email, password: TEST_PASSWORD })).status).toBe(401);
-    const token = await latestEmailToken(t.prisma, email);
+    const id = created.body.data.id as string;
+    expect((await founder.post(`/users/${id}/approve`).send({})).status).toBe(403); // not your own creation
+    expect((await founder.post(`/users/${id}/invite-link`).send({})).status).toBe(409); // no link while pending
+    const approved = await hr.post(`/users/${id}/approve`).send({});
+    expect(approved.status).toBe(200);
+    const token = tokenOf(approved.body.data.invite.link);
     expect((await anon().post('/auth/invite/accept').send({ token, password: 'Invite-Passw0rd-Ok1' })).status).toBe(200);
     expect((await anon().post('/auth/login').send({ email, password: 'Invite-Passw0rd-Ok1' })).status).toBe(200);
     // an invite token cannot be replayed as a reset token (purpose-bound, and already used)
@@ -226,11 +253,13 @@ describe('password reset + invite (hashed, single-use, expiring)', () => {
 
   it('audit rows exist for reset requests and completion', async () => {
     const u = await createUser(t.prisma, fx.org, { roles: ['SALES_EXECUTIVE'] });
+    const founder = await loginAgent(t.app, fx.founder);
     await anon().post('/auth/password/forgot').send({ email: u.email });
-    const token = await latestEmailToken(t.prisma, u.email);
+    const token = tokenOf((await founder.post('/users/password-resets/direct').send({ email: u.email })).body.data.link);
     await anon().post('/auth/password/reset').send({ token, password: 'Another-Passw0rd!' });
-    const actions = (await t.prisma.auditLog.findMany({ where: { actorId: u.id } })).map((a) => a.action);
+    const actions = (await t.prisma.auditLog.findMany({ where: { OR: [{ actorId: u.id }, { entityId: u.id }] } })).map((a) => a.action);
     expect(actions).toContain('auth.password_reset_requested');
+    expect(actions).toContain('user.password_reset_link_issued');
     expect(actions).toContain('auth.password_reset_completed');
   });
 });

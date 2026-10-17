@@ -104,7 +104,8 @@ export class NewJoinerService {
       return {
         userId, name: dto.name, email: dto.email, positionTitle: dto.positionTitle, joinDate: join, probationEnd: addMonths(join, config.hr.probationDefaultMonths),
         planId: plan.id, planItems: items.length, reviewDays: template.probationDays, tasks: dto.tasks.length,
-        invite: { link: created.invite.link, expiresAt: created.invite.expiresAt }, warnings: created.warnings,
+        /** the account waits for approval by someone other than the creator; the invite link is issued then (Approvals page) */
+        pendingApproval: true as const, invite: null, warnings: created.warnings,
       };
     });
   }

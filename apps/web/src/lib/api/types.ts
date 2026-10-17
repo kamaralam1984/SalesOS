@@ -99,6 +99,7 @@ export interface UserListItem {
   managerId: string | null;
   department?: string | null;
   hasPassword?: boolean;
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   roles: RoleKey[];
   teamIds?: string[];
   createdAt?: string;

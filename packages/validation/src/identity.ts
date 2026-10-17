@@ -34,6 +34,8 @@ export const createUserSchema = z.object({
   department: z.string().trim().max(80).nullish(),
   teamIds: z.array(uuidSchema).max(20).optional(),
 });
+export const rejectUserSchema = z.object({ reason: z.string().trim().max(300).optional() });
+export const resetDirectSchema = z.object({ email: emailSchema });
 export const updateUserSchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),

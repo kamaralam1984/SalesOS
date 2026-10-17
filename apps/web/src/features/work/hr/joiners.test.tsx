@@ -47,9 +47,9 @@ describe('JoinersPage (HR and the Boss)', () => {
     expect(screen.getByText('Next: Day 30 review')).toBeInTheDocument();
   });
 
-  it('joining an employee validates the form, posts everything in one request and shows the invite link', async () => {
+  it('joining an employee validates the form, posts everything in one request and shows that the account waits for approval (no link yet)', async () => {
     route();
-    h.post.mockResolvedValue(one({ userId: 'u9', name: 'Riya Rao', email: 'riya@example.com', positionTitle: 'Sales Executive (Telecaller)', joinDate: '2026-10-16', probationEnd: '2027-01-16', planId: 'p1', planItems: 12, reviewDays: [30, 60, 90], tasks: 2, invite: { link: 'https://x.test/invite/accept?token=abc', expiresAt: '2026-10-23T00:00:00Z' }, warnings: [] }));
+    h.post.mockResolvedValue(one({ userId: 'u9', name: 'Riya Rao', email: 'riya@example.com', positionTitle: 'Sales Executive (Telecaller)', joinDate: '2026-10-16', probationEnd: '2027-01-16', planId: 'p1', planItems: 12, reviewDays: [30, 60, 90], tasks: 2, pendingApproval: true, invite: null, warnings: [] }));
     renderWork(<JoinersPage />);
     await userEvent.click(await screen.findByRole('button', { name: /join new employee/i }));
     const dialog = await screen.findByRole('dialog');
@@ -67,7 +67,9 @@ describe('JoinersPage (HR and the Boss)', () => {
     expect(body).toMatchObject({ name: 'Riya Rao', email: 'riya@example.com', roles: ['SALES_EXECUTIVE'], managerId: 'm1', positionTitle: 'Sales Executive (Telecaller)' });
     expect((body.tasks as unknown[]).length).toBe(2);
     expect(await screen.findByText('Riya Rao has joined')).toBeInTheDocument();
-    expect(screen.getByText('https://x.test/invite/accept?token=abc')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for approval')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open approvals' }).getAttribute('href')).toBe('/admin/approvals');
+    expect(screen.queryByText(/invite\/accept/)).toBeNull();
   });
 
   it('shows the server message when the email is already used', async () => {

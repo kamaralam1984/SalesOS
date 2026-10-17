@@ -21,6 +21,7 @@ export function toUserDto(u: UserWithRoles) {
     department: u.department,
     roles: u.roleAssignments.map((a) => a.role.key as RoleKey),
     hasPassword: !!u.passwordHash,
+    approvalStatus: u.approvalStatus,
     lastLoginAt: u.lastLoginAt,
     deactivatedAt: u.deactivatedAt,
     createdAt: u.createdAt,

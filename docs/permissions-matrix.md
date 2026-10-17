@@ -28,7 +28,9 @@ Columns: F=FOUNDER_CEO, TL=SALES_TEAM_LEAD, MG=SALES_MANAGER, EX=SALES_EXECUTIVE
 | Permission key | Action | F | TL | MG | EX | AD | FIN | HR | MKT | COM | OPS | SS |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `users:view` | List/view users | org | org | team | own | org | - | summary | - | - | - | - |
-| `users:create` | Create/invite users | org | - | - | - | org | - | - | - | - | - | - |
+| `users:create` | Create users (the account stays pending until someone else approves it) | org | - | - | - | - | - | org | - | - | - | - |
+| `users:approve` | Approve or reject a new account (never your own creation); login and the invite link work only after approval | org | - | - | - | - | - | org | - | - | - | - |
+| `users:password:reset` | See "forgot password" requests and issue one-time reset links | org | - | - | - | - | - | org | - | - | - | - |
 | `users:update` | Update user fields (non-role) | org | - | - | - | org | - | - | - | - | - | - |
 | `users:deactivate` | Deactivate user (triggers reassignment queue) | org | - | - | - | org | - | - | - | - | - | - |
 | `users:role:assign` | Assign/revoke roles and secondary groups | org | - | - | - | org | - | - | - | - | - | - |
@@ -334,6 +336,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "auth:session:revoke-own@own",
    "users:view@org",
    "users:create@org",
+   "users:approve@org",
+   "users:password:reset@org",
    "users:update@org",
    "users:deactivate@org",
    "users:role:assign@org",
@@ -880,7 +884,6 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "auth:me:view@own",
    "auth:session:revoke-own@own",
    "users:view@org",
-   "users:create@org",
    "users:update@org",
    "users:deactivate@org",
    "users:role:assign@org",
@@ -994,6 +997,9 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "auth:me:view@own",
    "auth:session:revoke-own@own",
    "users:view@summary",
+   "users:create@org",
+   "users:approve@org",
+   "users:password:reset@org",
    "teams:view@summary",
    "programs:view@org",
    "coaching:view@org",
@@ -1239,6 +1245,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
   "auth:session:revoke-own",
   "users:view",
   "users:create",
+  "users:approve",
+  "users:password:reset",
   "users:update",
   "users:deactivate",
   "users:role:assign",

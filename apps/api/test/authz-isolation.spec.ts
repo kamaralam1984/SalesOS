@@ -78,7 +78,8 @@ describe('hierarchy scoping (users:view / audit:view)', () => {
     expect(res.body.data.length).toBe(11);
     for (const u of res.body.data) expect(Object.keys(u).sort()).toEqual(['id', 'isActive', 'name']);
     expect(Object.keys((await hr.get(`/users/${fx.execA1.id}`)).body.data).sort()).toEqual(['id', 'isActive', 'name']);
-    expect((await hr.post('/users').send({ email: 'h@test.salesos.local', name: 'x', roles: ['SALES_EXECUTIVE'] })).status).toBe(403);
+    // HR may create employee accounts (pending approval) but not leadership ones
+    expect((await hr.post('/users').send({ email: 'h@test.salesos.local', name: 'x', roles: ['FINANCE'] })).status).toBe(403);
   });
 
   it('founder and admin see the whole organization', async () => {

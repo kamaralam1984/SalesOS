@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { learnerRankFor, DEFAULT_RANK_LADDER, rankLadderSchema } from '@salesos/cx-core';
 import { directDeps, previewCsv, processImportJob } from '@salesos/crm-core';
-import { anonymous, createTestApp, uniq, type TestApp } from './helpers';
+import { anonymous, createOrg, createTestApp, createUser, loginAgent, uniq, type TestApp } from './helpers';
 import { buildCxFixture, buildOtherOrg, type CxFixture } from './cx/helpers';
 import { ensureStarterPrograms, STARTER_PROGRAMS } from '../src/owner-bootstrap/starter-programs';
 
@@ -72,37 +72,68 @@ describe('user department (JD header)', () => {
 
 describe('manual invite link (no email provider)', () => {
   const anon = () => anonymous(t.app);
-  it('issues a single-use link that lands on the real web route and can be accepted; refuses afterwards', async () => {
+  it('approval issues a single-use link that lands on the real web route; a creator can re-issue it; refused after the password is set', async () => {
     const email = `link-${Date.now()}@test.salesos.local`;
-    const created = await fx.agents.admin.post('/users').send({ email, name: '[TEST] Link', roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
+    const created = await fx.agents.founder.post('/users').send({ email, name: '[TEST] Link', roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
     expect(created.status).toBe(201);
     const id = created.body.data.id as string;
-    const res = await fx.agents.admin.post(`/users/${id}/invite-link`).send({});
+    const approved = await fx.agents.hr.post(`/users/${id}/approve`).send({});
+    expect(approved.status, JSON.stringify(approved.body)).toBe(200);
+    const first = new URL(approved.body.data.invite.link as string);
+    expect(first.pathname).toBe('/invite/accept'); // the web route (was /accept-invite, which does not exist)
+    const res = await fx.agents.founder.post(`/users/${id}/invite-link`).send({});
     expect(res.status, JSON.stringify(res.body)).toBe(201);
-    const link = new URL(res.body.data.link as string);
-    expect(link.pathname).toBe('/invite/accept'); // the web route (was /accept-invite, which does not exist)
-    const token = link.searchParams.get('token')!;
-    // the previous (emailed) token was invalidated by the new one
+    const token = new URL(res.body.data.link as string).searchParams.get('token')!;
+    // the link from the approval was invalidated by the new one
+    expect((await anon().post('/auth/invite/accept').send({ token: first.searchParams.get('token')!, password: 'Invite-Passw0rd-Ok1' })).status).toBe(400);
     expect((await anon().post('/auth/invite/accept').send({ token: 'not-a-real-token-value-123456789012345678', password: 'Invite-Passw0rd-Ok1' })).status).toBe(400);
     expect((await anon().post('/auth/invite/accept').send({ token, password: 'Invite-Passw0rd-Ok1' })).status).toBe(200);
     expect((await anon().post('/auth/login').send({ email, password: 'Invite-Passw0rd-Ok1' })).status).toBe(200);
-    // already has a password: use reset instead
-    expect((await fx.agents.admin.post(`/users/${id}/invite-link`).send({})).status).toBe(409);
-    // the link itself is never written to the audit log
-    const rows = await t.prisma.auditLog.findMany({ where: { organizationId: fx.org.id, entityId: id, action: 'user.invite_link_issued' } });
-    expect(rows).toHaveLength(1);
-    expect(JSON.stringify(rows[0]!.metadata)).not.toContain(token);
+    // already has a password: use a reset link instead
+    expect((await fx.agents.founder.post(`/users/${id}/invite-link`).send({})).status).toBe(409);
+    // links are never written to the audit log
+    const rows = await t.prisma.auditLog.findMany({ where: { organizationId: fx.org.id, entityId: id, action: { in: ['user.invite_link_issued', 'user.approved'] } } });
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    expect(JSON.stringify(rows.map((r) => r.metadata))).not.toContain(token);
   });
 
-  it('Admin cannot take over a sensitive-role account; non-admins and other orgs are refused', async () => {
+  it('only HR / Founder / Developer approve; HR cannot approve leadership accounts; rejected accounts stay closed; other orgs see nothing', async () => {
     const email = `fin-${Date.now()}@test.salesos.local`;
     const created = await fx.agents.founder.post('/users').send({ email, name: '[TEST] Fin', roles: ['FINANCE'] });
     expect(created.status).toBe(201);
     const id = created.body.data.id as string;
-    expect((await fx.agents.admin.post(`/users/${id}/invite-link`).send({})).status).toBe(403);
-    expect((await fx.agents.founder.post(`/users/${id}/invite-link`).send({})).status).toBe(201);
-    expect((await fx.agents.managerA.post(`/users/${id}/invite-link`).send({})).status).toBe(403);
-    expect((await other.agent.post(`/users/${id}/invite-link`).send({})).status).toBe(404);
+    expect((await fx.agents.admin.post(`/users/${id}/approve`).send({})).status).toBe(403); // no approve permission
+    expect((await fx.agents.managerA.post(`/users/${id}/approve`).send({})).status).toBe(403);
+    expect((await fx.agents.hr.post(`/users/${id}/approve`).send({})).status).toBe(403); // Finance is a leadership account: Founder or Developer only
+    expect((await fx.agents.founder.post(`/users/${id}/approve`).send({})).status).toBe(403); // the creator cannot approve their own account
+    expect((await other.agent.post(`/users/${id}/approve`).send({})).status).toBe(404);
+    expect((await fx.agents.hr.get('/users/pending')).body.data.find((u: { id: string }) => u.id === id)?.canApprove).toBe(false);
+    // a rejected account stays closed
+    const email2 = `rej-${Date.now()}@test.salesos.local`;
+    const c2 = await fx.agents.founder.post('/users').send({ email: email2, name: '[TEST] Rej', roles: ['SALES_EXECUTIVE'], managerId: fx.managerA.id });
+    const id2 = c2.body.data.id as string;
+    expect((await fx.agents.hr.post(`/users/${id2}/reject`).send({ reason: 'not hired' })).status).toBe(200);
+    expect((await fx.agents.hr.post(`/users/${id2}/approve`).send({})).status).toBe(409);
+    expect((await fx.agents.founder.post(`/users/${id2}/invite-link`).send({})).status).toBe(409);
+    expect((await anon().post('/auth/login').send({ email: email2, password: 'Whatever-Passw0rd-1!' })).status).toBe(401);
+  });
+});
+
+describe('a single-owner company is never locked out', () => {
+  it('with no other approver the owner may approve their own creation (audited as selfApproved); once another approver exists they may not', async () => {
+    const solo = await createOrg(t.prisma);
+    const owner = await createUser(t.prisma, solo, { roles: ['FOUNDER_CEO'] });
+    const agent = await loginAgent(t.app, owner);
+    const c = await agent.post('/users').send({ email: `solo-${Date.now()}@test.salesos.local`, name: '[TEST] Solo', roles: ['SALES_EXECUTIVE'] });
+    expect(c.status, JSON.stringify(c.body)).toBe(201);
+    expect((await agent.get('/users/pending')).body.data[0].canApprove).toBe(true);
+    const ok = await agent.post(`/users/${c.body.data.id}/approve`).send({});
+    expect(ok.status).toBe(200);
+    const row = await t.prisma.auditLog.findFirstOrThrow({ where: { entityId: c.body.data.id, action: 'user.approved' } });
+    expect((row.metadata as { selfApproved?: boolean }).selfApproved).toBe(true);
+    await createUser(t.prisma, solo, { roles: ['HR'] }); // a second approver arrives
+    const c2 = await agent.post('/users').send({ email: `solo2-${Date.now()}@test.salesos.local`, name: '[TEST] Solo2', roles: ['SALES_EXECUTIVE'] });
+    expect((await agent.post(`/users/${c2.body.data.id}/approve`).send({})).status).toBe(403);
   });
 });
 
