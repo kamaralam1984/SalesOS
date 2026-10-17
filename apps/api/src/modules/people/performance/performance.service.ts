@@ -12,13 +12,14 @@ import { OutboxService } from '../../../common/outbox/outbox.service';
 import { pageArgs, pageResult } from '../../../common/pagination/pagination';
 import { PrismaService } from '../../../common/prisma';
 import { assertOrgUsers, assertTargetInScope, isoDay, mondayOf, scopeUserIds, toDate, userNameMap, asPage } from '../common/helpers';
+import { KpiService } from '../../reporting/kpi/kpi.service';
 import { DEFAULT_COMPETENCIES, ensureCompetencies } from './competencies';
 
 type Dto<T extends z.ZodTypeAny> = z.infer<T>;
 
 @Injectable()
 export class PerformanceService {
-  constructor(private readonly prisma: PrismaService, private readonly access: AccessService, private readonly audit: AuditService, private readonly outbox: OutboxService) {}
+  constructor(private readonly prisma: PrismaService, private readonly access: AccessService, private readonly audit: AuditService, private readonly outbox: OutboxService, private readonly kpis: KpiService) {}
 
   // ---------------------------------------------------------------- competencies
   async competencies(user: Principal) {
@@ -108,16 +109,41 @@ export class PerformanceService {
     if (dto.periodEnd < dto.periodStart) throw new AppError('VALIDATION_ERROR', 'periodEnd must not precede periodStart', 400);
     await assertOrgUsers(this.prisma, user.organizationId, [dto.subjectId]);
     await assertTargetInScope(this.access, user, 'kpi-assignments:manage', dto.subjectId);
+    const inputs = await this.fillFromKpiEngine(user, dto);
     const r = await this.prisma.$transaction(async (tx) => {
       const row = await tx.scorecard.upsert({
         where: { subjectId_periodType_periodStart: { subjectId: dto.subjectId, periodType: dto.periodType, periodStart: toDate(dto.periodStart) } },
-        update: { inputs: dto.inputs, comments: dto.comments, periodEnd: toDate(dto.periodEnd) },
-        create: { organizationId: user.organizationId, subjectId: dto.subjectId, periodType: dto.periodType, periodStart: toDate(dto.periodStart), periodEnd: toDate(dto.periodEnd), inputs: dto.inputs, comments: dto.comments, createdById: user.userId },
+        update: { inputs, comments: dto.comments, periodEnd: toDate(dto.periodEnd) },
+        create: { organizationId: user.organizationId, subjectId: dto.subjectId, periodType: dto.periodType, periodStart: toDate(dto.periodStart), periodEnd: toDate(dto.periodEnd), inputs, comments: dto.comments, createdById: user.userId },
       });
       await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'scorecard.saved', entityType: 'scorecard', entityId: row.id, metadata: { subjectId: dto.subjectId } });
       return row;
     });
     return { id: r.id };
+  }
+
+  /**
+   * Inputs linked to a KPI dictionary id get their `actual` from the shared KPI engine (the person's own figures for the scorecard period, inside the caller's scope).
+   * An input the manager typed by hand (MANUAL with an actual) is never overwritten. When the engine has no number (zero denominator, no data, outside scope) the actual stays empty with the reason, never 0.
+   */
+  private async fillFromKpiEngine(user: Principal, dto: Dto<typeof upsertScorecardSchema>) {
+    const out: Dto<typeof upsertScorecardSchema>['inputs'] = [];
+    for (const input of dto.inputs) {
+      if (!input.dictionaryKey || (input.source === 'MANUAL' && input.actual !== undefined)) {
+        out.push(input);
+        continue;
+      }
+      const { dictionaryKey, ...rest } = input;
+      try {
+        const r = await this.kpis.run(user, dictionaryKey, { from: dto.periodStart, to: dto.periodEnd, ownerId: dto.subjectId }, { tile: true });
+        const n = r.status === 'OK' && r.value !== null ? Number(r.value) : NaN;
+        if (Number.isFinite(n)) out.push({ ...rest, dictionaryKey, actual: n, source: 'PHASE5', note: undefined });
+        else out.push({ ...rest, dictionaryKey, actual: undefined, source: 'PHASE5', note: (r.nullReason ?? r.status).toString() });
+      } catch {
+        out.push({ ...rest, dictionaryKey, actual: undefined, source: 'PHASE5', note: 'UNAVAILABLE' });
+      }
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------- performance reviews

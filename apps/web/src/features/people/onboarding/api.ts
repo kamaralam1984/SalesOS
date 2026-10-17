@@ -46,6 +46,8 @@ export const useExpectations = (roleKey: string) => useApiGet<Expectation[]>(pk(
 export const useCreatePlan = () => useApiMutation<Record<string, unknown>, Plan>('post', () => '/people/onboarding');
 export const useUpdateItem = () => useApiMutation<{ id: string; status: 'PENDING' | 'DONE' | 'SKIPPED' }>('patch', (v) => `/people/onboarding/items/${v.id}`, (v) => ({ status: v.status }));
 export const useCreateTemplate = () => useApiMutation<Record<string, unknown>>('post', () => '/people/onboarding/templates');
+export const useUpdateTemplate = () => useApiMutation<{ id: string; body: Record<string, unknown> }>('patch', (v) => `/people/onboarding/templates/${v.id}`, (v) => v.body);
+export const useDeleteTemplate = () => useApiMutation<{ id: string }>('delete', (v) => `/people/onboarding/templates/${v.id}`);
 export const useCompleteProbation = (id: string) => useApiMutation<Record<string, unknown>>('post', () => `/people/probation/${id}/complete`);
 export const useCreateExpectation = () => useApiMutation<Record<string, unknown>>('post', () => '/people/expectations');
 

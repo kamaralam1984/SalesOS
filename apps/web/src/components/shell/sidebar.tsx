@@ -25,7 +25,7 @@ export function Sidebar() {
     >
       <div className="relative flex h-[var(--topbar-h)] items-center border-b border-line px-5">
         <Link href="/" aria-label={ts('home')} className="rounded-md transition-transform duration-200 hover:scale-[1.02]">
-          <BrandLockup />
+          <BrandLockup className="max-w-[9.5rem]" />
         </Link>
         <AccentRail tone="tri" sheen className="absolute inset-x-0 -bottom-px h-px" />
       </div>

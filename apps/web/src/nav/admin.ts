@@ -1,4 +1,4 @@
-import { ScrollText, Settings2, ShieldCheck, SlidersHorizontal, TerminalSquare, UsersRound, UserCog } from 'lucide-react';
+import { LayoutDashboard, ScrollText, Settings2, ShieldCheck, SlidersHorizontal, TerminalSquare, UsersRound, UserCog } from 'lucide-react';
 import type { NavDomain } from './types';
 
 /** Administration (Phase 2). Identity, teams, organisation settings, audit. */
@@ -14,6 +14,15 @@ export const adminNav: NavDomain = {
       minScope: 'team',
       mobilePriority: null,
       order: 90,
+    },
+    {
+      id: 'admin.homeLayout',
+      labelKey: 'adminHomeLayout',
+      href: '/admin/home-layout',
+      icon: LayoutDashboard,
+      permission: 'home-layout:manage',
+      mobilePriority: null,
+      order: 95,
     },
     {
       id: 'admin.teams',

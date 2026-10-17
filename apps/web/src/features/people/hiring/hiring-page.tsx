@@ -84,12 +84,23 @@ function PipelineTab() {
   );
 }
 
+/** Roles a company opening can be for. Anything else is a custom role the HR types in (and is offered again next time). */
+const COMPANY_ROLES = ['SALES_EXECUTIVE', 'SALES_MANAGER', 'SALES_TEAM_LEAD', 'HR', 'FINANCE', 'MARKETING', 'COMMUNITY', 'OPERATIONS', 'STUDENT_SUCCESS', 'ADMIN'] as const;
+const CUSTOM = '__CUSTOM__';
+/** "Content Writer" -> CONTENT_WRITER (the stored role key; max 60). */
+export const customRoleKey = (name: string) => name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 60);
+/** YYYY-MM-DD, n days from today. */
+const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+
 const reqSchema = z.object({
   title: z.string().trim().min(3, 'min3'),
-  roleKey: z.string().trim().min(2, 'required'),
-  headcount: z.string().regex(/^\d+$/, 'integer'),
+  roleKey: z.string().min(1, 'required'),
+  customRole: z.string().trim().max(60),
+  headcount: z.string().regex(/^\d+$/, 'integer').refine((v) => Number(v) >= 1 && Number(v) <= 50, 'integer'),
   targetDate: z.string(),
   notes: z.string().max(2000),
+}).superRefine((v, ctx) => {
+  if (v.roleKey === CUSTOM && customRoleKey(v.customRole).length < 2) ctx.addIssue({ code: 'custom', path: ['customRole'], message: 'required' });
 });
 function RequisitionForm({ onClose }: { onClose: () => void }) {
   const t = useTranslations('hiring');
@@ -97,13 +108,23 @@ function RequisitionForm({ onClose }: { onClose: () => void }) {
   const done = useDone();
   const create = useCreateRequisition();
   const profiles = useRoleProfiles();
-  const form = useForm<z.infer<typeof reqSchema>>({ resolver: zodResolver(reqSchema), defaultValues: { title: '', roleKey: '', headcount: '1', targetDate: '', notes: '' } });
+  const form = useForm<z.infer<typeof reqSchema>>({ resolver: zodResolver(reqSchema), defaultValues: { title: '', roleKey: '', customRole: '', headcount: '1', targetDate: inDays(30), notes: '' } });
   const fe = (x?: { message?: unknown }) => (typeof x?.message === 'string' ? t(`errors.${x.message}` as never) : undefined);
   const e = form.formState.errors;
+  const roleKey = form.watch('roleKey');
+  const headcount = Number(form.watch('headcount')) || 1;
+  const saved = (profiles.data ?? []).map((p) => p.roleKey).filter((k) => !(COMPANY_ROLES as readonly string[]).includes(k));
+  const roleName = (k: string) => ((COMPANY_ROLES as readonly string[]).includes(k) ? t(`pipeline.roleNames.${k}` as never) : k.replace(/_/g, ' '));
+  const setCount = (n: number) => form.setValue('headcount', String(Math.min(50, Math.max(1, n))), { shouldValidate: true });
+  const pickRole = (k: string) => {
+    form.setValue('roleKey', k, { shouldValidate: true });
+    if (k && k !== CUSTOM && !form.getFieldState('title').isDirty) form.setValue('title', roleName(k), { shouldValidate: true });
+  };
   const submit = form.handleSubmit(async (v) => {
     try {
-      const prof = profiles.data?.find((p) => p.roleKey === v.roleKey);
-      await create.mutateAsync({ title: v.title, roleKey: v.roleKey, headcount: Number(v.headcount), ...(v.targetDate ? { targetDate: v.targetDate } : {}), ...(v.notes ? { notes: v.notes } : {}), ...(prof?.id ? { profileId: prof.id } : {}) });
+      const key = v.roleKey === CUSTOM ? customRoleKey(v.customRole) : v.roleKey;
+      const prof = profiles.data?.find((p) => p.roleKey === key);
+      await create.mutateAsync({ title: v.title, roleKey: key, headcount: Number(v.headcount), ...(v.targetDate ? { targetDate: v.targetDate } : {}), ...(v.notes ? { notes: v.notes } : {}), ...(prof?.id ? { profileId: prof.id } : {}) });
       done(t('saved'));
       onClose();
     } catch (err) { form.setError('root', { message: apiErr(err).message }); }
@@ -112,13 +133,27 @@ function RequisitionForm({ onClose }: { onClose: () => void }) {
     <DialogContent title={t('pipeline.newRequisition')} description={t('pipeline.newRequisitionBody')} footer={<><Button variant="secondary" onClick={onClose}>{t('cancel')}</Button><Button type="submit" form="req-form" loading={create.isPending}>{t('create')}</Button></>}>
       {e.root && <Alert tone="danger" className="mb-3">{e.root.message}</Alert>}
       <form id="req-form" onSubmit={submit} noValidate className="grid gap-3">
-        <FormField label={t('pipeline.reqTitle')} required error={fe(e.title)}><Input {...form.register('title')} /></FormField>
         <FormField label={t('pipeline.roleKey')} required error={fe(e.roleKey)} hint={t('pipeline.roleKeyHint')}>
-          <Input list="role-keys" {...form.register('roleKey')} />
-          <datalist id="role-keys">{['SALES_EXECUTIVE', 'SALES_MANAGER', 'SALES_TEAM_LEAD', ...(profiles.data?.map((p) => p.roleKey) ?? [])].map((k) => <option key={k} value={k} />)}</datalist>
+          <Select value={roleKey} onChange={(ev) => pickRole(ev.target.value)}>
+            <option value="">{t('pipeline.pickRole')}</option>
+            {COMPANY_ROLES.map((k) => <option key={k} value={k}>{roleName(k)}</option>)}
+            {saved.map((k) => <option key={k} value={k}>{roleName(k)}</option>)}
+            <option value={CUSTOM}>{t('pipeline.customRole')}</option>
+          </Select>
         </FormField>
-        <FormField label={t('pipeline.headcount')} required error={fe(e.headcount)}><Input inputMode="numeric" {...form.register('headcount')} /></FormField>
-        <FormField label={t('pipeline.targetDate')}><Input type="date" {...form.register('targetDate')} /></FormField>
+        {roleKey === CUSTOM && (
+          <FormField label={t('pipeline.customRoleName')} required error={fe(e.customRole)} hint={t('pipeline.customRoleHint')}><Input autoFocus {...form.register('customRole')} /></FormField>
+        )}
+        <FormField label={t('pipeline.reqTitle')} required error={fe(e.title)}><Input {...form.register('title')} /></FormField>
+        <FormField label={t('pipeline.headcount')} required error={fe(e.headcount)} hint={t('pipeline.positionsHint')}>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="secondary" aria-label={t('pipeline.minus')} className="min-h-11 min-w-11" disabled={headcount <= 1} onClick={() => setCount(headcount - 1)}>−</Button>
+            <Input inputMode="numeric" className="text-center" {...form.register('headcount')} />
+            <Button type="button" variant="secondary" aria-label={t('pipeline.plus')} className="min-h-11 min-w-11" disabled={headcount >= 50} onClick={() => setCount(headcount + 1)}>+</Button>
+          </div>
+        </FormField>
+        <FormField label={t('pipeline.targetDate')} hint={t('pipeline.targetDateHint')}><Input type="date" min={inDays(0)} {...form.register('targetDate')} /></FormField>
+        <p className="rounded-md border border-gold-300 bg-gold-50 p-3 text-sm text-ink">{t('pipeline.plan90')}</p>
         <FormField label={t('pipeline.notes')}><Textarea rows={2} {...form.register('notes')} /></FormField>
       </form>
     </DialogContent>

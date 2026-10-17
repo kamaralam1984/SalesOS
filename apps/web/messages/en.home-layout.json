@@ -1,0 +1,53 @@
+{
+  "homeLayout": {
+    "eyebrow": "Administration",
+    "title": "Home layout",
+    "description": "Choose what each role sees on its phone home screen, in what order and at what size. Changes apply the next time that person opens the app.",
+    "editTab": "Edit a role",
+    "allTab": "All roles (phone previews)",
+    "role": "Role",
+    "customised": "Customised",
+    "isDefault": "Default layout",
+    "visible": "Show",
+    "size": "Size",
+    "sizeS": "Small",
+    "sizeM": "Normal",
+    "sizeL": "Large",
+    "up": "Move up",
+    "down": "Move down",
+    "notUsed": "Not used by this role (no access), so it stays hidden for them.",
+    "save": "Save layout",
+    "saved": "Layout saved",
+    "reset": "Reset to default",
+    "resetDone": "Reset to the default layout",
+    "unsaved": "You have unsaved changes.",
+    "previewTitle": "Phone preview",
+    "previewNote": "Placeholder blocks showing the layout only. Real data is never shown here.",
+    "hiddenWidget": "Hidden",
+    "loadError": "Could not load the layouts.",
+    "retry": "Try again",
+    "noAccess": "Only the Founder and the Developer can change home layouts.",
+    "widget": {
+      "stats": "Quick numbers",
+      "attendance": "Attendance",
+      "goal": "45-day goal",
+      "onboarding": "90-day joining plan",
+      "followups": "Priority follow-ups",
+      "quickActions": "Call buttons",
+      "workspace": "Workspace shortcuts"
+    },
+    "roles": {
+      "FOUNDER_CEO": "Founder / CEO",
+      "SALES_TEAM_LEAD": "Sales Team Lead",
+      "SALES_MANAGER": "Sales Manager",
+      "SALES_EXECUTIVE": "Sales Executive (Telecaller)",
+      "ADMIN": "Admin",
+      "FINANCE": "Finance",
+      "HR": "HR",
+      "MARKETING": "Marketing",
+      "COMMUNITY": "Community",
+      "OPERATIONS": "Operations",
+      "STUDENT_SUCCESS": "Student Success"
+    }
+  }
+}

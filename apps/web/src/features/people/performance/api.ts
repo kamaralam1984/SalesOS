@@ -38,6 +38,8 @@ export interface ScorecardInput {
   target?: number;
   actual?: number;
   unit?: string;
+  dictionaryKey?: string;
+  note?: string;
   source: 'MANUAL' | 'PHASE5';
 }
 export interface Scorecard {

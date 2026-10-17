@@ -189,6 +189,8 @@ const BASE_CASES: Case[] = [
   { route: 'POST /people/onboarding', deniedUser: 'execA1', body: { employeeId: '00000000-0000-4000-8000-000000000001', templateId: '00000000-0000-4000-8000-000000000001', startDate: '2026-01-05' } },
   { route: 'GET /people/onboarding/templates', deniedUser: 'finance' },
   { route: 'POST /people/onboarding/templates', deniedUser: 'execA1', body: { roleKey: 'SALES_EXECUTIVE', name: 'neg tpl', items: [{ title: 'neg item' }] } },
+  { route: 'PATCH /people/onboarding/templates/:id', deniedUser: 'execA1', body: { name: 'neg tpl edit' } },
+  { route: 'DELETE /people/onboarding/templates/:id', deniedUser: 'execA1' },
   { route: 'PATCH /people/onboarding/items/:id', deniedUser: 'finance', body: { status: 'DONE' } },
   { route: 'GET /people/probation', deniedUser: 'finance' },
   { route: 'POST /people/probation/:id/complete', deniedUser: 'execA1', body: { outcome: 'ON_TRACK' } },

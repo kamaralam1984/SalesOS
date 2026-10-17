@@ -1,0 +1,13 @@
+{
+  "mobileOnboarding": {
+    "title": "My 90-day plan",
+    "dayOf": "Day {day} of {total}",
+    "done": "{done} of {total} steps done",
+    "next": "Next steps",
+    "due": "Day {day}",
+    "overdue": "Overdue",
+    "open": "Open my plan",
+    "error": "Could not load your plan.",
+    "retry": "Try again"
+  }
+}

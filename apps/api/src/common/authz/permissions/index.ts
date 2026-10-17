@@ -14,6 +14,7 @@ import { devicesPermissions } from './devices';
 import { platformPermissions } from './platform';
 import { workforcePermissions } from './workforce';
 import { devpanelPermissions } from './devpanel';
+import { homelayoutPermissions } from './homelayout';
 
 /** One line per domain. A new domain adds its file above and one entry here. */
 export const PERMISSION_SETS = [
@@ -33,6 +34,7 @@ export const PERMISSION_SETS = [
   platformPermissions,
   workforcePermissions,
   devpanelPermissions,
+  homelayoutPermissions,
 ] as const;
 
 export type { PermissionDef } from './define';

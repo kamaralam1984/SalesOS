@@ -79,6 +79,8 @@ Columns: F=FOUNDER_CEO, TL=SALES_TEAM_LEAD, MG=SALES_MANAGER, EX=SALES_EXECUTIVE
 | `events:manage` | Create/update events, record attendance | org | org | team | - | - | - | - | org | org | org | - |
 | `integrations:manage` | Manage integrations, webhooks, devices | org | - | - | - | org | - | - | - | - | - | - |
 | `devices:register` | Register companion device | own | own | own | own | - | - | - | - | - | - | - |
+| `home-layout:view` | See the home layout set for your role | own | own | own | own | own | own | own | own | own | own | own |
+| `home-layout:manage` | Set the home layout (widgets, order, size) for every role and preview each role's phone home | org | - | - | - | - | - | - | - | - | - | - |
 
 ## revenue - Targets, deals, collections
 
@@ -497,7 +499,9 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "payroll:structure:view@org",
    "payroll:run:view@org",
    "payroll:run:approve@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own",
+   "home-layout:manage@org"
   ],
   "SALES_TEAM_LEAD": [
    "auth:login@org",
@@ -650,7 +654,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "workforce:dashboard:view@team",
    "workforce:reports:view@team",
    "announcements:view@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ],
   "SALES_MANAGER": [
    "auth:login@org",
@@ -778,7 +783,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "workforce:dashboard:view@team",
    "workforce:reports:view@team",
    "announcements:view@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ],
   "SALES_EXECUTIVE": [
    "auth:login@org",
@@ -866,7 +872,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "directory:view@org",
    "workforce:dashboard:view@own",
    "announcements:view@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ],
   "ADMIN": [
    "auth:login@org",
@@ -921,7 +928,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "directory:view@org",
    "workforce:dashboard:view@own",
    "announcements:view@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ],
   "FINANCE": [
    "auth:login@org",
@@ -978,7 +986,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "payroll:run:view@org",
    "payroll:run:manage@org",
    "payroll:run:mark-paid@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ],
   "HR": [
    "auth:login@org",
@@ -1049,7 +1058,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "payroll:structure:manage@org",
    "payroll:run:view@org",
    "payroll:run:manage@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ],
   "MARKETING": [
    "auth:login@org",
@@ -1092,7 +1102,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "directory:view@org",
    "workforce:dashboard:view@own",
    "announcements:view@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ],
   "COMMUNITY": [
    "auth:login@org",
@@ -1130,7 +1141,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "directory:view@org",
    "workforce:dashboard:view@own",
    "announcements:view@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ],
   "OPERATIONS": [
    "auth:login@org",
@@ -1167,7 +1179,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "directory:view@org",
    "workforce:dashboard:view@own",
    "announcements:view@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ],
   "STUDENT_SUCCESS": [
    "auth:login@org",
@@ -1216,7 +1229,8 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
    "directory:view@org",
    "workforce:dashboard:view@own",
    "announcements:view@org",
-   "payroll:payslip:view@own"
+   "payroll:payslip:view@own",
+   "home-layout:view@own"
   ]
  },
  "allKeys": [
@@ -1430,7 +1444,9 @@ Format: `role -> ["permission@scope", ...]`. Scope values: `org`, `team`, `own`,
   "devpanel:config:view",
   "devpanel:features:view",
   "devpanel:features:manage",
-  "devpanel:maintenance:manage"
+  "devpanel:maintenance:manage",
+  "home-layout:view",
+  "home-layout:manage"
  ]
 }
 ```

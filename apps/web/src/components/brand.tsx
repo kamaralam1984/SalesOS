@@ -1,50 +1,52 @@
 import * as React from 'react';
 import { cn } from '@salesos/ui';
 
-/** Monogram: charcoal rounded square, gold rule, serif "C". Drawn as SVG so it scales crisply and needs no asset. */
+const LOGO = '/brand/coacheasily-logo.png';
+const MARK = '/brand/coacheasily-mark.png';
+
+/** Twinkling stars: [left %, top %, delay s]. Purely decorative. */
+const STARS: ReadonlyArray<readonly [number, number, number]> = [[8, 6, 0], [47, 2, 1.1], [71, 12, 2.2], [93, 4, 0.6]];
+
+/**
+ * The CoachEasily gold flame mark (transparent PNG) with a flicker and a light sweep.
+ * Sized by the parent class (default size-9). Decorative unless `title` is given.
+ */
 export function BrandMark({ className, title }: { className?: string; title?: string }) {
   return (
-    <svg
-      viewBox="0 0 48 48"
+    <span
       role={title ? 'img' : undefined}
       aria-label={title}
       aria-hidden={title ? undefined : true}
-      className={cn('size-9 shrink-0', className)}
+      className={cn('logo-anim size-9 shrink-0', className)}
+      style={{ '--logo-url': `url(${MARK})` } as React.CSSProperties}
     >
-      <rect x="0.75" y="0.75" width="46.5" height="46.5" rx="10.5" style={{ fill: 'var(--brand-tile)', stroke: 'var(--brand-ring)' }} strokeWidth="1.5" />
-      <path
-        d="M31.2 17.6c-1.6-2-4-3.2-6.9-3.2-5 0-8.8 3.8-8.8 9.6s3.8 9.6 8.8 9.6c2.9 0 5.3-1.2 6.9-3.2"
-        fill="none"
-        style={{ stroke: 'var(--brand-glyph)' }}
-        strokeWidth="3.2"
-        strokeLinecap="round"
-      />
-      <defs>
-        <linearGradient id="brand-rule" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stopColor="#dcbf72" />
-          <stop offset="0.55" stopColor="#3b7bd6" />
-          <stop offset="1" stopColor="#2d6a4c" />
-        </linearGradient>
-      </defs>
-      <rect x="10" y="38.5" width="28" height="2.4" rx="1.2" fill="url(#brand-rule)" />
-    </svg>
+      <span className="logo-anim__flame block size-full">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={MARK} alt="" draggable={false} className="logo-anim__base size-full object-contain" />
+      </span>
+      <span className="logo-anim__shine" />
+    </span>
   );
 }
 
+/**
+ * The full CoachEasily logo, always alive: a light sweep across the letters, a gold line that draws
+ * itself with a spark running along it, and twinkling stars. `compact` shows the flame only.
+ */
 export function BrandLockup({ className, compact }: { className?: string; compact?: boolean }) {
+  if (compact) return <BrandMark className={className} />;
   return (
-    <span className={cn('group flex items-center gap-3 transition-[filter] duration-300 hover:drop-shadow-[0_2px_8px_var(--gold-300)]', className)}>
-      <BrandMark />
-      {!compact && (
-        <span className="leading-none">
-          <span className="block text-[0.625rem] font-semibold tracking-[0.22em] text-gold-700 uppercase">
-            CoachEasily
-          </span>
-          <span className="text-gold-shine mt-1 block font-display text-[1.375rem] font-semibold tracking-tight text-ink">
-            SalesOS
-          </span>
-        </span>
-      )}
+    <span className={cn('inline-flex w-full max-w-[17rem] flex-col items-stretch', className)}>
+      <span role="img" aria-label="CoachEasily" className="logo-anim" style={{ '--logo-url': `url(${LOGO})` } as React.CSSProperties}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={LOGO} alt="" draggable={false} className="logo-anim__base" />
+        <span className="logo-anim__shine" />
+        {STARS.map(([left, top, delay]) => (
+          <span key={left} aria-hidden="true" className="logo-anim__star" style={{ left: `${left}%`, top: `${top}%`, animationDelay: `${delay}s` }} />
+        ))}
+      </span>
+      <span aria-hidden="true" className="logo-anim__line" />
+      <span className="text-gold-shine mt-1.5 block text-center font-display text-sm font-semibold tracking-[0.3em] text-ink uppercase">SalesOS</span>
     </span>
   );
 }

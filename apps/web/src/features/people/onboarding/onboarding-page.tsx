@@ -12,9 +12,9 @@ import { RequirePermission } from '@/features/auth/require-permission';
 import { useApiErrorMessage } from '@/hooks/use-api-error';
 import { useTeamMemberOptions } from '../common/api';
 import { useCompetencies } from '../hiring/api';
-import { useDone, useFmt } from '../hrkit/kit';
+import { ConfirmDialog, useDone, useFmt } from '../hrkit/kit';
 import {
-  useAcknowledgeExpectation, useCompleteProbation, useCreateExpectation, useCreatePlan, useCreateTemplate, useExpectationAdoption, useExpectations, usePlans, useProbation, useTemplates, type Expectation, type ProbationReview,
+  useAcknowledgeExpectation, useCompleteProbation, useCreateExpectation, useCreatePlan, useCreateTemplate, useDeleteTemplate, useUpdateTemplate, useExpectationAdoption, useExpectations, usePlans, useProbation, useTemplates, type Expectation, type ProbationReview, type Template,
 } from './api';
 import { PlanCard } from './plan-card';
 
@@ -172,6 +172,10 @@ function TemplatesTab() {
   const apiErr = useApiErrorMessage();
   const q = useTemplates();
   const [open, setOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<Template | null>(null);
+  const [removing, setRemoving] = React.useState<Template | null>(null);
+  const del = useDeleteTemplate();
+  const done = useDone();
   return (
     <Panel accent="green" title={t('tabs.templates')} actions={<Can permission="onboarding:manage" minScope="org"><Button onClick={() => setOpen(true)}>{t('templates.new')}</Button></Can>}>
       {q.isPending ? <Skeleton className="shimmer h-24 w-full" /> : q.isError ? <ErrorState onRetry={() => void q.refetch()} description={apiErr(q.error).message} /> : q.data.length === 0 ? (
@@ -180,7 +184,15 @@ function TemplatesTab() {
         <ul className="space-y-3">
           {q.data.map((x) => (
             <li key={x.id} className="accent-top hover-lift rounded-lg border border-line bg-surface p-4 shadow-sm">
-              <h3 className="font-semibold text-ink">{x.name} <Badge tone="blue">{x.roleKey}</Badge></h3>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <h3 className="font-semibold text-ink">{x.name} <Badge tone="blue">{x.roleKey}</Badge></h3>
+                <Can permission="onboarding:manage" minScope="org">
+                  <span className="flex gap-1">
+                    <Button size="sm" variant="secondary" onClick={() => setEditing(x)}>{t('templates.edit')}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setRemoving(x)}>{t('templates.delete')}</Button>
+                  </span>
+                </Can>
+              </div>
               <p className="mt-1 text-sm text-muted">{t('templates.probationDays', { days: x.probationDays.join(', ') })}</p>
               <ol className="mt-2 list-decimal pl-5 text-sm">{x.items.map((i, n) => <li key={n}>{i.title} <span className="text-muted">({t('templates.dayN', { day: i.dueDay ?? 7 })})</span></li>)}</ol>
             </li>
@@ -188,27 +200,38 @@ function TemplatesTab() {
         </ul>
       )}
       <Dialog open={open} onOpenChange={setOpen}>{open && <TemplateForm onClose={() => setOpen(false)} />}</Dialog>
+      <Dialog open={Boolean(editing)} onOpenChange={(o) => !o && setEditing(null)}>{editing && <TemplateForm template={editing} onClose={() => setEditing(null)} />}</Dialog>
+      <ConfirmDialog
+        open={Boolean(removing)} onOpenChange={(o) => !o && setRemoving(null)} title={t('templates.deleteTitle')} description={t('templates.deleteBody', { name: removing?.name ?? '' })}
+        confirmLabel={t('templates.delete')} danger pending={del.isPending} error={del.error}
+        onConfirm={() => removing && del.mutate({ id: removing.id }, { onSuccess: () => { setRemoving(null); done(t('templates.deleted')); } })}
+      />
     </Panel>
   );
 }
-function TemplateForm({ onClose }: { onClose: () => void }) {
+function TemplateForm({ onClose, template }: { onClose: () => void; template?: Template }) {
   const t = useTranslations('onboarding');
   const apiErr = useApiErrorMessage();
   const done = useDone();
   const create = useCreateTemplate();
-  const form = useForm<z.infer<typeof tplSchema>>({ resolver: zodResolver(tplSchema), defaultValues: { roleKey: '', name: '', probationDays: '30, 60, 90', items: [{ title: '', category: 'ONBOARDING', dueDay: '7' }] } });
+  const update = useUpdateTemplate();
+  const form = useForm<z.infer<typeof tplSchema>>({ resolver: zodResolver(tplSchema), defaultValues: template
+      ? { roleKey: template.roleKey, name: template.name, probationDays: template.probationDays.join(', '), items: template.items.map((i) => ({ title: i.title, category: (i.category as 'ONBOARDING' | 'TRAINING' | 'TOOLS' | 'CULTURE') ?? 'ONBOARDING', dueDay: String(i.dueDay ?? 7) })) }
+      : { roleKey: '', name: '', probationDays: '30, 60, 90', items: [{ title: '', category: 'ONBOARDING', dueDay: '7' }] } });
   const items = useFieldArray({ control: form.control, name: 'items' });
   const e = form.formState.errors;
   const fe = (x?: { message?: unknown }) => (typeof x?.message === 'string' ? t(`errors.${x.message}` as never) : undefined);
   const submit = form.handleSubmit(async (v) => {
     try {
-      await create.mutateAsync({ roleKey: v.roleKey, name: v.name, probationDays: v.probationDays.split(',').map((x) => Number(x.trim())), items: v.items.map((i) => ({ title: i.title, category: i.category, dueDay: Number(i.dueDay) })) });
+      const body = { roleKey: v.roleKey, name: v.name, probationDays: v.probationDays.split(',').map((x) => Number(x.trim())), items: v.items.map((i) => ({ title: i.title, category: i.category, dueDay: Number(i.dueDay) })) };
+      if (template) await update.mutateAsync({ id: template.id, body });
+      else await create.mutateAsync(body);
       done(t('saved'));
       onClose();
     } catch (err) { form.setError('root', { message: apiErr(err).message }); }
   });
   return (
-    <DialogContent size="lg" title={t('templates.new')} description={t('templates.newBody')} footer={<><Button variant="secondary" onClick={onClose}>{t('cancel')}</Button><Button type="submit" form="tpl-form" loading={create.isPending}>{t('create')}</Button></>}>
+    <DialogContent size="lg" title={template ? t('templates.edit') : t('templates.new')} description={template ? t('templates.editBody') : t('templates.newBody')} footer={<><Button variant="secondary" onClick={onClose}>{t('cancel')}</Button><Button type="submit" form="tpl-form" loading={create.isPending || update.isPending}>{t('create')}</Button></>}>
       {e.root && <Alert tone="danger" className="mb-3">{e.root.message}</Alert>}
       <form id="tpl-form" onSubmit={submit} noValidate className="grid gap-3">
         <FormField label={t('templates.role')} required error={fe(e.roleKey)}><Input {...form.register('roleKey')} /></FormField>

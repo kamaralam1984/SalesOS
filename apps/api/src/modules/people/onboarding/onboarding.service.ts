@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type {
-  completeProbationReviewSchema, createExpectationSchema, createOnboardingPlanSchema, createOnboardingTemplateSchema, listOnboardingQuerySchema, updateOnboardingItemSchema,
+  completeProbationReviewSchema, createExpectationSchema, createOnboardingPlanSchema, createOnboardingTemplateSchema, listOnboardingQuerySchema, updateOnboardingItemSchema, updateOnboardingTemplateSchema,
 } from '@salesos/validation';
 import type { z } from 'zod';
 import { AuditService } from '../../../common/audit/audit.service';
@@ -43,6 +43,30 @@ export class OnboardingService {
       await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'onboarding.template_created', entityType: 'onboarding_template', entityId: t.id, metadata: { roleKey: dto.roleKey } });
       return t;
     });
+  }
+
+  /** Edits a template for FUTURE joiners only: existing plans keep the checklist they were created with (items are copied into the plan). */
+  async updateTemplate(user: Principal, id: string, dto: Dto<typeof updateOnboardingTemplateSchema>) {
+    if (this.access.scopeLevel(user, 'onboarding:manage') !== 'org') throw forbidden('Templates are managed at organization level');
+    return this.prisma.$transaction(async (tx) => {
+      const old = await tx.onboardingTemplate.findFirst({ where: { id, organizationId: user.organizationId, isActive: true } });
+      if (!old) throw notFound('Template');
+      const t = await tx.onboardingTemplate.update({ where: { id }, data: { ...(dto.roleKey !== undefined ? { roleKey: dto.roleKey } : {}), ...(dto.name !== undefined ? { name: dto.name } : {}), ...(dto.items !== undefined ? { items: dto.items } : {}), ...(dto.probationDays !== undefined ? { probationDays: dto.probationDays } : {}) } });
+      await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'onboarding.template_updated', entityType: 'onboarding_template', entityId: id, metadata: { fields: Object.keys(dto) } });
+      return t;
+    });
+  }
+
+  /** Retires a template (soft: it stops being offered; plans already made from it are untouched). */
+  async deactivateTemplate(user: Principal, id: string) {
+    if (this.access.scopeLevel(user, 'onboarding:manage') !== 'org') throw forbidden('Templates are managed at organization level');
+    await this.prisma.$transaction(async (tx) => {
+      const old = await tx.onboardingTemplate.findFirst({ where: { id, organizationId: user.organizationId, isActive: true } });
+      if (!old) throw notFound('Template');
+      await tx.onboardingTemplate.update({ where: { id }, data: { isActive: false } });
+      await this.audit.recordTx(tx, { organizationId: user.organizationId, actorId: user.userId, action: 'onboarding.template_deactivated', entityType: 'onboarding_template', entityId: id, metadata: { name: old.name, roleKey: old.roleKey } });
+    });
+    return { id, isActive: false };
   }
 
   // ---------------------------------------------------------------- plans

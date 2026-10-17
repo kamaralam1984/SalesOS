@@ -14,3 +14,4 @@ export { AiModule } from './ai/ai.module';
 export { DevicesModule } from './devices/devices.module';
 export { WorkforceModule } from './workforce/workforce.module';
 export { DevPanelModule } from './devpanel/devpanel.module';
+export { HomeLayoutModule } from './homelayout/homelayout.module';

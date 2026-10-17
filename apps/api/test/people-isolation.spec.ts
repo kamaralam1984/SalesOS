@@ -119,6 +119,24 @@ describe('KPI/KRA assignments, scorecards', () => {
     expect((await A.execA1.get('/people/scorecards')).body.data[0].inputs[0].actual).toBe(100);
     expect((await A.execB1.get('/people/scorecards')).body.data).toEqual([]);
   });
+
+  it('inputs linked to a KPI are filled from the KPI engine; typed values are kept; no number means a reason, never 0', async () => {
+    const send = (inputs: object[], periodStart = day(-14)) => A.managerA.post('/people/scorecards').send({ subjectId: fx.execA1.id, periodType: 'WEEK', periodStart, periodEnd: day(-8), inputs });
+    expect((await send([
+      { key: 'attempts', name: 'Call attempts', target: 50, dictionaryKey: 'KPI-PRD-006' },
+      { key: 'typed', name: 'Call attempts (typed)', target: 50, actual: 7, dictionaryKey: 'KPI-PRD-006' },
+      { key: 'conv', name: 'Unknown KPI', dictionaryKey: 'KPI-DOES-NOT-EXIST' },
+    ])).status).toBe(200);
+    const row = (await A.execA1.get('/people/scorecards')).body.data.find((r: { periodStart: string }) => r.periodStart === day(-14));
+    const by = Object.fromEntries(row.inputs.map((i: { key: string }) => [i.key, i]));
+    expect(by.attempts.source).toBe('PHASE5');
+    expect(typeof by.attempts.actual).toBe('number');
+    expect(by.typed.source).toBe('MANUAL');
+    expect(by.typed.actual).toBe(7);
+    expect(by.conv.source).toBe('PHASE5');
+    expect(by.conv.actual).toBeUndefined();
+    expect(by.conv.note).toBe('UNAVAILABLE');
+  });
 });
 
 describe('monthly performance reviews', () => {
@@ -235,6 +253,20 @@ describe('HR data isolation (employee profiles, hiring, onboarding, succession)'
     const plan = await A.managerA.post('/people/onboarding').send({ employeeId: fx.execA1.id, templateId: tpl.body.data.id, startDate: day(-2) });
     expect(plan.status).toBe(201);
     expect(plan.body.data.progress).toMatchObject({ total: 2, done: 0 });
+    // HR can edit and retire a template; a plan already made keeps its own checklist
+    const tid = tpl.body.data.id as string;
+    expect((await A.managerA.patch(`/people/onboarding/templates/${tid}`).send({ name: 'Hacked' })).status).toBe(403);
+    expect((await A.managerA.delete(`/people/onboarding/templates/${tid}`)).status).toBe(403);
+    expect((await A.hr.patch(`/people/onboarding/templates/${tid}`).send({})).status).toBe(400);
+    const edited = await A.hr.patch(`/people/onboarding/templates/${tid}`).send({ name: 'Exec onboarding v2', items: [{ title: 'Only one item now', dueDay: 3 }] });
+    expect(edited.status).toBe(200);
+    expect(edited.body.data.name).toBe('Exec onboarding v2');
+    expect((await A.execA1.get('/people/onboarding')).body.data[0].progress.total).toBe(2);
+    expect(await t.prisma.auditLog.count({ where: { entityId: tid, action: 'onboarding.template_updated' } })).toBe(1);
+    const tpl2 = await A.hr.post('/people/onboarding/templates').send({ roleKey: 'SALES_EXECUTIVE', name: 'Temp template', items: [{ title: 'Temporary item', dueDay: 1 }] });
+    expect((await A.hr.delete(`/people/onboarding/templates/${tpl2.body.data.id}`)).status).toBe(200);
+    expect((await A.hr.get('/people/onboarding/templates')).body.data.some((x: { id: string }) => x.id === tpl2.body.data.id)).toBe(false);
+    expect((await A.hr.delete(`/people/onboarding/templates/${tpl2.body.data.id}`)).status).toBe(404);
     expect((await A.managerA.post('/people/onboarding').send({ employeeId: fx.execB1.id, templateId: tpl.body.data.id, startDate: day(0) })).status).toBe(404);
     expect((await A.managerA.post('/people/onboarding').send({ employeeId: fx.execA1.id, templateId: tpl.body.data.id, startDate: day(0) })).status).toBe(409);
     const item = plan.body.data.items[0].id;

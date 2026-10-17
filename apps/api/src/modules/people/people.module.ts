@@ -1,6 +1,7 @@
 import { Module, type OnModuleInit } from '@nestjs/common';
 import { AccessService } from '../../common/authz';
 import { PrismaService } from '../../common/prisma';
+import { ReportingModule } from '../reporting/reporting.module';
 import { FileAccessRegistry } from '../files/file-access.registry';
 import { registerRecordFileResolvers } from '../files/entity-resolver';
 import { CoachingController } from './coaching/coaching.controller';
@@ -29,6 +30,7 @@ import { SuccessionService } from './succession/succession.service';
  * succession, engagement pulse, skills library. Revenue/analytics phases may provide INCENTIVE_INPUT_PROVIDER.
  */
 @Module({
+  imports: [ReportingModule],
   controllers: [CoachingController, PerformanceController, PipController, RecognitionController, IncentivesController, HiringController, OnboardingController, SuccessionController, EngagementController, ResourcesController],
   providers: [CoachingService, PerformanceService, PipService, RecognitionService, IncentivesService, HiringService, OnboardingService, SuccessionService, EngagementService, ResourcesService],
   exports: [IncentivesService, HiringService],

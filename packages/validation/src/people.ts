@@ -91,7 +91,12 @@ export const scorecardInputSchema = z.object({
   target: z.number().finite().optional(),
   actual: z.number().finite().optional(),
   unit: z.string().trim().max(30).optional(),
+  /** KPI dictionary id (e.g. KPI-PRD-006): the server fills `actual` from the KPI engine and marks the input PHASE5 unless it is typed in by hand. */
+  dictionaryKey: z.string().trim().max(80).optional(),
+  /** MANUAL = typed by the manager (kept as is); PHASE5 = computed by the KPI engine at save time. */
   source: z.enum(['MANUAL', 'PHASE5']).default('MANUAL'),
+  /** why an auto value is missing (zero denominator, no data...), shown instead of a number */
+  note: z.string().trim().max(200).optional(),
 });
 export const upsertScorecardSchema = z.object({
   subjectId: uuidSchema,
@@ -323,6 +328,7 @@ export const createOnboardingTemplateSchema = z.object({
   items: z.array(checklistItemSchema).min(1).max(60),
   probationDays: z.array(z.number().int().min(7).max(365)).min(1).max(6).default([30, 60, 90]),
 });
+export const updateOnboardingTemplateSchema = createOnboardingTemplateSchema.partial().refine((v) => Object.keys(v).length > 0, 'nothing to change');
 export const createOnboardingPlanSchema = z.object({
   employeeId: uuidSchema,
   templateId: uuidSchema,

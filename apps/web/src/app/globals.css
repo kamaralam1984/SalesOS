@@ -21,3 +21,52 @@
     transparent 1px 28px
   );
 }
+
+/* ---------------------------------------------------------------------------------------------------------------------
+   Animated CoachEasily logo (components/brand.tsx): a light sweep across the letters, a drawn gold
+   line with a travelling spark, twinkling stars and a flickering flame. Everything stops under prefers-reduced-motion
+   .
+   ------------------------------------------------------------------------------------------------------------------ */
+.logo-anim { position: relative; display: inline-block; isolation: isolate; line-height: 0; }
+.logo-anim__base {
+  display: block; width: 100%; height: auto;
+}
+.logo-anim__shine {
+  position: absolute; inset: 0; pointer-events: none;
+  -webkit-mask-image: var(--logo-url); mask-image: var(--logo-url);
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  background-image: linear-gradient(105deg, transparent 38%, rgb(255 244 200 / 0.55) 46%, rgb(255 255 255 / 0.95) 50%, rgb(255 244 200 / 0.55) 54%, transparent 62%);
+  background-size: 260% 100%; background-repeat: no-repeat; background-position: 170% 0;
+  animation: logo-sweep 4.2s ease-in-out infinite;
+}
+.logo-anim__line {
+  position: relative; display: block; width: 100%; height: 2px; margin-top: 6px; border-radius: 2px; overflow: hidden;
+  background: linear-gradient(90deg, transparent, rgb(183 134 20 / 0.9) 18%, rgb(240 190 60) 50%, rgb(183 134 20 / 0.9) 82%, transparent);
+  transform-origin: left center; animation: logo-draw 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.logo-anim__line::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 22%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.95), transparent);
+  animation: logo-travel 2.8s ease-in-out 1.2s infinite;
+}
+.logo-anim__star {
+  position: absolute; width: 10px; height: 10px; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle, rgb(255 255 255) 0 1.5px, rgb(255 226 140 / 0.9) 2.5px, transparent 4px);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  animation: logo-twinkle 3.2s ease-in-out infinite;
+}
+.logo-anim__flame { transform-origin: 50% 90%; animation: logo-flicker 2.4s ease-in-out infinite; }
+
+@keyframes logo-sweep { 0% { background-position: 170% 0; } 55%, 100% { background-position: -70% 0; } }
+@keyframes logo-draw { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes logo-travel { 0% { left: -25%; } 70%, 100% { left: 103%; } }
+@keyframes logo-twinkle { 0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); } 45%, 55% { opacity: 1; transform: scale(1) rotate(45deg); } }
+@keyframes logo-flicker {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); filter: brightness(1); }
+  30% { transform: scale(1.03, 1.06) rotate(-1.2deg); filter: brightness(1.12); }
+  60% { transform: scale(0.99, 1.02) rotate(1deg); filter: brightness(1.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .logo-anim__line, .logo-anim__line::after, .logo-anim__flame { animation: none; }
+  .logo-anim__shine, .logo-anim__star { display: none; }
+}

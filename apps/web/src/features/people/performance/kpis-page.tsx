@@ -42,7 +42,7 @@ function Inner() {
   );
 }
 
-function ItemList({ items }: { items: { key: string; name: string; kind?: string; target?: number; actual?: number; unit?: string }[] }) {
+function ItemList({ items }: { items: { key: string; name: string; kind?: string; target?: number; actual?: number; unit?: string; source?: string; note?: string }[] }) {
   const t = useTranslations('performance');
   return (
     <ul className="mt-2 divide-y divide-line text-sm">
@@ -52,6 +52,8 @@ function ItemList({ items }: { items: { key: string; name: string; kind?: string
           <span className="text-muted">
             {i.target !== undefined && `${t('kpis.target')}: ${i.target}${i.unit ? ` ${i.unit}` : ''}`}
             {i.actual !== undefined && ` · ${t('kpis.actual')}: ${i.actual}`}
+            {i.actual === undefined && i.note && ` · ${t('kpis.autoNoNumber', { reason: i.note })}`}
+            {i.source && <Badge className="ml-2">{t(i.source === 'PHASE5' ? 'kpis.sourceAuto' : 'kpis.sourceManual')}</Badge>}
           </span>
         </li>
       ))}
@@ -254,7 +256,7 @@ function ScorecardForm({ onDone }: { onDone: () => void }) {
             <li key={d.id} className="grid items-end gap-2 rounded-md border border-line p-2.5 sm:grid-cols-[1fr_8rem_8rem]">
               <span className="text-sm font-medium text-ink">{d.name}{d.unit ? ` (${d.unit})` : ''}</span>
               <FormField label={t('kpis.target')}><Input type="number" inputMode="decimal" value={rows[d.id]?.target ?? ''} onChange={(e) => set(d.id, 'target', e.target.value)} /></FormField>
-              <FormField label={t('kpis.actual')}><Input type="number" inputMode="decimal" value={rows[d.id]?.actual ?? ''} onChange={(e) => set(d.id, 'actual', e.target.value)} /></FormField>
+              <FormField label={t('kpis.actual')} {...(d.dictionaryKey ? { hint: t('kpis.actualAutoHint') } : {})}><Input type="number" inputMode="decimal" value={rows[d.id]?.actual ?? ''} onChange={(e) => set(d.id, 'actual', e.target.value)} /></FormField>
             </li>
           ))}
         </ul>

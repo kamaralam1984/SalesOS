@@ -1,20 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { renderWithProviders } from '@/test/utils';
 import type { AuthState } from '../hrkit/auth-mock';
 
 const auth = vi.hoisted(() => ({ userId: 'me', perms: {} as AuthState['perms'] }));
 vi.mock('@/features/auth/auth-provider', async () => (await import('../hrkit/auth-mock')).makeAuthModule(auth));
 const get = vi.hoisted(() => vi.fn());
+const post = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/api/client', async (orig) => ({
   ...(await orig<typeof import('@/lib/api/client')>()),
-  api: { get, post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  api: { get, post, patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
-import { RestrictedNotes, HiringPage } from './hiring-page';
+import { RestrictedNotes, HiringPage, customRoleKey } from './hiring-page';
 import { ProfileMatchList } from './profile-match';
 
-beforeEach(() => { get.mockReset(); auth.perms = { 'hiring:view': 'org' }; });
+beforeEach(() => { get.mockReset(); post.mockReset(); auth.perms = { 'hiring:view': 'org' }; });
 
 describe('profile match facts', () => {
   it('shows UNKNOWN as unknown (never as not met) and states it is not a score', () => {
@@ -58,5 +59,32 @@ describe('pipeline', () => {
     auth.perms = {};
     renderWithProviders(<HiringPage />);
     expect(screen.getByRole('alert')).toHaveTextContent(/do not have access/i);
+  });
+});
+
+describe('new opening form', () => {
+  it('turns a typed custom post into a role key', () => {
+    expect(customRoleKey('Content Writer')).toBe('CONTENT_WRITER');
+    expect(customRoleKey('  Sr. Sales-Head (North) ')).toBe('SR_SALES_HEAD_NORTH');
+    expect(customRoleKey('!!')).toBe('');
+  });
+  it('picks a role from the list, takes positions with +, and sends a custom role as its own key', async () => {
+    auth.perms = { 'hiring:view': 'org', 'hiring:manage': 'org' };
+    get.mockResolvedValue({ data: [], meta: { pagination: { total: 0, hasMore: false, nextCursor: null } } });
+    post.mockResolvedValue({ data: { id: 'new' } });
+    renderWithProviders(<HiringPage />);
+    fireEvent.click(await screen.findByRole('button', { name: /New opening/ }));
+    const dlg = within(await screen.findByRole('dialog'));
+    const select = dlg.getByLabelText(/^Role/);
+    expect(Array.from((select as HTMLSelectElement).options).map((o) => o.text)).toEqual(expect.arrayContaining(['Sales Executive (Telecaller)', 'HR', 'Custom role (type your own)']));
+    fireEvent.change(select, { target: { value: '__CUSTOM__' } });
+    fireEvent.change(await dlg.findByLabelText(/Custom role name/), { target: { value: 'Content Writer' } });
+    fireEvent.change(dlg.getByLabelText(/^Title/), { target: { value: 'Content Writer - Hindi' } });
+    fireEvent.click(dlg.getByRole('button', { name: 'More positions' }));
+    fireEvent.click(dlg.getByRole('button', { name: 'More positions' }));
+    expect(dlg.getByText(/90-day training plan/)).toBeInTheDocument();
+    fireEvent.click(dlg.getByRole('button', { name: /^Create$/ }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post.mock.calls[0]?.[1]).toMatchObject({ title: 'Content Writer - Hindi', roleKey: 'CONTENT_WRITER', headcount: 3 });
   });
 });

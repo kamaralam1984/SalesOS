@@ -1,7 +1,7 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import {
-  completeProbationReviewSchema, createExpectationSchema, createOnboardingPlanSchema, createOnboardingTemplateSchema, listOnboardingQuerySchema, updateOnboardingItemSchema,
+  completeProbationReviewSchema, createExpectationSchema, createOnboardingPlanSchema, createOnboardingTemplateSchema, listOnboardingQuerySchema, updateOnboardingItemSchema, updateOnboardingTemplateSchema,
 } from '@salesos/validation';
 import { z } from 'zod';
 import { CurrentUser, RequirePermission, type Principal } from '../../../common/authz';
@@ -37,6 +37,19 @@ export class OnboardingController {
   @RequirePermission('onboarding:manage')
   createTemplate(@CurrentUser() u: Principal, @Body(new ZodPipe(createOnboardingTemplateSchema)) b: z.infer<typeof createOnboardingTemplateSchema>) {
     return this.svc.createTemplate(u, b);
+  }
+
+  @Patch('onboarding/templates/:id')
+  @RequirePermission('onboarding:manage')
+  updateTemplate(@CurrentUser() u: Principal, @Param('id', new ParseUUIDPipe()) id: string, @Body(new ZodPipe(updateOnboardingTemplateSchema)) b: z.infer<typeof updateOnboardingTemplateSchema>) {
+    return this.svc.updateTemplate(u, id, b);
+  }
+
+  @Delete('onboarding/templates/:id')
+  @HttpCode(200)
+  @RequirePermission('onboarding:manage')
+  deleteTemplate(@CurrentUser() u: Principal, @Param('id', new ParseUUIDPipe()) id: string) {
+    return this.svc.deactivateTemplate(u, id);
   }
 
   @Patch('onboarding/items/:id')

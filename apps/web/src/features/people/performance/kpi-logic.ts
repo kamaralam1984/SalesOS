@@ -29,7 +29,7 @@ export function buildAssignmentItems(defs: KpiDefinition[], sel: Selection): Kpi
 }
 
 export interface ScoreRow { target: string; actual: string }
-/** Pure: scorecard input rows (MANUAL source). Rows with neither target nor actual are dropped. */
+/** Pure: scorecard input rows. Rows with neither target nor actual are dropped unless linked to a KPI (those are filled by the server). */
 export function buildScorecardInputs(defs: KpiDefinition[], rows: Record<string, ScoreRow>): ScorecardInput[] {
   const out: ScorecardInput[] = [];
   for (const d of defs) {
@@ -37,8 +37,13 @@ export function buildScorecardInputs(defs: KpiDefinition[], rows: Record<string,
     if (!r) continue;
     const target = r.target.trim() === '' ? undefined : Number(r.target);
     const actual = r.actual.trim() === '' ? undefined : Number(r.actual);
-    if (target === undefined && actual === undefined) continue;
-    out.push({ key: d.key, name: d.name, ...(Number.isFinite(target) ? { target } : {}), ...(Number.isFinite(actual) ? { actual } : {}), ...(d.unit ? { unit: d.unit } : {}), source: 'MANUAL' });
+    // a definition linked to a KPI is always sent: with no typed actual the server fills it from the KPI engine
+    if (target === undefined && actual === undefined && !d.dictionaryKey) continue;
+    const typed = actual !== undefined && Number.isFinite(actual);
+    out.push({
+      key: d.key, name: d.name, ...(Number.isFinite(target) ? { target } : {}), ...(typed ? { actual } : {}), ...(d.unit ? { unit: d.unit } : {}),
+      ...(d.dictionaryKey ? { dictionaryKey: d.dictionaryKey } : {}), source: typed || !d.dictionaryKey ? 'MANUAL' : 'PHASE5',
+    });
   }
   return out;
 }
