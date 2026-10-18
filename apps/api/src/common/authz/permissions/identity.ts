@@ -22,5 +22,5 @@ export const identityPermissions = definePermissions('identity', {
   'settings:view': { description: 'View org settings', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', ADMIN: 'org' } },
   'settings:update': { description: 'Update org settings (stages, rules, thresholds)', grants: { FOUNDER_CEO: 'org', SALES_TEAM_LEAD: 'org', ADMIN: 'org' } },
   'settings:policy:approve': { description: 'Approve sensitive policy change', grants: { FOUNDER_CEO: 'org' } },
-  'users:role:assign-sensitive': { description: 'Assign FOUNDER_CEO / HR / FINANCE roles (tightening beyond the matrix; NEEDS_DECISION)', sensitive: true, grants: { FOUNDER_CEO: 'org' } },
+  'users:role:assign-sensitive': { description: 'Give or remove the Founder, Admin, HR or Finance role, and approve or reset those accounts (Founder only; the Developer can do this from the Developer Panel)', sensitive: true, grants: { FOUNDER_CEO: 'org' } },
 });

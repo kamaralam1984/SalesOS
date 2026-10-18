@@ -168,5 +168,5 @@ describe('sweep: every GET route, every restricted role, ids harvested from the 
     expect(ok).toBeGreaterThan(20);
     expect(found).toEqual([]);
     expect(pii).toEqual([]);
-  });
+  }, 300_000); // walks every GET route as every restricted role; takes ~1-3 min, far above the 30 s default
 });

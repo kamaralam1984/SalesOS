@@ -34,7 +34,7 @@ Columns: F=FOUNDER_CEO, TL=SALES_TEAM_LEAD, MG=SALES_MANAGER, EX=SALES_EXECUTIVE
 | `users:update` | Update user fields (non-role) | org | - | - | - | org | - | - | - | - | - | - |
 | `users:deactivate` | Deactivate user (triggers reassignment queue) | org | - | - | - | org | - | - | - | - | - | - |
 | `users:role:assign` | Assign/revoke roles and secondary groups | org | - | - | - | org | - | - | - | - | - | - |
-| `users:role:assign-sensitive` | Assign FOUNDER_CEO / HR / FINANCE roles (Founder only; tightening of `users:role:assign`, DEC-032, owner may relax) | org | - | - | - | - | - | - | - | - | - | - |
+| `users:role:assign-sensitive` | Give or remove the Founder, Admin, HR or Finance role, and approve or reset those accounts (Founder only; the Developer can do this from the Developer Panel); tightening of `users:role:assign`, DEC-032 | org | - | - | - | - | - | - | - | - | - | - |
 | `users:delegation:manage` | Grant time-bound team delegation | org | org | - | - | - | - | - | - | - | - | - |
 | `teams:view` | View teams | org | org | team | own | org | - | summary | - | - | - | - |
 | `teams:create` | Create team | org | - | - | - | org | - | - | - | - | - | - |

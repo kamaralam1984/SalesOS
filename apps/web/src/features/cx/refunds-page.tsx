@@ -62,7 +62,7 @@ function Tracking() {
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <Badge tone={r.status === 'PROCESSED' || r.status === 'RECONCILED' ? 'green' : r.status === 'REJECTED' || r.status === 'CANCELLED' || r.status === 'WITHDRAWN' ? 'neutral' : 'gold'}>{t(`refundStatus.${r.status}` as never)}</Badge>
                     <span className="text-sm text-muted">{r.learnerName ?? '—'} · {r.programName ?? '—'}</span>
-                    <span className="text-sm text-muted">{t(`refundReason.${r.reasonCategory}` as never)}</span>
+                    {r.reasonCategory ? <span className="text-sm text-muted">{t(`refundReason.${r.reasonCategory}` as never)}</span> : null}
                   </div>
                   <dl className="grid gap-3 sm:grid-cols-3">
                     <Fact label={t('refunds.requested')} at={r.requested.at} amount={r.minimumData ? undefined : r.requested.amount} by={r.requested.byName} currency={r.currency} fmt={fmt} />

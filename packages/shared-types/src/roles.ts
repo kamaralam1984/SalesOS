@@ -33,8 +33,11 @@ export const SECONDARY_ROLE_KEYS = [
   'STUDENT_SUCCESS',
 ] as const satisfies readonly RoleKey[];
 
-/** Roles that only the founder may assign (privilege-escalation guard). */
-export const SENSITIVE_ROLE_KEYS: readonly RoleKey[] = ['FOUNDER_CEO', 'HR', 'FINANCE'];
+/**
+ * Roles that only the Founder (or the Developer) may give, remove, approve the account of, or reset the password of (privilege-escalation guard).
+ * Matches the "Roles aur Reporting" company guide: Founder, HR, Finance and Admin.
+ */
+export const SENSITIVE_ROLE_KEYS: readonly RoleKey[] = ['FOUNDER_CEO', 'ADMIN', 'HR', 'FINANCE'];
 
 /**
  * summary = org-wide but MINIMUM-DATA projection only (id/name/status; no PII). own < team < org.

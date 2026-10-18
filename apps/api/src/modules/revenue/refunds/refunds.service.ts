@@ -35,7 +35,7 @@ export class RefundsService {
   }
 
   private dto(r: Refund, names: Map<string, string>, summaryOnly: boolean, leadName?: string | null) {
-    if (summaryOnly) return { id: r.id, dealId: r.dealId, status: r.status, reasonCategory: r.reasonCategory, requestedAt: iso(r.requestedAt), currency: r.currency };
+    if (summaryOnly) return { id: r.id, dealId: r.dealId, status: r.status, requestedAt: iso(r.requestedAt), currency: r.currency };
     const who = (id: string | null, role: string | null, at: Date | null) => (id ? { id, name: names.get(id) ?? null, role, at: iso(at) } : null);
     return {
       id: r.id,

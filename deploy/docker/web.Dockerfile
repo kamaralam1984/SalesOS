@@ -43,6 +43,6 @@ COPY --from=build --chown=salesos:salesos /repo/apps/web/messages /app/apps/web/
 USER salesos
 EXPOSE 3100
 HEALTHCHECK --interval=15s --timeout=4s --start-period=30s --retries=5 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3100)+'/offline').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3100)+'/offline.html').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["node","apps/web/server.js"]

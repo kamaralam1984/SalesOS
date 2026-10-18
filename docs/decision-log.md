@@ -341,8 +341,10 @@ Rule: if an affected requirement needs a value not in this log, mark it NEEDS_DE
 - **Owner:** Founder
 - **Options considered:** (a) admin superuser; (b) least privilege
 - **Chosen default:** Admin has no HR/finance/payment/revenue-detail data by default; needs explicit secondary grants (hr:*, finance:*). Founder grant/revoke is audited. Managers see sibling teams only through explicit time-bound delegation.
-- **Date:** 2026-10-14
+- **Date:** 2026-10-14 (amended 2026-10-18)
 - **Rationale:** Blueprint + Master Spec.
+- **Amendment 2026-10-18 (role giving):** the company guide "Sales OS - Roles aur Reporting Guide" (PDF, v1.0, Oct 2026) is the source of truth for who may give roles. Only the Founder (or the Developer, from the Developer Panel) gives or removes the Founder, Admin, HR and Finance roles and approves or resets those accounts (`SENSITIVE_ROLE_KEYS` = FOUNDER_CEO, ADMIN, HR, FINANCE). Sales Team Lead is NOT founder-only: Admin may give it, HR may not (HR gives only the six employee-level roles: Sales Manager, Sales Executive, Marketing, Community, Operations, Student Success). The Developer role is given only from the Developer Panel.
+- **PDF inconsistency, resolved as default:** the guide's Admin box says Admin changes roles "except Founder/HR/Finance", while the Founder box and "Zaroori niyam" say Founder, HR, Finance **or Admin** roles are Founder-only. Resolved as Founder-only for the Admin role too (consistent with two of three statements and prevents an Admin from creating another Admin). Awaiting owner approval; if the owner prefers the Admin-box reading, remove ADMIN from `SENSITIVE_ROLE_KEYS` and update the guide.
 - **Affected requirement IDs:** MS-ROLE-006
 - **Status:** default - awaiting owner approval
 

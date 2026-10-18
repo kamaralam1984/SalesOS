@@ -294,6 +294,6 @@ describe('role-scoped refund visibility', () => {
     const list = await ssAgent.get('/refunds').query({ limit: 100 });
     expect(list.status).toBe(200);
     const row = (list.body.data as Array<Record<string, unknown>>).find((r) => r.id === rMine)!;
-    expect(Object.keys(row).sort()).toEqual(['currency', 'dealId', 'id', 'reasonCategory', 'requestedAt', 'status']);
+    expect(Object.keys(row).sort()).toEqual(['currency', 'dealId', 'id', 'requestedAt', 'status']);
   });
 });

@@ -8,7 +8,7 @@ import { AuthService } from '../auth/auth.service';
 import { userInclude } from '../dto';
 
 /** Roles that only the Founder or the Developer may approve or reset: HR must not be able to take over a leadership, finance or admin account. */
-const LEADERSHIP: readonly RoleKey[] = [...SENSITIVE_ROLE_KEYS, 'ADMIN'];
+const LEADERSHIP: readonly RoleKey[] = SENSITIVE_ROLE_KEYS;
 
 /**
  * Who may let a new account in and who may hand out password-reset links: HR, the Founder (CEO) and the Developer.
@@ -29,7 +29,7 @@ export class AccountAccessService {
     const isDeveloper = this.access.has(actor, 'devpanel:access');
     if (roles.includes('DEVELOPER') && !isDeveloper) throw forbidden('Only the Developer can handle a Developer account');
     if (roles.some((r) => LEADERSHIP.includes(r)) && !isDeveloper && !this.access.has(actor, 'users:role:assign-sensitive')) {
-      throw forbidden('Only the Founder or the Developer can handle Founder, HR, Finance or Admin accounts');
+      throw forbidden('Only the Founder or the Developer can handle Founder, Admin, HR or Finance accounts');
     }
   }
 

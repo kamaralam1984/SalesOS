@@ -349,10 +349,10 @@ function RolePicker({
 function useDisabledRoles(): ReadonlySet<RoleKey> {
   const { can } = useAuth();
   return React.useMemo(() => {
-    // Founder, HR and Finance grants are founder-only (API enforces; we just avoid offering dead options).
+    // Founder, Admin, HR and Finance grants are founder-only (API enforces; we just avoid offering dead options).
     return can('users:role:assign-sensitive')
       ? new Set<RoleKey>()
-      : new Set<RoleKey>(['FOUNDER_CEO', 'HR', 'FINANCE']);
+      : new Set<RoleKey>(['FOUNDER_CEO', 'ADMIN', 'HR', 'FINANCE']);
   }, [can]);
 }
 

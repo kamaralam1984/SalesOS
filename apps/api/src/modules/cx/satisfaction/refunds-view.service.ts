@@ -47,7 +47,7 @@ export class RefundsViewService {
       const d = dealBy.get(r.dealId);
       const tag = tagBy.get(r.id);
       const base = {
-        id: r.id, dealId: r.dealId, status: r.status, reasonCategory: r.reasonCategory, learnerName: d ? ln.get(d.leadId) ?? null : null, programName: d ? pn.get(d.programId) ?? null : null,
+        id: r.id, dealId: r.dealId, status: r.status, reasonCategory: summary ? null : r.reasonCategory, learnerName: d ? ln.get(d.leadId) ?? null : null, programName: d ? pn.get(d.programId) ?? null : null,
         rootCause: tag ? { category: tag.category, note: tag.note, complaintId: tag.complaintId } : null,
         requested: { at: r.requestedAt }, approved: { at: r.approvedAt }, processed: { at: r.processedAt },
       };

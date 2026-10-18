@@ -41,7 +41,7 @@ function RefundsInner() {
     { id: 'learner', header: t('colLearner'), primary: true, cell: (r) => r.leadName ?? t('learner') },
     { id: 'status', header: t('colStatus'), cell: (r) => <RefundBadge status={r.status} /> },
     { id: 'amount', header: t('colAmount'), align: 'right', cell: (r) => <Money value={r.amount} /> },
-    { id: 'reason', header: t('colReason'), hideOnMobile: true, cell: (r) => tr(r.reasonCategory as 'OTHER') },
+    { id: 'reason', header: t('colReason'), hideOnMobile: true, cell: (r) => (r.reasonCategory ? tr(r.reasonCategory as 'OTHER') : '—') },
     { id: 'requested', header: t('colRequested'), hideOnMobile: true, cell: (r) => f.dateTime(r.requestedAt) },
   ];
   return (

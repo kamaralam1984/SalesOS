@@ -80,7 +80,7 @@ export class UsersService {
     if (!this.access.has(actor, 'users:role:assign')) throw forbidden();
     if (roles.includes('DEVELOPER')) throw forbidden('The Developer role is managed only from the Developer Panel');
     if (roles.some((r) => SENSITIVE_ROLE_KEYS.includes(r)) && !this.access.has(actor, 'users:role:assign-sensitive')) {
-      throw forbidden('Only the Founder can assign Founder, HR or Finance roles');
+      throw forbidden('Only the Founder can give or remove the Founder, Admin, HR or Finance role');
     }
   }
 
