@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import * as argon2 from 'argon2';
 import type { PrismaClient } from '@prisma/client';
 import type { RoleKey } from '@salesos/shared-types';
+import { MODULES } from '../../src/common/authz/modules';
 
 export const TEST_PASSWORD = 'Test-Passw0rd-Strong!';
 let cachedHash: Promise<string> | undefined;
@@ -10,8 +11,11 @@ const fixtureHash = () => (cachedHash ??= argon2.hash(TEST_PASSWORD, { type: arg
 
 export const uniq = (p = 'x') => `${p}-${randomUUID().slice(0, 8)}`;
 
+/** Test orgs start with every module ON (Attendance is OFF by default in real orgs); modules.spec.ts removes the row to test the defaults. */
 export async function createOrg(prisma: PrismaClient, name = uniq('org')) {
-  return prisma.organization.create({ data: { name: `[TEST] ${name}`, slug: uniq('slug') } });
+  const org = await prisma.organization.create({ data: { name: `[TEST] ${name}`, slug: uniq('slug') } });
+  await prisma.platformSetting.create({ data: { organizationId: org.id, key: 'modules', value: Object.fromEntries(MODULES.map((m) => [m.key, true])) } });
+  return org;
 }
 
 export interface TestUser {

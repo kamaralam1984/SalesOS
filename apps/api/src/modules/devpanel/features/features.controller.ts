@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { CurrentUser, RequirePermission, type Principal } from '../../../common/authz';
@@ -15,6 +15,7 @@ const changeBody = subject.extend({
   confirmSensitive: z.boolean().optional(),
 });
 const resetBody = subject;
+const moduleBody = z.object({ enabled: z.boolean() });
 
 /** Developer Panel / Feature access. DEVELOPER only: which screens and features each role or user has. */
 @ApiTags('dev-panel')
@@ -26,6 +27,18 @@ export class FeaturesController {
   @RequirePermission('devpanel:features:view')
   summary(@CurrentUser() u: Principal) {
     return this.svc.summary(u);
+  }
+
+  @Get('modules')
+  @RequirePermission('devpanel:features:view')
+  modules(@CurrentUser() u: Principal) {
+    return this.svc.modules(u);
+  }
+
+  @Put('modules/:module')
+  @RequirePermission('devpanel:features:manage')
+  setModule(@CurrentUser() u: Principal, @Param('module') module: string, @Body(new ZodPipe(moduleBody)) b: z.infer<typeof moduleBody>) {
+    return this.svc.setModule(u, module, b.enabled);
   }
 
   @Get()

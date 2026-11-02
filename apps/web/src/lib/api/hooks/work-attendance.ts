@@ -63,7 +63,7 @@ export const attKeys = {
   corrections: (q: object) => ['work', 'attendance', 'corrections', q] as const,
 };
 
-export const useAttendanceToday = () => useQuery({ queryKey: attKeys.today, queryFn: async () => (await api.get<AttendanceToday>('/workforce/attendance/today')).data });
+export const useAttendanceToday = (enabled = true) => useQuery({ queryKey: attKeys.today, enabled, queryFn: async () => (await api.get<AttendanceToday>('/workforce/attendance/today')).data });
 export const useAttendanceMonth = (userId: string | undefined, month: string | undefined) =>
   useQuery({
     queryKey: attKeys.month(userId, month), placeholderData: keepPreviousData,

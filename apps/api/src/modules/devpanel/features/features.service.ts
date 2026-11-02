@@ -6,6 +6,7 @@ import { PERMISSION_CATALOGUE, isKnownPermission } from '../../../common/authz/p
 import { applyOverrides, isProtectedKey, PermissionResolver } from '../../../common/authz/principal.loader';
 import { AppError, notFound } from '../../../common/http/errors';
 import { PrismaService } from '../../../common/prisma';
+import { isModuleKey, MODULES, SETTINGS_KEY, type ModuleStates } from '../../../common/authz/modules';
 
 export type SubjectType = 'ROLE' | 'USER';
 export type FeatureState = 'DEFAULT' | 'ON' | 'OFF';
@@ -177,5 +178,39 @@ export class FeaturesService {
     });
     this.resolver.invalidate(org);
     return { removed };
+  }
+
+  /** Every module with its state and how many permissions it switches. Core Sales/CRM is not listed: it cannot be turned off. */
+  async modules(actor: Principal) {
+    const states = await this.resolver.modules(actor.organizationId);
+    return {
+      modules: MODULES.map((m) => ({
+        key: m.key,
+        label: m.label,
+        description: m.description,
+        enabled: states[m.key] !== false,
+        defaultEnabled: m.defaultEnabled,
+        permissions: PERMISSION_CATALOGUE.filter((p) => m.prefixes.some((x) => p.key.startsWith(x))).length,
+      })),
+    };
+  }
+
+  /** Switch one module ON/OFF for the whole organisation (audited). Takes effect for new requests within the permission cache TTL. */
+  async setModule(actor: Principal, moduleKey: string, enabled: boolean) {
+    if (!isModuleKey(moduleKey)) throw new AppError('VALIDATION_ERROR', 'Unknown module', 422, [{ path: 'module', message: 'unknown module' }]);
+    const org = actor.organizationId;
+    const states: ModuleStates = { ...(await this.resolver.modules(org)) };
+    if (states[moduleKey] === enabled) return this.modules(actor);
+    states[moduleKey] = enabled;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.platformSetting.upsert({
+        where: { organizationId_key: { organizationId: org, key: SETTINGS_KEY } },
+        create: { organizationId: org, key: SETTINGS_KEY, value: states, updatedById: actor.userId },
+        update: { value: states, updatedById: actor.userId },
+      });
+      await this.audit.recordTx(tx, { organizationId: org, actorId: actor.userId, action: AUDIT_ACTIONS.DEVPANEL_MODULE_TOGGLED, entityType: 'module', metadata: { module: moduleKey, from: !enabled, to: enabled } });
+    });
+    this.resolver.invalidate(org);
+    return this.modules(actor);
   }
 }

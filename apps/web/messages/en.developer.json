@@ -12,7 +12,8 @@
       "security": "Security",
       "access": "Access map",
       "maintenance": "Maintenance",
-      "guide": "Role guide"
+      "guide": "Role guide",
+      "modules": "Modules"
     },
     "overview": {
       "users": "Users",
@@ -103,6 +104,21 @@
       "generated": "Page access was generated from the permission catalogue on 16 Oct 2026. Use the Access map tab for the live view.",
       "open": "Open",
       "english": "This guide is written in English only."
+    },
+    "modules": {
+      "title": "Feature modules",
+      "description": "Switch a whole feature ON or OFF for the entire organisation. When OFF it disappears for every user, including you, and the server rejects its calls.",
+      "coreTitle": "Sales and CRM always stay on",
+      "coreBody": "Leads, calls, follow-ups, tasks, deals, collections, refunds, targets, KPIs and dashboards are the core and cannot be switched off here.",
+      "loading": "Loading modules",
+      "error": "Could not load modules",
+      "on": "On",
+      "off": "Off",
+      "hiddenByDefault": "Hidden by default",
+      "permissions": "Controls {n} permissions",
+      "switchLabel": "Turn {name} on or off",
+      "enabledToast": "Module switched on",
+      "disabledToast": "Module switched off"
     }
   }
 }

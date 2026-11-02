@@ -3,6 +3,7 @@ import type { RoleKey, ScopeLevel } from '@salesos/shared-types';
 import { SCOPE_RANK } from '@salesos/shared-types';
 import { PrismaService } from '../prisma';
 import { grantsForRole } from './permissions.catalogue';
+import { resolveModuleStates, SETTINGS_KEY, stripDisabledModules, type ModuleStates } from './modules';
 
 export interface OverrideRow {
   subjectType: string;
@@ -76,12 +77,26 @@ export class PermissionResolver {
     return rows;
   }
 
-  invalidate(organizationId: string) {
-    this.cache.delete(organizationId);
+  private readonly moduleCache = new Map<string, { at: number; states: ModuleStates }>();
+
+  /** Developer-controlled module switches (Attendance, Payroll, ...) over their defaults; cached like the overrides. */
+  async modules(organizationId: string): Promise<ModuleStates> {
+    const hit = this.moduleCache.get(organizationId);
+    if (hit && Date.now() - hit.at < PermissionResolver.TTL_MS) return hit.states;
+    const row = await this.prisma.platformSetting.findUnique({ where: { organizationId_key: { organizationId, key: SETTINGS_KEY } }, select: { value: true } });
+    const states = resolveModuleStates(row?.value);
+    this.moduleCache.set(organizationId, { at: Date.now(), states });
+    return states;
   }
 
-  /** What this user can really do: catalogue defaults plus the Developer Panel's role and user overrides. */
+  invalidate(organizationId: string) {
+    this.cache.delete(organizationId);
+    this.moduleCache.delete(organizationId);
+  }
+
+  /** What this user can really do: catalogue defaults plus the Developer Panel's role and user overrides, minus any switched-off module. */
   async effectiveFor(organizationId: string, userId: string, roles: RoleKey[]): Promise<Map<string, ScopeLevel>> {
-    return applyOverrides(roles, await this.overrides(organizationId), userId);
+    const eff = applyOverrides(roles, await this.overrides(organizationId), userId);
+    return stripDisabledModules(eff, await this.modules(organizationId));
   }
 }

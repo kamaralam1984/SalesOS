@@ -43,6 +43,7 @@ export const AUDIT_ACTIONS = {
   DEVPANEL_ROLES_CHANGED: 'devpanel.roles_changed',
   DEVPANEL_FEATURES_CHANGED: 'devpanel.features_changed',
   DEVPANEL_FEATURES_RESET: 'devpanel.features_reset',
+  DEVPANEL_MODULE_TOGGLED: 'devpanel.module_toggled',
   DEVPANEL_SESSIONS_REVOKED: 'devpanel.sessions_revoked',
   DEVPANEL_FORCE_LOGOUT_ALL: 'devpanel.force_logout_all',
 } as const;

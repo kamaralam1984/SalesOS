@@ -42,6 +42,7 @@ import { DiagnosticsTab } from './tabs/diagnostics-tab';
 import { SecurityTab } from './tabs/security-tab';
 import { AccessTab } from './tabs/access-tab';
 import { MaintenanceTab } from './tabs/maintenance-tab';
+import { ModulesTab } from './tabs/modules-tab';
 import { RolesTab } from './tabs/roles-tab';
 import { PRIMARY_ROLE_KEYS, ROLE_KEYS, SECONDARY_ROLE_KEYS, type RoleKey } from '@/lib/api/types';
 
@@ -68,7 +69,7 @@ function Rise({ children, index = 0, className }: { children: React.ReactNode; i
   );
 }
 
-type Tab = 'overview' | 'users' | 'guide' | 'diagnostics' | 'security' | 'access' | 'server' | 'sessions' | 'maintenance';
+type Tab = 'overview' | 'users' | 'guide' | 'diagnostics' | 'security' | 'access' | 'server' | 'sessions' | 'maintenance' | 'modules';
 
 function Inner() {
   const t = useTranslations('developer');
@@ -88,6 +89,7 @@ function Inner() {
           {can('devpanel:config:view') && <TabsTrigger value="access">{t('tabs.access')}</TabsTrigger>}
           {can('devpanel:server:view') && <TabsTrigger value="server">{t('tabs.server')}</TabsTrigger>}
           {can('devpanel:sessions:revoke') && <TabsTrigger value="sessions">{t('tabs.sessions')}</TabsTrigger>}
+          {can('devpanel:features:view') && <TabsTrigger value="modules">{t('tabs.modules')}</TabsTrigger>}
           {can('devpanel:maintenance:manage') && <TabsTrigger value="maintenance">{t('tabs.maintenance')}</TabsTrigger>}
         </TabsList>
       </Tabs>
@@ -99,6 +101,7 @@ function Inner() {
         {tab === 'security' && <SecurityTab />}
         {tab === 'access' && <AccessTab />}
         {tab === 'maintenance' && <MaintenanceTab />}
+        {tab === 'modules' && <ModulesTab />}
         {tab === 'server' && <ServerTab />}
         {tab === 'sessions' && <SessionsTab />}
       </motion.div>

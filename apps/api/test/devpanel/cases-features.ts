@@ -4,6 +4,8 @@ import type { NegativeCase } from '../workforce/cases';
 export const FEATURES_CASES: NegativeCase[] = [
   { route: 'GET /dev-panel/features', deniedUser: 'admin' },
   { route: 'GET /dev-panel/features/summary', deniedUser: 'admin' },
+  { route: 'GET /dev-panel/features/modules', deniedUser: 'admin' },
+  { route: 'PUT /dev-panel/features/modules/:module', deniedUser: 'admin', body: { enabled: true } },
   { route: 'PUT /dev-panel/features', deniedUser: 'admin', body: { subjectType: 'ROLE', subject: 'FINANCE', changes: [{ permissionKey: 'leads:view', state: 'ON' }] } },
   { route: 'POST /dev-panel/features/reset', deniedUser: 'admin', body: { subjectType: 'ROLE', subject: 'FINANCE' } },
 ];
